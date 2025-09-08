@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}About Us | CricVerse{% endblock %}
+{% block content %}
+<!-- HERO SECTION: Big Bash League -->
+<section class="bg-light py-5 position-relative overflow-hidden" style="min-height: 70vh;">
+    <div class="container h-100 d-flex align-items-center justify-content-center">
+        <div class="card shadow-lg border-0 p-4 p-md-5 text-center" style="max-width: 60rem; transition: transform 0.5s;">
+            <img src="{{ url_for('static', filename='img/Big Bash League Trophy.png') }}" alt="Big Bash League Trophy" class="mx-auto mb-4" style="height: 6rem; animation: bounce-slow 2s infinite;">
+            <h1 class="display-3 fw-bold text-primary mb-4">About the Big Bash League</h1>
+            <p class="fs-5 text-muted mb-4 lh-base">The Big Bash League (BBL) is Australia’s premier professional Twenty20 cricket league, renowned for its electrifying matches, passionate fans, and world-class entertainment. Since its inception in 2011, the BBL has redefined cricket with thrilling moments, spectacular sixes, and unforgettable celebrations. The league brings together top international and local talent, making every season a festival of cricket.</p>
+            <img src="{{ url_for('static', filename='img/Celebration GIF.gif') }}" alt="BBL Celebration" class="img-fluid rounded-3 shadow mx-auto d-block" style="max-width: 40rem; transition: transform 0.5s;">
+        </div>
+    </div>
+</section>
+
+<!-- CricVerse Section -->
+<section class="bg-white py-5 position-relative" style="min-height: 50vh;">
+    <div class="container h-100 d-flex align-items-center justify-content-center">
+        <div class="card bg-light shadow-lg border-0 p-4 p-md-5 text-center" style="max-width: 60rem; transition: transform 0.5s;">
+            <img src="{{ url_for('static', filename='img/cricverse_logo.png') }}" alt="CricVerse Logo" class="mx-auto mb-4" style="height: 6rem; animation: pulse-slow 2s infinite;">
+            <h2 class="display-3 fw-bold text-primary mb-4">About CricVerse</h2>
+            <p class="fs-5 text-muted mb-4 lh-base">CricVerse is your gateway to the world of cricket, offering seamless access to tickets, stadiums, teams, and events. Our mission is to bring fans closer to the action, making every match an experience to remember. With modern design, real-time updates, and interactive features, CricVerse is built for cricket lovers, by cricket lovers.</p>
+            <img src="{{ url_for('static', filename='img/Main GIF.gif') }}" alt="CricVerse Animated" class="img-fluid rounded-3 shadow mx-auto d-block" style="max-width: 40rem; transition: transform 0.5s;">
+        </div>
+    </div>
+</section>
+
+<!-- Gallery Section -->
+<section class="bg-light py-5">
+    <div class="container">
+        <h3 class="display-4 fw-bold text-center text-primary mb-5">Gallery</h3>
+        <div class="row g-4">
+            <div class="col-sm-6 col-lg-3">
+                <img src="{{ url_for('static', filename='img/Stadium Image.jpg') }}" alt="BBL Stadium" class="img-fluid rounded-3 shadow gallery-img" style="height: 16rem; width: 100%; object-fit: cover; transition: transform 0.3s; cursor: pointer;">
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <img src="{{ url_for('static', filename='img/fan celebrations.png') }}" alt="BBL Fans" class="img-fluid rounded-3 shadow gallery-img" style="height: 16rem; width: 100%; object-fit: cover; transition: transform 0.3s; cursor: pointer;">
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <img src="{{ url_for('static', filename='img/cricverse_logo.png') }}" alt="CricVerse App" class="img-fluid rounded-3 shadow gallery-img" style="height: 16rem; width: 100%; object-fit: cover; transition: transform 0.3s; cursor: pointer;">
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <img src="{{ url_for('static', filename='img/Stadium FireCracker.png') }}" alt="BBL Trophy" class="img-fluid rounded-3 shadow gallery-img" style="height: 16rem; width: 100%; object-fit: cover; transition: transform 0.3s; cursor: pointer;">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Video Section -->
+<section class="bg-white py-5 text-center">
+    <div class="container">
+        <h3 class="display-4 fw-bold text-primary mb-5">Experience the Excitement</h3>
+        <video controls autoplay loop muted class="img-fluid rounded-3 shadow-lg border border-primary" style="max-width: 60rem; transition: transform 0.5s;">
+            <source src="{{ url_for('static', filename='img/GIF 1.gif') }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+</section>
+
+<!-- Call to Action -->
+<section class="bg-light py-5 text-center">
+    <div class="container">
+        <h3 class="display-4 fw-bold text-primary mb-4">Join the CricVerse Community</h3>
+        <p class="fs-4 text-muted mb-4 lh-base">Sign up now to get the latest updates, exclusive offers, and be part of the cricket revolution!</p>
+        <a href="/register" class="btn btn-primary btn-lg px-5 py-3 fs-4 fw-bold rounded-pill shadow-lg" style="transition: all 0.3s;">Register Now</a>
+    </div>
+</section>
+
+<style>
+@keyframes bounce-slow {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-10px); }
+    60% { transform: translateY(-5px); }
+}
+
+@keyframes pulse-slow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.gallery-img:hover {
+    transform: scale(1.05);
+}
+
+.card:hover {
+    transform: scale(1.02);
+}
+
+video:hover {
+    transform: scale(1.02);
+}
+</style>
+{% endblock %}

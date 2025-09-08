@@ -1,0 +1,234 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Admin Dashboard - Stadium Management{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-4 fw-bold text-primary mb-3" data-aos="fade-down">
+            <i class="bi bi-speedometer2 me-3"></i>Administration Dashboard
+        </h1>
+        <p class="lead text-muted" data-aos="fade-down" data-aos-delay="100">
+            Manage your stadiums and monitor performance metrics
+        </p>
+    </div>
+</div>
+
+<!-- Quick Stats Overview -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-white h-100" data-aos="fade-up">
+            <div class="card-body text-center">
+                <i class="bi bi-building display-4 mb-3"></i>
+                <h3 class="fw-bold">{{ stadiums_data|length }}</h3>
+                <p class="mb-0">Managed Stadiums</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-white h-100" data-aos="fade-up" data-aos-delay="100">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-event display-4 mb-3"></i>
+                <h3 class="fw-bold">
+                    {% set total_events = stadiums_data|sum(attribute='events_count') %}
+                    {{ total_events }}
+                </h3>
+                <p class="mb-0">Active Events</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-white h-100" data-aos="fade-up" data-aos-delay="200">
+            <div class="card-body text-center">
+                <i class="bi bi-car-front display-4 mb-3"></i>
+                <h3 class="fw-bold">
+                    {% set total_parking = stadiums_data|sum(attribute='parking_count') %}
+                    {{ total_parking }}
+                </h3>
+                <p class="mb-0">Parking Zones</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card stats-card text-white h-100" data-aos="fade-up" data-aos-delay="300">
+            <div class="card-body text-center">
+                <i class="bi bi-shop display-4 mb-3"></i>
+                <h3 class="fw-bold">
+                    {% set total_concessions = stadiums_data|sum(attribute='concessions_count') %}
+                    {{ total_concessions }}
+                </h3>
+                <p class="mb-0">Concession Stands</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stadium Management Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-light" data-aos="fade-right">
+                <i class="bi bi-building me-2"></i>Stadium Portfolio
+            </h2>
+            <a href="{{ url_for('add_stadium') }}" class="btn btn-primary btn-lg" data-aos="fade-left">
+                <i class="bi bi-plus-circle me-2"></i>Add New Stadium
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if stadiums_data %}
+    <div class="row">
+        {% for stadium_data in stadiums_data %}
+        <div class="col-lg-6 mb-4">
+            <div class="card bg-dark border-secondary h-100" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold">
+                            <i class="bi bi-building me-2"></i>{{ stadium_data.stadium.name }}
+                        </h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-gear"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('manage_stadium', stadium_id=stadium_data.stadium.id) }}">
+                                        <i class="bi bi-tools me-2"></i>Manage Stadium
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('edit_stadium', stadium_id=stadium_data.stadium.id) }}">
+                                        <i class="bi bi-pencil me-2"></i>Edit Details
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('admin_stadium_analytics', stadium_id=stadium_data.stadium.id) }}">
+                                        <i class="bi bi-graph-up me-2"></i>View Analytics
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="border-end border-secondary">
+                                <h6 class="text-muted mb-1">Location</h6>
+                                <p class="mb-0 fw-semibold">{{ stadium_data.stadium.location }}</p>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-muted mb-1">Capacity</h6>
+                            <p class="mb-0 fw-semibold">{{ "{:,}".format(stadium_data.stadium.capacity) }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Stadium Statistics -->
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="bg-success bg-opacity-10 border border-success rounded p-2 text-center">
+                                <div class="text-success fw-bold fs-4">{{ stadium_data.events_count }}</div>
+                                <small class="text-success">Events</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-info bg-opacity-10 border border-info rounded p-2 text-center">
+                                <div class="text-info fw-bold fs-4">{{ stadium_data.seats_count }}</div>
+                                <small class="text-info">Seats</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-warning bg-opacity-10 border border-warning rounded p-2 text-center">
+                                <div class="text-warning fw-bold fs-4">{{ stadium_data.parking_count }}</div>
+                                <small class="text-warning">Parking</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-danger bg-opacity-10 border border-danger rounded p-2 text-center">
+                                <div class="text-danger fw-bold fs-4">{{ stadium_data.concessions_count }}</div>
+                                <small class="text-danger">Concessions</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('manage_stadium', stadium_id=stadium_data.stadium.id) }}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-tools me-1"></i>Manage
+                        </a>
+                        <a href="{{ url_for('admin_stadium_analytics', stadium_id=stadium_data.stadium.id) }}" 
+                           class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-graph-up me-1"></i>Analytics
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary text-center py-5" data-aos="fade-up">
+                <div class="card-body">
+                    <i class="bi bi-building display-1 text-muted mb-4"></i>
+                    <h3 class="text-light mb-3">No Stadiums Yet</h3>
+                    <p class="text-muted mb-4">Start by creating your first stadium to begin managing events, bookings, and operations.</p>
+                    <a href="{{ url_for('add_stadium') }}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle me-2"></i>Create Your First Stadium
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Quick Actions -->
+<div class="row mt-5">
+    <div class="col-12">
+        <h3 class="fw-bold text-light mb-4" data-aos="fade-right">
+            <i class="bi bi-lightning me-2"></i>Quick Actions
+        </h3>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-secondary h-100" data-aos="fade-up">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-plus display-4 text-success mb-3"></i>
+                <h5 class="text-light">Schedule Event</h5>
+                <p class="text-muted">Add new matches and events to your stadiums</p>
+                <a href="{{ url_for('admin_events_overview') }}" class="btn btn-outline-success">
+                    <i class="bi bi-arrow-right me-1"></i>Manage Events
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-secondary h-100" data-aos="fade-up" data-aos-delay="100">
+            <div class="card-body text-center">
+                <i class="bi bi-graph-up display-4 text-info mb-3"></i>
+                <h5 class="text-light">View Analytics</h5>
+                <p class="text-muted">Monitor performance and revenue metrics</p>
+                <a href="{{ url_for('admin_analytics') }}" class="btn btn-outline-info">
+                    <i class="bi bi-arrow-right me-1"></i>View Reports
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-dark border-secondary h-100" data-aos="fade-up" data-aos-delay="200">
+            <div class="card-body text-center">
+                <i class="bi bi-ticket-perforated display-4 text-warning mb-3"></i>
+                <h5 class="text-light">Ticket Sales</h5>
+                <p class="text-muted">Monitor and manage ticket bookings</p>
+                <a href="{{ url_for('admin_bookings_overview') }}" class="btn btn-outline-warning">
+                    <i class="bi bi-arrow-right me-1"></i>View Sales
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

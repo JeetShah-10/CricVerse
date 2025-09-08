@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Home • CricVerse{% endblock %}
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<!-- HERO BANNER -->
+<section class="hero-banner text-center text-white position-relative overflow-hidden">
+  <div class="overlay"></div>
+  <div class="container position-relative z-1 py-5">
+    <h1 class="display-4 fw-bold mb-4 drop-shadow">Book Your Seat at the Edge of Excitement</h1>
+    <p class="lead mb-4 drop-shadow">Limited seats left for The Ashes! Don't miss out on the action.</p>
+    <div class="countdown-pill mb-4"><i class="bi bi-clock me-2"></i> Next match: 2d 14h 22m</div>
+    <a href="#tickets" class="btn btn-primary btn-lg px-5 py-3 rounded-pill shadow-lg btn-find-tickets">Find Tickets</a>
+    <div class="mt-3 fs-5 text-slate-300">Join <span class="text-primary-300 fw-bold">24,000+</span> cricket fans who booked this week!</div>
+  </div>
+</section>
+
+<!-- UPCOMING MATCHES -->
+<section class="upcoming-matches py-5">
+  <div class="container">
+    <h2 class="text-center mb-5"><i class="bi bi-calendar-event me-3"></i>Upcoming Matches</h2>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <div class="col">
+        <div class="card h-100 match-card rounded-4 shadow-sm">
+          <div class="card-body d-flex flex-column justify-content-between align-items-center">
+            <div class="d-flex align-items-center mb-3">
+              <img src="https://upload.wikimedia.org/wikipedia/en/thumb/a/a2/Cricket_Australia_logo.svg/1200px-Cricket_Australia_logo.svg.png" class="team-logo" alt="Australia Flag">
+              <h5 class="card-title mb-0 mx-2">Australia <span class="text-primary">vs</span> England</h5>
+              <img src="https://upload.wikimedia.org/wikipedia/en/thumb/b/be/England_cricket_team_logo.svg/1200px-England_cricket_team_logo.svg.png" class="team-logo" alt="England Flag">
+            </div>
+            <p class="card-text mb-2 text-muted"><i class="bi bi-calendar-event me-2"></i> <span class="fw-semibold">Dec 15, 2025</span> <span class="ms-3"><i class="bi bi-clock me-2"></i> 10:00 AM</span></p>
+            <p class="card-text mb-4 text-muted"><i class="bi bi-geo-alt me-2"></i> <span class="fw-semibold">Adelaide Oval</span></p>
+            <span class="badge match-type-badge badge-ashes-test"><i class="bi bi-trophy me-2"></i> Ashes Test</span>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card h-100 match-card rounded-4 shadow-sm">
+          <div class="card-body d-flex flex-column justify-content-between align-items-center">
+            <div class="d-flex align-items-center mb-3">
+              <img src="https://upload.wikimedia.org/wikipedia/en/3/36/Melbourne_Stars_logo.png" class="team-logo" alt="Melbourne Stars Logo">
+              <h5 class="card-title mb-0 mx-2">Melbourne Stars <span class="text-primary">vs</span> Sydney Sixers</h5>
+              <img src="https://upload.wikimedia.org/wikipedia/en/8/8a/Sydney_Sixers_logo.png" class="team-logo" alt="Sydney Sixers Logo">
+            </div>
+            <p class="card-text mb-2 text-muted"><i class="bi bi-calendar-event me-2"></i> <span class="fw-semibold">Dec 20, 2025</span> <span class="ms-3"><i class="bi bi-clock me-2"></i> 07:00 PM</span></p>
+            <p class="card-text mb-4 text-muted"><i class="bi bi-geo-alt me-2"></i> <span class="fw-semibold">MCG</span></p>
+            <span class="badge match-type-badge badge-bbl"><i class="bi bi-star me-2"></i> BBL</span>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card h-100 match-card rounded-4 shadow-sm">
+          <div class="card-body d-flex flex-column justify-content-between align-items-center">
+            <div class="d-flex align-items-center mb-3">
+              <img src="https://upload.wikimedia.org/wikipedia/en/thumb/c/cf/Flag_of_India.svg/1200px-Flag_of_India.svg.png" class="team-logo" alt="India Flag">
+              <h5 class="card-title mb-0 mx-2">India <span class="text-primary">vs</span> Pakistan</h5>
+              <img src="" class="team-logo" alt="Pakistan">
+            </div>
+            <p class="card-text mb-2 text-muted"><i class="bi bi-calendar-event me-2"></i> <span class="fw-semibold">Jan 5, 2026</span> <span class="ms-3"><i class="bi bi-clock me-2"></i> 02:00 PM</span></p>
+            <p class="card-text mb-4 text-muted"><i class="bi bi-geo-alt me-2"></i> <span class="fw-semibold">MCG</span></p>
+            <span class="badge match-type-badge badge-intl-friendly"><i class="bi bi-globe me-2"></i> Intl Friendly</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED STADIUMS -->
+<section class="featured-stadiums py-5">
+  <div class="container">
+    <h2 class="text-center mb-5"><i class="bi bi-building me-3"></i>Featured Stadiums</h2>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <div class="col">
+        <div class="card h-100 stadium-card rounded-4 shadow-sm">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6e/Adelaide_Oval_panorama.jpg" class="card-img-top rounded-top-4" alt="Adelaide Oval">
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title mb-2">Adelaide Oval</h5>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <p class="card-text text-muted mb-0"><i class="bi bi-geo-alt me-2"></i> Adelaide, Australia</p>
+              </div>
+              <div class="col-6">
+                <p class="card-text text-muted mb-0"><i class="bi bi-people-fill me-2"></i> <span class="fw-semibold">53,583 seats</span></p>
+              </div>
+              <div class="col-12">
+                <p class="card-text text-muted mb-0"><i class="bi bi-star-fill me-2"></i> Floodlights, VIP Boxes, Museum</p>
+              </div>
+            </div>
+            <a href="#" class="btn btn-primary w-100 mt-auto btn-view-stadium">View Stadium</a>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card h-100 stadium-card rounded-4 shadow-sm">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/4/4e/Melbourne_Cricket_Ground_Panorama.jpg" class="card-img-top rounded-top-4" alt="Melbourne Cricket Ground (MCG)">
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title mb-2">Melbourne Cricket Ground (MCG)</h5>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <p class="card-text text-muted mb-0"><i class="bi bi-geo-alt me-2"></i> Melbourne, Australia</p>
+              </div>
+              <div class="col-6">
+                <p class="card-text text-muted mb-0"><i class="bi bi-people-fill me-2"></i> <span class="fw-semibold">100,024 seats</span></p>
+              </div>
+              <div class="col-12">
+                <p class="card-text text-muted mb-0"><i class="bi bi-star-fill me-2"></i> Roof, VIP Lounges, Hall of Fame</p>
+              </div>
+            </div>
+            <a href="#" class="btn btn-primary w-100 mt-auto btn-view-stadium">View Stadium</a>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card h-100 stadium-card rounded-4 shadow-sm">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/2/2e/Sydney_Cricket_Ground_Panorama.jpg" class="card-img-top rounded-top-4" alt="Sydney Cricket Ground">
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title mb-2">Sydney Cricket Ground</h5>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <p class="card-text text-muted mb-0"><i class="bi bi-geo-alt me-2"></i> Sydney, Australia</p>
+              </div>
+              <div class="col-6">
+                <p class="card-text text-muted mb-0"><i class="bi bi-people-fill me-2"></i> <span class="fw-semibold">48,601 seats</span></p>
+              </div>
+              <div class="col-12">
+                <p class="card-text text-muted mb-0"><i class="bi bi-star-fill me-2"></i> Historic Pavilion, Night Lighting</p>
+              </div>
+            </div>
+            <a href="#" class="btn btn-primary w-100 mt-auto btn-view-stadium">View Stadium</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TEAMS & STAR PLAYERS -->
+<section class="teams-players py-5">
+  <div class="container">
+    <h2 class="text-center mb-5"><i class="bi bi-people me-3"></i>Teams & Star Players</h2>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      <div class="col">
+        <div class="card h-100 team-player-card rounded-4 shadow-sm" style="--team-color: #007bff;">
+          <img src="https://upload.wikimedia.org/wikipedia/en/3/36/Melbourne_Stars_logo.png" class="team-logo-small mb-3" alt="Melbourne Stars Logo">
+          <h5 class="card-title mb-2">Melbourne Stars</h5>
+          <p class="card-text text-muted mb-2">Star Player: <span class="fw-semibold">Glenn Maxwell</span></p>
+          <div class="d-flex align-items-center text-muted">
+            <img src="https://resources.pulse.icc-cricket.com/players/284/107.png" class="player-image me-2" alt="Player Image"> All-rounder
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card h-100 team-player-card rounded-4 shadow-sm" style="--team-color: #dc3545;">
+          <img src="https://upload.wikimedia.org/wikipedia/en/8/8a/Sydney_Sixers_logo.png" class="team-logo-small mb-3" alt="Sydney Sixers Logo">
+          <h5 class="card-title mb-2">Sydney Sixers</h5>
+          <p class="card-text text-muted mb-2">Star Player: <span class="fw-semibold">Steve Smith</span></p>
+          <div class="d-flex align-items-center text-muted">
+            <img src="https://resources.pulse.icc-cricket.com/players/284/7749.png" class="player-image me-2" alt="Player Image"> Batsman
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card h-100 team-player-card rounded-4 shadow-sm" style="--team-color: #ffc107;">
+          <img src="https://upload.wikimedia.org/wikipedia/en/2/2e/Adelaide_Strikers_logo.png" class="team-logo-small mb-3" alt="Adelaide Strikers Logo">
+          <h5 class="card-title mb-2">Adelaide Strikers</h5>
+          <p class="card-text text-muted mb-2">Star Player: <span class="fw-semibold">Rashid Khan</span></p>
+          <div class="d-flex align-items-center text-muted">
+            <img src="https://resources.pulse.icc-cricket.com/players/284/7870.png" class="player-image me-2" alt="Player Image"> Bowler
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard • CricVerse{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="mb-4" data-aos="fade-down">
+        <h1 class="display-5 fw-bold">Welcome, {{ current_user.name }}!</h1>
+        <p class="lead text-muted">This is your personal dashboard. Manage your tickets, bookings, and orders here.</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="100">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body d-flex align-items-center">
+                    <div class="text-primary me-3" style="font-size: 2.5rem;"><i class="bi bi-ticket-perforated"></i></div>
+                    <div>
+                        <div class="h3 fw-bold mb-0">{{ stats.total_tickets }}</div>
+                        <div class="text-muted">Total Tickets</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="200">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body d-flex align-items-center">
+                    <div class="text-success me-3" style="font-size: 2.5rem;"><i class="bi bi-calendar-check"></i></div>
+                    <div>
+                        <div class="h3 fw-bold mb-0">{{ stats.upcoming_events }}</div>
+                        <div class="text-muted">Upcoming Events</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="300">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body d-flex align-items-center">
+                    <div class="text-warning me-3" style="font-size: 2.5rem;"><i class="bi bi-cart3"></i></div>
+                    <div>
+                        <div class="h3 fw-bold mb-0">{{ stats.total_orders }}</div>
+                        <div class="text-muted">Concession Orders</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="400">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body d-flex align-items-center">
+                    <div class="text-info me-3" style="font-size: 2.5rem;"><i class="bi bi-currency-rupee"></i></div>
+                    <div>
+                        <div class="h3 fw-bold mb-0">{{ '%.0f'|format(stats.total_spent) }}</div>
+                        <div class="text-muted">Total Spent</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-pills nav-fill mb-4" id="dashboardTabs" role="tablist" data-aos="fade-up">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tickets-tab" data-bs-toggle="pill" data-bs-target="#tickets-panel" type="button" role="tab" aria-controls="tickets-panel" aria-selected="true">
+                <i class="bi bi-ticket-perforated-fill me-2"></i>My Tickets
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="parking-tab" data-bs-toggle="pill" data-bs-target="#parking-panel" type="button" role="tab" aria-controls="parking-panel" aria-selected="false">
+                <i class="bi bi-p-circle-fill me-2"></i>Parking Bookings
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="orders-tab" data-bs-toggle="pill" data-bs-target="#orders-panel" type="button" role="tab" aria-controls="orders-panel" aria-selected="false">
+                <i class="bi bi-receipt-cutoff me-2"></i>Order History
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="dashboardTabsContent">
+        <!-- Tickets Panel -->
+        <div class="tab-pane fade show active" id="tickets-panel" role="tabpanel" aria-labelledby="tickets-tab">
+            <div class="row g-4">
+                {% for t in tickets %}
+                <div class="col-12 col-lg-6" data-aos="zoom-in-up">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title">{{ t.event.event_name }}</h5>
+                                <span class="badge 
+                                    {% if t.ticket_status == 'Confirmed' %}bg-success
+                                    {% elif t.ticket_status == 'Pending' %}bg-warning
+                                    {% elif t.ticket_status == 'Cancelled' %}bg-danger
+                                    {% endif %}">
+                                    {{ t.ticket_status }}
+                                </span>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-muted mb-1"><i class="bi bi-calendar3 me-2"></i>{{ t.event.event_date.strftime('%a, %b %d, %Y') }}</div>
+                                <div class="text-muted mb-1"><i class="bi bi-clock me-2"></i>{{ t.event.start_time.strftime('%I:%M %p') }}</div>
+                                <div class="text-muted mb-1"><i class="bi bi-geo-alt me-2"></i>{{ t.event.stadium.name }}</div>
+                            </div>
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <small class="text-muted">Section</small>
+                                    <div class="fw-bold">{{ t.seat.section }}</div>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted">Row</small>
+                                    <div class="fw-bold">{{ t.seat.row_number }}</div>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted">Seat</small>
+                                    <div class="fw-bold">{{ t.seat.seat_number }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light text-center">
+                            <div class="text-muted" style="font-size: 2rem;"><i class="bi bi-qr-code-scan"></i></div>
+                            <small class="text-muted">Gate {{ t.access_gate or 'TBD' }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-ticket-perforated text-primary mb-4" style="font-size: 4rem;"></i>
+                            <h5 class="card-title">No tickets yet</h5>
+                            <p class="card-text text-muted">Your purchased tickets will appear here.</p>
+                            <a href="{{ url_for('events') }}" class="btn btn-primary">Browse Events</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Parking Panel -->
+        <div class="tab-pane fade" id="parking-panel" role="tabpanel" aria-labelledby="parking-tab">
+            <div class="row g-4">
+                {% for b in parking_bookings %}
+                <div class="col-12" data-aos="fade-left">
+                    <div class="card shadow-sm">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="text-primary me-3" style="font-size: 2.5rem;"><i class="bi bi-car-front-fill"></i></div>
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1">{{ b.parking.stadium.name }} - {{ b.parking.zone }} Zone</h6>
+                                <p class="text-muted mb-1"><strong>Vehicle:</strong> {{ b.vehicle_number }}</p>
+                                <small class="text-muted">
+                                    <strong>Arrival:</strong> {{ b.arrival_time.strftime('%b %d, %Y %I:%M %p') }} | 
+                                    <strong>Departure:</strong> {{ b.departure_time.strftime('%b %d, %Y %I:%M %p') }}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <div class="h5 mb-0">₹{{ '%.0f'|format(b.amount_paid) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-p-circle text-primary mb-4" style="font-size: 4rem;"></i>
+                            <h5 class="card-title">No parking bookings</h5>
+                            <p class="card-text text-muted">Your reserved parking spots will appear here.</p>
+                            <a href="{{ url_for('parking') }}" class="btn btn-primary">Find Parking</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Orders Panel -->
+        <div class="tab-pane fade" id="orders-panel" role="tabpanel" aria-labelledby="orders-tab">
+            <div class="row g-4">
+                {% for o in orders %}
+                <div class="col-12" data-aos="fade-left">
+                    <div class="card shadow-sm">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="text-primary me-3" style="font-size: 2.5rem;"><i class="bi bi-receipt"></i></div>
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1">{{ o.concession.name }} at {{ o.concession.stadium.name }}</h6>
+                                <p class="text-muted mb-1"><strong>Order Date:</strong> {{ o.order_date.strftime('%b %d, %Y at %I:%M %p') }}</p>
+                                <span class="badge bg-success">{{ o.payment_status }}</span>
+                            </div>
+                            <div class="text-end">
+                                <div class="h5 mb-0">₹{{ '%.0f'|format(o.total_amount) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-cart3 text-primary mb-4" style="font-size: 4rem;"></i>
+                            <h5 class="card-title">No order history</h5>
+                            <p class="card-text text-muted">Your concession orders will appear here.</p>
+                            <a href="{{ url_for('concessions') }}" class="btn btn-primary">View Concessions</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

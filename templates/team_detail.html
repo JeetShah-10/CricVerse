@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}{{ team.team_name }} • Team{% endblock %}
+{% block content %}
+<div class="team-hero mb-4 rounded-4 shadow-lg"
+     style="background: linear-gradient(135deg, {{ team.color1 }}, {{ team.color2 }} 80%); padding: 2.5em 1em;">
+  <div class="d-flex flex-column flex-md-row align-items-center justify-content-between">
+  <img src="{{ team.team_logo }}" alt="{{ team.team_name }} Logo"
+         class="team-logo-lg rounded-circle shadow-lg mb-3 mb-md-0"
+         style="width: 140px; height: 140px; object-fit: cover;">
+    <div class="ms-md-4 text-center text-md-start">
+  <h1 class="fw-bold text-light mb-1">{{ team.team_name }}</h1>
+  <div class="fs-4 text-light mb-2">{{ team.tagline }}</div>
+  <div class="badge bg-dark text-light fs-6">{{ team.home_city }}</div>
+    </div>
+  </div>
+</div>
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card rounded-4 shadow-lg mb-4">
+      <div class="card-body">
+        <h3 class="fw-bold mb-2">About</h3>
+  <div class="text-muted mb-3">{{ team.about }}</div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <h5 class="fw-bold mb-1">Stats</h5>
+            <ul class="list-unstyled mb-0">
+              <li><strong>Founded:</strong> {{ team.founding_year }}</li>
+              <li><strong>Titles:</strong> {{ team.championships_won }}</li>
+              <li><strong>Home Ground:</strong>
+                {% if stadium %}
+                  <a href="{{ url_for('stadium_detail', stadium_id=stadium.id) }}" class="text-primary fw-bold">{{ stadium.name }}</a>
+                {% else %}
+                  <span class="text-muted">{{ team.home_ground or 'N/A' }}</span>
+                {% endif %}
+              </li>
+              <li><strong>Colors:</strong>
+                {% if team.color1 %}
+                  <span style="background:{{ team.color1 }}; color:#fff; border-radius:1em; padding:0.2em 0.8em;">
+                    {{ team.team_color or team.color1 }}
+                  </span>
+                {% else %}
+                  <span class="text-muted">N/A</span>
+                {% endif %}
+              <li><strong>Coach:</strong> {{ team.coach_name or 'N/A' }}</li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <h5 class="fw-bold mb-1">Fan Engagement</h5>
+            <div class="text-muted">{{ team.fun_fact }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card rounded-4 shadow-lg mb-4">
+      <div class="card-body">
+        <h3 class="fw-bold mb-2">Players</h3>
+        <div class="row g-3">
+          {% for player in team.players %}
+          <div class="col-6 col-md-4 col-lg-3">
+            <div class="player-card card border-0 shadow-sm rounded-3 text-center p-2 h-100">
+              <img src="{{ player.image_url }}" alt="{{ player.name }}" class="rounded-circle mb-2" style="width:60px; height:60px; object-fit:cover;">
+              <div class="fw-bold">{{ player.name }}</div>
+              <div class="small text-muted">{{ player.role }}</div>
+              <div class="small text-info">{{ player.highlight }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card rounded-4 shadow-lg mb-4">
+      <div class="card-body">
+        <h3 class="fw-bold mb-2">Coach & Management</h3>
+  <div class="mb-2"><strong>Coach:</strong> {{ team.coach_name or 'N/A' }}</div>
+  <div class="mb-2"><strong>Manager:</strong> {{ team.manager or 'N/A' }}</div>
+  <div class="mb-2"><strong>Owner:</strong> {{ team.owner_name or 'N/A' }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

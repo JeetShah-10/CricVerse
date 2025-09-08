@@ -1,0 +1,308 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Parking Overview - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-white">Parking Management</h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if parking_stats %}
+    <!-- Overall Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ parking_stats|length }}</h4>
+                            <p class="card-text">Total Parking Zones</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-parking fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ parking_stats|sum(attribute='total_bookings') }}</h4>
+                            <p class="card-text">Total Bookings</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-car fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">₹{{ "%.2f"|format(parking_stats|sum(attribute='total_revenue')) }}</h4>
+                            <p class="card-text">Total Revenue</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-dollar-sign fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">
+                                {% set total_capacity = 0 %}
+                                {% for stat in parking_stats %}
+                                    {% set total_capacity = total_capacity + stat.parking.capacity %}
+                                {% endfor %}
+                                {{ total_capacity }}
+                            </h4>
+                            <p class="card-text">Total Capacity</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-warehouse fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group parking by stadium -->
+    {% set stadiums_dict = {} %}
+    {% for stat in parking_stats %}
+        {% if stat.stadium.id not in stadiums_dict %}
+            {% set _ = stadiums_dict.update({stat.stadium.id: {'stadium': stat.stadium, 'parking_zones': []}}) %}
+        {% endif %}
+        {% set _ = stadiums_dict[stat.stadium.id]['parking_zones'].append(stat) %}
+    {% endfor %}
+
+    {% for stadium_id, stadium_data in stadiums_dict.items() %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header bg-secondary border-secondary">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0 text-white">
+                            <i class="fas fa-building me-2"></i>{{ stadium_data.stadium.name }}
+                        </h4>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('manage_stadium', stadium_id=stadium_data.stadium.id) }}" 
+                               class="btn btn-outline-light">
+                                <i class="fas fa-cog me-1"></i>Manage Stadium
+                            </a>
+                            <a href="{{ url_for('admin_stadium_analytics', stadium_id=stadium_data.stadium.id) }}" 
+                               class="btn btn-outline-info">
+                                <i class="fas fa-chart-bar me-1"></i>Analytics
+                            </a>
+                        </div>
+                    </div>
+                    <small class="text-light">{{ stadium_data.stadium.location }} • {{ stadium_data.parking_zones|length }} parking zone(s)</small>
+                </div>
+                <div class="card-body bg-dark">
+                    <!-- Stadium Summary -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-primary mb-1">{{ stadium_data.parking_zones|sum(attribute='total_bookings') }}</h5>
+                                <small class="text-light">Total Bookings</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-success mb-1">₹{{ "%.2f"|format(stadium_data.parking_zones|sum(attribute='total_revenue')) }}</h5>
+                                <small class="text-light">Revenue</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                {% set stadium_capacity = 0 %}
+                                {% for zone in stadium_data.parking_zones %}
+                                    {% set stadium_capacity = stadium_capacity + zone.parking.capacity %}
+                                {% endfor %}
+                                <h5 class="text-info mb-1">{{ stadium_capacity }}</h5>
+                                <small class="text-light">Total Capacity</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                {% set stadium_capacity = 0 %}
+                                {% for zone in stadium_data.parking_zones %}
+                                    {% set stadium_capacity = stadium_capacity + zone.parking.capacity %}
+                                {% endfor %}
+                                {% set total_bookings = stadium_data.parking_zones|sum(attribute='total_bookings') %}
+                                <h5 class="text-warning mb-1">
+                                    {% if stadium_capacity > 0 %}
+                                        {{ "%.1f"|format((total_bookings / stadium_capacity) * 100) }}%
+                                    {% else %}
+                                        0.0%
+                                    {% endif %}
+                                </h5>
+                                <small class="text-light">Occupancy Rate</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parking Zones Table for this Stadium -->
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th class="text-white">Zone</th>
+                                    <th class="text-white">Type</th>
+                                    <th class="text-white">Capacity</th>
+                                    <th class="text-white">Bookings</th>
+                                    <th class="text-white">Available</th>
+                                    <th class="text-white">Occupancy</th>
+                                    <th class="text-white">Revenue</th>
+                                    <th class="text-white">Rate/Hour</th>
+                                    <th class="text-white">Status</th>
+                                    <th class="text-white">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in stadium_data.parking_zones %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-white">{{ stat.parking.zone }}</strong>
+                                        {% if stat.parking.description %}
+                                            <br><small class="text-muted">{{ stat.parking.description[:30] }}{% if stat.parking.description|length > 30 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ stat.parking.zone_type or 'Standard' }}</span>
+                                    </td>
+                                    <td>
+                                        <strong class="text-white">{{ stat.parking.capacity }}</strong>
+                                        <small class="text-muted">spots</small>
+                                    </td>
+                                    <td>
+                                        <strong class="text-primary">{{ stat.total_bookings }}</strong>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">{{ stat.available_spots }}</strong>
+                                    </td>
+                                    <td>
+                                        {% set occupancy = stat.occupancy_rate %}
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2 text-white">{{ "%.1f"|format(occupancy) }}%</span>
+                                            <div class="progress" style="width: 60px; height: 8px;">
+                                                <div class="progress-bar 
+                                                    {% if occupancy >= 90 %}bg-danger
+                                                    {% elif occupancy >= 75 %}bg-warning
+                                                    {% elif occupancy >= 50 %}bg-info
+                                                    {% else %}bg-success{% endif %}" 
+                                                    style="width: {{ occupancy }}%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">₹{{ "%.2f"|format(stat.total_revenue) }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">₹{{ "%.2f"|format(stat.parking.rate_per_hour) }}</span>
+                                    </td>
+                                    <td>
+                                        {% if stat.available_spots > 0 %}
+                                            <span class="badge bg-success">Available</span>
+                                        {% elif stat.total_bookings > 0 %}
+                                            <span class="badge bg-warning">Full</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('manage_stadium', stadium_id=stat.stadium.id) }}" 
+                                               class="btn btn-outline-primary" title="Manage Stadium">
+                                                <i class="fas fa-cog"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-parking fa-3x text-muted mb-3"></i>
+                    <h4 class="text-light">No Parking Zones Found</h4>
+                    <p class="text-muted">You haven't added any parking zones to your stadiums yet.</p>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Manage Stadiums
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+}
+
+.table-dark {
+    --bs-table-bg: #212529;
+    --bs-table-striped-bg: #2c3034;
+    --bs-table-hover-bg: #323539;
+}
+
+.bg-secondary {
+    background-color: #495057 !important;
+}
+
+.border-secondary {
+    border-color: #495057 !important;
+}
+
+.text-muted {
+    color: #adb5bd !important;
+}
+
+.btn-outline-light:hover {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.progress {
+    background-color: #495057;
+}
+</style>
+{% endblock %}

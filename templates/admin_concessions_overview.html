@@ -1,0 +1,275 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Concessions Overview - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-white">Concessions Management</h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if concession_stats %}
+    <!-- Overall Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ concession_stats|length }}</h4>
+                            <p class="card-text">Total Concessions</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-store fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ concession_stats|sum(attribute='total_orders') }}</h4>
+                            <p class="card-text">Total Orders</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-shopping-cart fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">₹{{ "%.2f"|format(concession_stats|sum(attribute='total_revenue')) }}</h4>
+                            <p class="card-text">Total Revenue</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-dollar-sign fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ concession_stats|sum(attribute='menu_items_count') }}</h4>
+                            <p class="card-text">Menu Items</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-utensils fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group concessions by stadium -->
+    {% set stadiums_dict = {} %}
+    {% for stat in concession_stats %}
+        {% if stat.stadium.id not in stadiums_dict %}
+            {% set _ = stadiums_dict.update({stat.stadium.id: {'stadium': stat.stadium, 'concessions': []}}) %}
+        {% endif %}
+        {% set _ = stadiums_dict[stat.stadium.id]['concessions'].append(stat) %}
+    {% endfor %}
+
+    {% for stadium_id, stadium_data in stadiums_dict.items() %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header bg-secondary border-secondary">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0 text-white">
+                            <i class="fas fa-building me-2"></i>{{ stadium_data.stadium.name }}
+                        </h4>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('manage_stadium', stadium_id=stadium_data.stadium.id) }}" 
+                               class="btn btn-outline-light">
+                                <i class="fas fa-cog me-1"></i>Manage Stadium
+                            </a>
+                            <a href="{{ url_for('admin_stadium_analytics', stadium_id=stadium_data.stadium.id) }}" 
+                               class="btn btn-outline-info">
+                                <i class="fas fa-chart-bar me-1"></i>Analytics
+                            </a>
+                        </div>
+                    </div>
+                    <small class="text-light">{{ stadium_data.stadium.location }} • {{ stadium_data.concessions|length }} concession(s)</small>
+                </div>
+                <div class="card-body bg-dark">
+                    <!-- Stadium Summary -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-primary mb-1">{{ stadium_data.concessions|sum(attribute='total_orders') }}</h5>
+                                <small class="text-light">Total Orders</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-success mb-1">₹{{ "%.2f"|format(stadium_data.concessions|sum(attribute='total_revenue')) }}</h5>
+                                <small class="text-light">Revenue</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-info mb-1">{{ stadium_data.concessions|sum(attribute='menu_items_count') }}</h5>
+                                <small class="text-light">Menu Items</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-warning mb-1">
+                                    {% if stadium_data.concessions|sum(attribute='total_orders') > 0 %}
+                                        ₹{{ "%.2f"|format(stadium_data.concessions|sum(attribute='total_revenue') / stadium_data.concessions|sum(attribute='total_orders')) }}
+                                    {% else %}
+                                        $0.00
+                                    {% endif %}
+                                </h5>
+                                <small class="text-light">Avg Order Value</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Concessions Table for this Stadium -->
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th class="text-white">Concession</th>
+                                    <th class="text-white">Category</th>
+                                    <th class="text-white">Menu Items</th>
+                                    <th class="text-white">Orders</th>
+                                    <th class="text-white">Revenue</th>
+                                    <th class="text-white">Avg Order</th>
+                                    <th class="text-white">Status</th>
+                                    <th class="text-white">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in stadium_data.concessions %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-white">{{ stat.concession.name }}</strong>
+                                        {% if stat.concession.description %}
+                                            <br><small class="text-muted">{{ stat.concession.description[:50] }}{% if stat.concession.description|length > 50 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ stat.concession.category }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ stat.menu_items_count }}</span>
+                                    </td>
+                                    <td>
+                                        <strong class="text-white">{{ stat.total_orders }}</strong>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">₹{{ "%.2f"|format(stat.total_revenue) }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if stat.total_orders > 0 %}
+                                            <strong class="text-white">₹{{ "%.2f"|format(stat.total_revenue / stat.total_orders) }}</strong>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if stat.total_orders > 0 %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">No Sales</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('add_menu_item', concession_id=stat.concession.id) }}" 
+                                               class="btn btn-outline-success" title="Add Menu Items">
+                                                <i class="fas fa-plus"></i>
+                                            </a>
+                                            <a href="{{ url_for('manage_stadium', stadium_id=stat.stadium.id) }}" 
+                                               class="btn btn-outline-primary" title="Manage Stadium">
+                                                <i class="fas fa-cog"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                    <h4 class="text-light">No Concessions Found</h4>
+                    <p class="text-muted">You haven't added any concessions to your stadiums yet.</p>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Manage Stadiums
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+}
+
+.table-dark {
+    --bs-table-bg: #212529;
+    --bs-table-striped-bg: #2c3034;
+    --bs-table-hover-bg: #323539;
+}
+
+.bg-secondary {
+    background-color: #495057 !important;
+}
+
+.border-secondary {
+    border-color: #495057 !important;
+}
+
+.text-muted {
+    color: #adb5bd !important;
+}
+
+.btn-outline-light:hover {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+</style>
+{% endblock %}

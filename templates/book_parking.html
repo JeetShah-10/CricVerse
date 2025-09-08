@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Book Parking • {{ stadium.name }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <h1 class="display-5 fw-bold mb-4" data-aos="fade-right">Book Parking — {{ stadium.name }}</h1>
+
+  <div class="card shadow-lg" data-aos="fade-up">
+    <div class="card-body p-4 p-md-5">
+      <form method="post">
+        <div class="row g-4">
+          <div class="col-md-3">
+            <label class="form-label fw-medium">Zone</label>
+            <select name="parking_id" class="form-select form-select-lg" required>
+              {% for p in parking_zones %}
+                <option value="{{ p.id }}">{{ p.zone }} — Capacity {{ p.capacity }} — ₹{{ '%.0f'|format(p.rate_per_hour) }}/hr</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-medium">Vehicle Number</label>
+            <input name="vehicle_number" class="form-control form-control-lg" placeholder="AB12CD3456" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-medium">Arrival</label>
+            <input type="datetime-local" name="arrival_time" class="form-control form-control-lg" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-medium">Departure</label>
+            <input type="datetime-local" name="departure_time" class="form-control form-control-lg" required>
+          </div>
+        </div>
+        <div class="text-end mt-4">
+          <button type="submit" class="btn btn-primary btn-lg">Confirm Booking</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Add Seats - {{ stadium.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg rounded overflow-hidden">
+                <div class="card-header bg-primary text-white p-4">
+                    <h3 class="fw-bold d-flex align-items-center">
+                        <i class="bi bi-plus-circle me-3"></i>Add Seats (Bulk)
+                    </h3>
+                    <small class="text-white-50">{{ stadium.name }} - {{ stadium.location }}</small>
+                </div>
+                <div class="card-body p-4">
+                    <div class="alert alert-info d-flex align-items-start p-3 rounded mb-4">
+                        <i class="bi bi-info-circle fs-5 me-3"></i>
+                        <div>
+                            <strong class="fw-semibold">Bulk Seat Creation:</strong> This form will create multiple seats at once based on your specifications.
+                        </div>
+                    </div>
+                            
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="section" class="form-label">Section Name *</label>
+                            <input type="text" class="form-control" id="section" name="section" required 
+                                   placeholder="e.g., A, B, VIP, General">
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="row_start" class="form-label">Starting Row *</label>
+                                    <input type="text" class="form-control text-uppercase" id="row_start" name="row_start" required 
+                                           maxlength="1" placeholder="A">
+                                    <small class="form-text text-muted">Single letter (A-Z)</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="row_end" class="form-label">Ending Row *</label>
+                                    <input type="text" class="form-control text-uppercase" id="row_end" name="row_end" required 
+                                           maxlength="1" placeholder="J">
+                                    <small class="form-text text-muted">Single letter (A-Z)</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="seat_start" class="form-label">Starting Seat Number *</label>
+                                    <input type="number" class="form-control" id="seat_start" name="seat_start" required 
+                                           min="1" placeholder="1">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="seat_end" class="form-label">Ending Seat Number *</label>
+                                    <input type="number" class="form-control" id="seat_end" name="seat_end" required 
+                                           min="1" placeholder="20">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="seat_type" class="form-label">Seat Type *</label>
+                                    <select class="form-select" id="seat_type" name="seat_type" required>
+                                        <option value="">Select Seat Type</option>
+                                        <option value="General">General</option>
+                                        <option value="Premium">Premium</option>
+                                        <option value="VIP">VIP</option>
+                                        <option value="Corporate">Corporate</option>
+                                        <option value="Hospitality">Hospitality</option>
+                                        <option value="Wheelchair">Wheelchair Accessible</option>
+                                        <option value="Family">Family Section</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="price" class="form-label">Price per Seat *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₹</span>
+                                        <input type="number" class="form-control" id="price" name="price" 
+                                               step="0.01" min="0" required placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="has_shade" name="has_shade">
+                                <label class="form-check-label" for="has_shade">
+                                    Has Shade/Cover
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">Check if these seats are covered or have shade</small>
+                        </div>
+
+                        <div class="alert alert-warning d-flex align-items-start p-3 rounded mb-4">
+                            <i class="bi bi-calculator fs-5 me-3"></i>
+                            <div>
+                                <strong class="fw-semibold">Preview:</strong> 
+                                <span id="seat-count">0</span> seats will be created.
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <a href="{{ url_for('manage_stadium', stadium_id=stadium.id) }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i> Back to Stadium
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-2"></i> Create Seats
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-uppercase row inputs
+document.getElementById('row_start').addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+    calculateSeats();
+});
+
+document.getElementById('row_end').addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+    calculateSeats();
+});
+
+// Calculate seat count
+function calculateSeats() {
+    const rowStart = document.getElementById('row_start').value;
+    const rowEnd = document.getElementById('row_end').value;
+    const seatStart = parseInt(document.getElementById('seat_start').value) || 0;
+    const seatEnd = parseInt(document.getElementById('seat_end').value) || 0;
+    
+    if (rowStart && rowEnd && seatStart && seatEnd) {
+        const rowCount = rowEnd.charCodeAt(0) - rowStart.charCodeAt(0) + 1;
+        const seatsPerRow = seatEnd - seatStart + 1;
+        const totalSeats = rowCount * seatsPerRow;
+        
+        if (totalSeats > 0) {
+            document.getElementById('seat-count').textContent = totalSeats;
+        } else {
+            document.getElementById('seat-count').textContent = '0';
+        }
+    } else {
+        document.getElementById('seat-count').textContent = '0';
+    }
+}
+
+// Add event listeners for calculation
+document.getElementById('seat_start').addEventListener('input', calculateSeats);
+document.getElementById('seat_end').addEventListener('input', calculateSeats);
+
+// Validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const rowStart = document.getElementById('row_start').value;
+    const rowEnd = document.getElementById('row_end').value;
+    const seatStart = parseInt(document.getElementById('seat_start').value);
+    const seatEnd = parseInt(document.getElementById('seat_end').value);
+    
+    if (rowStart > rowEnd) {
+        e.preventDefault();
+        alert('Starting row must be before or equal to ending row');
+        return;
+    }
+    
+    if (seatStart > seatEnd) {
+        e.preventDefault();
+        alert('Starting seat number must be less than or equal to ending seat number');
+        return;
+    }
+    
+    const totalSeats = (rowEnd.charCodeAt(0) - rowStart.charCodeAt(0) + 1) * (seatEnd - seatStart + 1);
+    if (totalSeats > 1000) {
+        if (!confirm(`You are about to create ${totalSeats} seats. This may take a while. Continue?`)) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+{% endblock %}
+
+
+

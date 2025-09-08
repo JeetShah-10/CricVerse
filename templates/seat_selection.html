@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% block title %}Select Seats • {{ event.event_name }}{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8" data-aos="fade-right">
+    <div class="card h-100">
+      <div class="card-header bg-primary text-white">
+        <h4 class="card-title h5 mb-1">🏟️ {{ event.stadium.name }} - {{ event.event_name }}</h4>
+        <small class="opacity-75">{{ event.event_date.strftime('%B %d, %Y') }} at {{ event.start_time.strftime('%I:%M %p') }}</small>
+      </div>
+      <div class="card-body p-4">
+        <div class="text-center mb-4">
+          <h6 class="text-muted h6 mb-3">PITCH</h6>
+          <div class="bg-success p-4 rounded-3 d-flex align-items-center justify-content-center mb-4" style="height: 4rem;">
+            <span class="text-white fw-bold fs-5">CRICKET PITCH</span>
+          </div>
+        </div>
+        
+        <div class="d-flex flex-column gap-4">
+          {% for section in sections %}
+          <div class="card border" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 100 }}">
+            <div class="card-body">
+              <h6 class="text-center text-primary h6 mb-3">{{ section.name }}</h6>
+              <div class="d-flex flex-column gap-3">
+                {% for row in section.rows %}
+                <div class="d-flex align-items-center">
+                  <div class="flex-shrink-0 me-3">
+                    <span class="badge bg-secondary">Row {{ row.name }}</span>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex flex-wrap gap-2 justify-content-center">
+                    {% for seat in row.seats %}
+                    <div>
+                      <button 
+                        class="seat-btn btn p-1 position-relative rounded
+                          {% if seat.is_available %} btn-light 
+                          {% else %} btn-secondary 
+                          {% endif %}
+                          {% if seat.id in selected_seats %} btn-primary selected {% endif %}"
+                        data-seat-id="{{ seat.id }}"
+                        data-seat-number="{{ seat.seat_number }}"
+                        data-row="{{ seat.row_number }}"
+                        data-section="{{ seat.section }}"
+                        data-price="{{ seat.price }}"
+                        data-type="{{ seat.seat_type }}"
+                        style="width: 4rem; height: 3.5rem; transition: all 0.2s;"
+                        {% if not seat.is_available %}disabled{% endif %}
+                      >
+                        <div class="small fw-bold lh-1">{{ seat.seat_number }}</div>
+                        <div style="font-size: 0.7rem; opacity: 0.8;">{{ seat.seat_type }}</div>
+                      </button>
+                    </div>
+                    {% if (loop.index % 50) == 0 and not loop.last %}
+                    <div style="width: 1rem;"></div>
+                    {% endif %}
+                    {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-4" data-aos="fade-left">
+    <div class="card sticky-top" style="top: 7rem;">
+      <div class="card-header">
+        <h5 class="card-title h5 mb-0">Selected Seats</h5>
+      </div>
+      <div class="card-body">
+        <div id="selected-seats-list">
+          <p class="text-muted text-center mb-0">No seats selected</p>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="fw-bold">Total:</span>
+          <span class="fw-bold text-success fs-4" id="total-price">₹0</span>
+        </div>
+        <hr>
+        <form method="post" id="booking-form">
+          <input type="hidden" name="selected_seats" id="selected-seats-input">
+          <input type="hidden" name="total_amount" id="total-amount-input">
+          <div class="mb-3">
+            <label class="form-label text-muted small fw-medium">Ticket Type</label>
+            <select name="ticket_type" class="form-select" required>
+              <option value="Single Match">Single Match</option>
+              <option value="Season">Season</option>
+              <option value="Hospitality">Hospitality</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="form-label text-muted small fw-medium">Payment Method</label>
+            <select name="payment_method" class="form-select" required>
+              <option value="Credit Card">Credit Card</option>
+              <option value="Debit Card">Debit Card</option>
+              <option value="UPI">UPI</option>
+              <option value="PayPal">PayPal</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-success btn-lg w-100 fw-semibold" id="book-btn" disabled>
+            <i class="fas fa-ticket-alt me-2"></i>Book Selected Seats
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-4" data-aos="fade-up">
+  <div class="card">
+    <div class="card-body">
+      <h6 class="card-title h6 fw-bold mb-3">Seat Legend</h6>
+      <div class="row g-3">
+        <div class="col-sm-6 col-lg-3">
+          <div class="d-flex align-items-center">
+            <button class="btn btn-light p-1 position-relative rounded me-3" style="width: 4rem; height: 3.5rem;" disabled>
+              <div class="small fw-bold lh-1">A1</div>
+              <div style="font-size: 0.7rem; opacity: 0.8;">Standard</div>
+            </button>
+            <span class="text-muted small">Available</span>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="d-flex align-items-center">
+            <button class="btn btn-primary p-1 position-relative rounded me-3" style="width: 4rem; height: 3.5rem;" disabled>
+              <div class="small fw-bold lh-1">A2</div>
+              <div style="font-size: 0.7rem; opacity: 0.8;">Standard</div>
+            </button>
+            <span class="text-muted small">Selected</span>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="d-flex align-items-center">
+            <button class="btn btn-secondary p-1 position-relative rounded me-3" style="width: 4rem; height: 3.5rem;" disabled>
+              <div class="small fw-bold lh-1">A3</div>
+              <div style="font-size: 0.7rem; opacity: 0.8;">Standard</div>
+            </button>
+            <span class="text-muted small">Booked</span>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="d-flex align-items-center">
+            <button class="btn btn-warning p-1 position-relative rounded me-3" style="width: 4rem; height: 3.5rem;" disabled>
+              <div class="small fw-bold lh-1">A4</div>
+              <div style="font-size: 0.7rem; opacity: 0.8;">VIP</div>
+            </button>
+            <span class="text-muted small">VIP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedSeats = [];
+let totalAmount = 0;
+
+function toggleSeat(seatId, price, type, section, row, seatNumber) {
+  const seatIndex = selectedSeats.findIndex(seat => seat.id === seatId);
+  const seatBtn = document.querySelector(`[data-seat-id="${seatId}"]`);
+  
+  if (seatIndex === -1) {
+    // Add seat
+    selectedSeats.push({
+      id: seatId,
+      price: price,
+      type: type,
+      section: section,
+      row: row,
+      seatNumber: seatNumber
+    });
+    seatBtn.classList.add('selected', 'btn-primary');
+    seatBtn.classList.remove('btn-light');
+  } else {
+    // Remove seat
+    selectedSeats.splice(seatIndex, 1);
+    seatBtn.classList.remove('selected', 'btn-primary');
+    seatBtn.classList.add('btn-light');
+  }
+  
+  updateSelectedSeatsList();
+  updateTotal();
+}
+
+// Add event listeners to all seat buttons
+document.addEventListener('DOMContentLoaded', function() {
+  const seatButtons = document.querySelectorAll('.seat-btn');
+  seatButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      if (!this.disabled) {
+        const seatId = parseInt(this.dataset.seatId);
+        const price = parseFloat(this.dataset.price);
+        const type = this.dataset.type;
+        const section = this.dataset.section;
+        const row = this.dataset.row;
+        const seatNumber = this.dataset.seatNumber;
+        
+        toggleSeat(seatId, price, type, section, row, seatNumber);
+      }
+    });
+  });
+});
+
+function updateSelectedSeatsList() {
+  const container = document.getElementById('selected-seats-list');
+  
+  if (selectedSeats.length === 0) {
+    container.innerHTML = '<p class="text-muted text-center mb-0">No seats selected</p>';
+    return;
+  }
+  
+  container.innerHTML = selectedSeats.map(seat => `
+    <div class="d-flex justify-content-between align-items-center bg-primary text-white rounded p-3 mb-2">
+      <div>
+        <div class="fw-bold">${seat.section} ${seat.row}-${seat.seatNumber}</div>
+        <div class="small">${seat.type} - ₹${seat.price}</div>
+      </div>
+      <button class="btn-close btn-close-white" onclick="removeSeat(${seat.id})"></button>
+    </div>
+  `).join('');
+}
+
+function removeSeat(seatId) {
+  const seatBtn = document.querySelector(`[data-seat-id="${seatId}"]`);
+  seatBtn.classList.remove('selected', 'btn-primary');
+  seatBtn.classList.add('btn-light');
+  
+  selectedSeats = selectedSeats.filter(seat => seat.id !== seatId);
+  updateSelectedSeatsList();
+  updateTotal();
+}
+
+function updateTotal() {
+  totalAmount = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+  document.getElementById('total-price').textContent = `₹${totalAmount}`;
+  document.getElementById('total-amount-input').value = totalAmount;
+  document.getElementById('selected-seats-input').value = selectedSeats.map(seat => seat.id).join(',');
+  
+  const bookBtn = document.getElementById('book-btn');
+  bookBtn.disabled = selectedSeats.length === 0;
+}
+
+// Form submission
+document.getElementById('booking-form').addEventListener('submit', function(e) {
+  if (selectedSeats.length === 0) {
+    e.preventDefault();
+    // Replace alert with a more visually integrated message
+    const alertContainer = document.createElement('div');
+    alertContainer.className = 'position-fixed top-0 end-0 p-3';
+    alertContainer.style.zIndex = '9999';
+    alertContainer.style.marginTop = '6rem';
+    alertContainer.innerHTML = `
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>Please select at least one seat.
+        <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+      </div>
+    `;
+    document.body.appendChild(alertContainer);
+    setTimeout(() => {
+      if (alertContainer.parentNode) {
+        alertContainer.remove();
+      }
+    }, 3000);
+    return;
+  }
+});
+</script>
+{% endblock %}

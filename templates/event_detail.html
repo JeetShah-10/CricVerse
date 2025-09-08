@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}{{ event.event_name }} • Event{% endblock %}
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2" data-aos="fade-right">
+    <div class="bg-light-card dark:bg-dark-card shadow-lg rounded-xl overflow-hidden">
+      <div class="w-full aspect-w-21 aspect-h-9">
+        <img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=1600&auto=format&fit=crop" alt="Event">
+      </div>
+      <div class="p-6">
+        <h3 class="text-3xl font-bold text-light-text dark:text-dark-text mb-2">{{ event.event_name }}</h3>
+        <div class="text-light-subtext dark:text-dark-subtext mb-4">{{ event.event_date }} • {{ event.start_time }} - {{ event.end_time or 'TBD' }}</div>
+        <p class="text-light-text dark:text-dark-text mb-0">{{ event.home_team.team_name }} vs {{ event.away_team.team_name }} at {{ event.stadium.name }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="lg:col-span-1" data-aos="fade-left">
+    <div class="bg-light-card dark:bg-dark-card shadow-lg rounded-xl p-6">
+      <div class="flex justify-between items-center mb-4">
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-100">{{ event.match_status }}</span>
+        <a class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-300" href="{{ url_for('select_seats', event_id=event.id) }}">Select Seats</a>
+      </div>
+      <h6 class="text-lg font-bold text-light-text dark:text-dark-text mb-2">Umpires</h6>
+      <ul class="list-none p-0 m-0 text-sm text-light-subtext dark:text-dark-subtext">
+        {% for eu in event.umpires %}
+          <li>{{ eu.umpire.name }} — {{ eu.umpire_role }}</li>
+        {% else %}
+          <li class="text-light-subtext dark:text-dark-subtext">Not assigned</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

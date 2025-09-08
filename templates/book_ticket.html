@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Book Ticket • {{ event.event_name }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="display-5 fw-bold mb-4" data-aos="fade-right">Book Ticket — {{ event.event_name }}</h1>
+
+    <div class="card shadow-lg" data-aos="fade-up">
+        <div class="card-body p-4 p-md-5">
+            <form method="post">
+              <div class="row g-4">
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-medium">Seat</label>
+                  <select name="seat_id" class="form-select form-select-lg" required>
+                    {% for seat in seats %}
+                      <option value="{{ seat.id }}">{{ seat.section }} {{ seat.row_number }}-{{ seat.seat_number }} — ₹{{ '%.0f'|format(seat.price) }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-medium">Ticket Type</label>
+                  <select name="ticket_type" class="form-select form-select-lg" required>
+                    <option>Single Match</option>
+                    <option>Season</option>
+                    <option>Hospitality</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-medium">Payment Method</label>
+                  <select name="payment_method" class="form-select form-select-lg" required>
+                    <option>Credit Card</option>
+                    <option>Debit Card</option>
+                    <option>UPI</option>
+                    <option>PayPal</option>
+                  </select>
+                </div>
+              </div>
+              <div class="text-end mt-4">
+                <button type="submit" class="btn btn-primary btn-lg">Confirm Booking</button>
+              </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

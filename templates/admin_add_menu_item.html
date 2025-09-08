@@ -1,0 +1,88 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Add Menu Item - {{ concession.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0 d-flex align-items-center">
+                        <i class="bi bi-plus-circle me-3"></i>Add Menu Item
+                    </h3>
+                    <small class="opacity-75">{{ concession.name }} - {{ concession.stadium.name }}</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Item Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" required 
+                                   placeholder="e.g., Margherita Pizza, Coca Cola">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" 
+                                      placeholder="Describe the item, ingredients, or special features"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="price" class="form-label">Price *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₹</span>
+                                        <input type="number" class="form-control" id="price" name="price" 
+                                               step="0.01" min="0" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">Category</label>
+                                    <select class="form-select" id="category" name="category">
+                                        <option value="">Select Category</option>
+                                        <option value="Main">Main Course</option>
+                                        <option value="Side">Side Dish</option>
+                                        <option value="Appetizer">Appetizer</option>
+                                        <option value="Drink">Drink</option>
+                                        <option value="Soft Drink">Soft Drink</option>
+                                        <option value="Alcoholic">Alcoholic Beverage</option>
+                                        <option value="Dessert">Dessert</option>
+                                        <option value="Snack">Snack</option>
+                                        <option value="Hot Food">Hot Food</option>
+                                        <option value="Cold Food">Cold Food</option>
+                                        <option value="Vegetarian">Vegetarian</option>
+                                        <option value="Vegan">Vegan</option>
+                                        <option value="Combo">Combo Meal</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_available" name="is_available" checked>
+                                <label class="form-check-label" for="is_available">
+                                    Available for ordering
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">Uncheck if this item is temporarily unavailable</small>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('manage_stadium', stadium_id=concession.stadium_id) }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i> Back to Stadium
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i> Add Menu Item
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

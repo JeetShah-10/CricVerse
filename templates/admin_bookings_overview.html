@@ -1,0 +1,352 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Bookings Overview - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Ticket Bookings Overview</h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if booking_stats %}
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ booking_stats|sum(attribute='total_tickets') }}</h4>
+                            <p class="card-text">Total Tickets</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-ticket-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">₹{{ "%.2f"|format(booking_stats|sum(attribute='total_revenue')) }}</h4>
+                            <p class="card-text">Total Revenue</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-dollar-sign fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ booking_stats|length }}</h4>
+                            <p class="card-text">Events with Bookings</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">₹{{ "%.2f"|format(booking_stats|sum(attribute='total_revenue') / booking_stats|sum(attribute='total_tickets')) if booking_stats|sum(attribute='total_tickets') > 0 else 0 }}</h4>
+                            <p class="card-text">Avg Ticket Price</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookings Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Event Booking Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Event</th>
+                            <th>Stadium</th>
+                            <th>Date</th>
+                            <th>Tickets Sold</th>
+                            <th>Revenue</th>
+                            <th>Avg Price</th>
+                            <th>Capacity %</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for booking in booking_stats %}
+                        <tr>
+                            <td>
+                                <strong>{{ booking.event.event_name }}</strong>
+                                <br>
+                                {% if booking.event.home_team and booking.event.away_team %}
+                                    <small class="text-muted">{{ booking.event.home_team.name }} vs {{ booking.event.away_team.name }}</small>
+                                {% else %}
+                                    <small class="text-muted">Teams TBD</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ booking.stadium.name }}</span>
+                                <br>
+                                <small class="text-muted">{{ booking.stadium.location }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ booking.event.event_date.strftime('%Y-%m-%d') }}</strong>
+                                <br>
+                                <small class="text-muted">{{ booking.event.event_time.strftime('%H:%M') if booking.event.event_time else 'TBD' }}</small>
+                            </td>
+                            <td>
+                                <strong class="text-success">{{ booking.total_tickets }}</strong>
+                                <br>
+                                <small class="text-muted">/ {{ booking.stadium.capacity }} capacity</small>
+                            </td>
+                            <td>
+                                <strong class="text-success">₹{{ "%.2f"|format(booking.total_revenue) }}</strong>
+                            </td>
+                            <td>
+                                <strong>₹{{ "%.2f"|format(booking.total_revenue / booking.total_tickets) if booking.total_tickets > 0 else 0 }}</strong>
+                            </td>
+                            <td>
+                                {% set capacity_percentage = (booking.total_tickets / booking.stadium.capacity) * 100 if booking.stadium.capacity > 0 else 0 %}
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar 
+                                        {% if capacity_percentage >= 80 %}bg-success
+                                        {% elif capacity_percentage >= 50 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        role="progressbar" 
+                                        style="width: {{ capacity_percentage }}%">
+                                        {{ "%.1f"|format(capacity_percentage) }}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#ticketModal{{ booking.event.id }}" title="View Tickets">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <a href="{{ url_for('admin_stadium_analytics', stadium_id=booking.stadium.id) }}" 
+                                       class="btn btn-outline-primary" title="Stadium Analytics">
+                                        <i class="fas fa-chart-bar"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Details Modals -->
+    {% for booking in booking_stats %}
+    <div class="modal fade" id="ticketModal{{ booking.event.id }}" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ticket Details - {{ booking.event.event_name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Seat</th>
+                                    <th>Type</th>
+                                    <th>Price</th>
+                                    <th>Booking Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ticket in booking.tickets %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ ticket.customer.name }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ ticket.customer.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ ticket.seat.section }}-{{ ticket.seat.row }}-{{ ticket.seat.number }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ ticket.ticket_type }}</span>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">₹{{ "%.2f"|format(ticket.seat.price) }}</strong>
+                                    </td>
+                                    <td>
+                                        <small>{{ ticket.booking_date.strftime('%Y-%m-%d %H:%M') if ticket.booking_date else 'N/A' }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Revenue Analysis -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Revenue by Stadium</h5>
+                </div>
+                <div class="card-body">
+                    {% set stadium_revenues = {} %}
+                    {% for booking in booking_stats %}
+                        {% set stadium_name = booking.stadium.name %}
+                        {% if stadium_name in stadium_revenues %}
+                            {% set _ = stadium_revenues.update({stadium_name: {'revenue': stadium_revenues[stadium_name]['revenue'] + booking.total_revenue, 'tickets': stadium_revenues[stadium_name]['tickets'] + booking.total_tickets}}) %}
+                        {% else %}
+                            {% set _ = stadium_revenues.update({stadium_name: {'revenue': booking.total_revenue, 'tickets': booking.total_tickets}}) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% for stadium_name, data in stadium_revenues.items() %}
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
+                        <div>
+                            <strong>{{ stadium_name }}</strong>
+                            <br>
+                            <small class="text-muted">{{ data.tickets }} tickets sold</small>
+                        </div>
+                        <div class="text-end">
+                            <strong class="text-success">₹{{ "%.2f"|format(data.revenue) }}</strong>
+                            <br>
+                            <small class="text-muted">₹{{ "%.2f"|format(data.revenue / data.tickets) if data.tickets > 0 else 0 }} avg</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Booking Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% set high_performance = booking_stats|selectattr('total_tickets', '>', 100)|list|length %}
+                    {% set medium_performance = booking_stats|selectattr('total_tickets', '>', 50)|selectattr('total_tickets', '<=', 100)|list|length %}
+                    {% set low_performance = booking_stats|selectattr('total_tickets', '<=', 50)|list|length %}
+                    
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="mb-3">
+                                <i class="fas fa-star text-success fa-2x mb-2"></i>
+                                <h4 class="text-success">{{ high_performance }}</h4>
+                                <small class="text-muted">High Sales<br>(100+ tickets)</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="mb-3">
+                                <i class="fas fa-star-half-alt text-warning fa-2x mb-2"></i>
+                                <h4 class="text-warning">{{ medium_performance }}</h4>
+                                <small class="text-muted">Medium Sales<br>(50-100 tickets)</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="mb-3">
+                                <i class="fas fa-star text-muted fa-2x mb-2"></i>
+                                <h4 class="text-muted">{{ low_performance }}</h4>
+                                <small class="text-muted">Low Sales<br>(< 50 tickets)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- No Bookings State -->
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-ticket-alt fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted">No Bookings Found</h4>
+            <p class="text-muted">There are no ticket bookings yet. Customers will be able to book tickets once events are created.</p>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Manage Events
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.progress {
+    border-radius: 10px;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.modal-body {
+    max-height: 400px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}

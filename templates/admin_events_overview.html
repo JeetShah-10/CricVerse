@@ -1,0 +1,294 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Events Overview - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-white">Events Overview</h1>
+                <div class="btn-group">
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if events_data %}
+    <!-- Overall Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ events_data|length }}</h4>
+                            <p class="card-text">Total Events</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ events_data|sum(attribute='tickets_sold') }}</h4>
+                            <p class="card-text">Tickets Sold</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-ticket-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">${{ "%.2f"|format(events_data|sum(attribute='total_revenue')) }}</h4>
+                            <p class="card-text">Total Revenue</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-dollar-sign fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ "%.1f"|format(events_data|sum(attribute='capacity_percentage') / events_data|length) if events_data|length > 0 else 0 }}%</h4>
+                            <p class="card-text">Avg Capacity</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-pie fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group events by stadium -->
+    {% set stadiums_dict = {} %}
+    {% for event in events_data %}
+        {% if event.stadium.id not in stadiums_dict %}
+            {% set _ = stadiums_dict.update({event.stadium.id: {'stadium': event.stadium, 'events': []}}) %}
+        {% endif %}
+        {% set _ = stadiums_dict[event.stadium.id]['events'].append(event) %}
+    {% endfor %}
+
+    {% for stadium_id, stadium_data in stadiums_dict.items() %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header bg-secondary border-secondary">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0 text-white">
+                            <i class="fas fa-building me-2"></i>{{ stadium_data.stadium.name }}
+                        </h4>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('add_event', stadium_id=stadium_data.stadium.id) }}" 
+                               class="btn btn-outline-success">
+                                <i class="fas fa-plus me-1"></i>Add Event
+                            </a>
+                            <a href="{{ url_for('manage_stadium', stadium_id=stadium_data.stadium.id) }}" 
+                               class="btn btn-outline-light">
+                                <i class="fas fa-cog me-1"></i>Manage Stadium
+                            </a>
+                            <a href="{{ url_for('admin_stadium_analytics', stadium_id=stadium_data.stadium.id) }}" 
+                               class="btn btn-outline-info">
+                                <i class="fas fa-chart-bar me-1"></i>Analytics
+                            </a>
+                        </div>
+                    </div>
+                    <small class="text-light">{{ stadium_data.stadium.location }} • {{ stadium_data.events|length }} event(s)</small>
+                </div>
+                <div class="card-body bg-dark">
+                    <!-- Stadium Summary -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-primary mb-1">{{ stadium_data.events|sum(attribute='tickets_sold') }}</h5>
+                                <small class="text-light">Tickets Sold</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-success mb-1">${{ "%.2f"|format(stadium_data.events|sum(attribute='total_revenue')) }}</h5>
+                                <small class="text-light">Revenue</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-info mb-1">{{ "%.1f"|format(stadium_data.events|sum(attribute='capacity_percentage') / stadium_data.events|length) if stadium_data.events|length > 0 else 0 }}%</h5>
+                                <small class="text-light">Avg Capacity</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-2 bg-secondary rounded">
+                                <h5 class="text-warning mb-1">
+                                    {% if stadium_data.events|sum(attribute='tickets_sold') > 0 %}
+                                        ${{ "%.2f"|format(stadium_data.events|sum(attribute='total_revenue') / stadium_data.events|sum(attribute='tickets_sold')) }}
+                                    {% else %}
+                                        $0.00
+                                    {% endif %}
+                                </h5>
+                                <small class="text-light">Avg Ticket Price</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Events Table for this Stadium -->
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th class="text-white">Event</th>
+                                    <th class="text-white">Date & Time</th>
+                                    <th class="text-white">Teams</th>
+                                    <th class="text-white">Tickets Sold</th>
+                                    <th class="text-white">Capacity</th>
+                                    <th class="text-white">Revenue</th>
+                                    <th class="text-white">Status</th>
+                                    <th class="text-white">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in stadium_data.events %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-white">{{ event.event.name }}</strong>
+                                        {% if event.event.description %}
+                                            <br><small class="text-muted">{{ event.event.description[:40] }}{% if event.event.description|length > 40 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong class="text-white">{{ event.event.start_time.strftime('%Y-%m-%d') if event.event.start_time else 'TBD' }}</strong>
+                                        <br><small class="text-muted">{{ event.event.start_time.strftime('%H:%M') if event.event.start_time else 'Time TBD' }}</small>
+                                    </td>
+                                    <td>
+                                        {% if event.event.home_team and event.event.away_team %}
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-primary me-1">{{ event.event.home_team.name }}</span>
+                                                <small class="text-muted me-1">vs</small>
+                                                <span class="badge bg-secondary">{{ event.event.away_team.name }}</span>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">Teams TBD</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong class="text-primary">{{ event.tickets_sold }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2 text-white">{{ "%.1f"|format(event.capacity_percentage) }}%</span>
+                                            <div class="progress" style="width: 60px; height: 8px;">
+                                                <div class="progress-bar 
+                                                    {% if event.capacity_percentage >= 90 %}bg-success
+                                                    {% elif event.capacity_percentage >= 70 %}bg-info
+                                                    {% elif event.capacity_percentage >= 50 %}bg-warning
+                                                    {% else %}bg-danger{% endif %}" 
+                                                    style="width: {{ event.capacity_percentage }}%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">${{ "%.2f"|format(event.total_revenue) }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if event.event.start_time %}
+                                            <span class="badge bg-info">Scheduled</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Date TBD</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('manage_stadium', stadium_id=event.stadium.id) }}" 
+                                               class="btn btn-outline-primary" title="Manage Stadium">
+                                                <i class="fas fa-cog"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                    <h4 class="text-light">No Events Found</h4>
+                    <p class="text-muted">You haven't scheduled any events for your stadiums yet.</p>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Manage Stadiums
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+}
+
+.table-dark {
+    --bs-table-bg: #212529;
+    --bs-table-striped-bg: #2c3034;
+    --bs-table-hover-bg: #323539;
+}
+
+.bg-secondary {
+    background-color: #495057 !important;
+}
+
+.border-secondary {
+    border-color: #495057 !important;
+}
+
+.text-muted {
+    color: #adb5bd !important;
+}
+
+.btn-outline-light:hover {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.progress {
+    background-color: #495057;
+}
+</style>
+{% endblock %}

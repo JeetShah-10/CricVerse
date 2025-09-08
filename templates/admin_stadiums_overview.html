@@ -1,0 +1,58 @@
+{% extends 'admin_base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4 text-center">Stadiums Overview</h1>
+
+    {% if stadiums_data %}
+        {% for data in stadiums_data %}
+            <div class="card shadow-sm mb-5">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">🏟️ {{ data.stadium.name }}</h4>
+                        <span class="badge bg-light text-dark">Capacity: {{ "{:,}".format(data.stadium.capacity) }}</span>
+                    </div>
+                    <small class="opacity-75">{{ data.stadium.location }}</small>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="stat-card bg-secondary-bg p-3 rounded text-center">
+                                <h5>Events</h5>
+                                <p class="fs-4 fw-bold">{{ data.events_count }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card bg-secondary-bg p-3 rounded text-center">
+                                <h5>Concessions</h5>
+                                <p class="fs-4 fw-bold">{{ data.concessions_count }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card bg-secondary-bg p-3 rounded text-center">
+                                <h5>Parking Zones</h5>
+                                <p class="fs-4 fw-bold">{{ data.parking_count }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-card bg-secondary-bg p-3 rounded text-center">
+                                <h5>Seats</h5>
+                                <p class="fs-4 fw-bold">{{ "{:,}".format(data.seats_count) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('manage_stadium', stadium_id=data.stadium.id) }}" class="btn btn-primary">Manage Stadium</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-stadium fa-3x mb-3"></i>
+            <h4>No Stadiums Assigned</h4>
+            <p>You are not managing any stadiums yet.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

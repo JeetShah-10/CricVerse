@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}{{ player.player_name }} • Player{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-md-4" data-aos="fade-right">
+    <div class="card shadow-sm">
+      <div class="ratio ratio-1x1">
+        <img class="object-fit-cover" src="{{ player.photo_url or 'https://source.unsplash.com/featured/600x600/?cricket,player' }}" alt="{{ player.player_name }}">
+      </div>
+      <div class="card-body text-center">
+        <h3 class="card-title">{{ player.player_name }}</h3>
+        <div class="text-muted">{{ player.player_role }}</div>
+        {% if player.team %}
+        <div class="mt-2">
+          <span class="badge bg-primary">{{ player.team.team_name }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-8" data-aos="fade-left">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">Player Information</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Age:</span>
+              <span class="fw-medium">{{ player.age or 'N/A' }}</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Nationality:</span>
+              <span class="fw-medium">{{ player.nationality or 'N/A' }}</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Jersey Number:</span>
+              <span class="fw-medium">{{ player.jersey_number or 'N/A' }}</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Market Value:</span>
+              <span class="fw-medium">${{ '%.2f'|format(player.market_value / 1000000) }}M</span>
+            </div>
+          </div>
+        </div>
+        
+        <hr class="my-4">
+        
+        <h6 class="fw-bold mb-3">Playing Style</h6>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Batting Style:</span>
+              <span class="fw-medium">{{ player.batting_style or 'N/A' }}</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Bowling Style:</span>
+              <span class="fw-medium">{{ player.bowling_style or 'N/A' }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <hr class="my-4">
+        
+        <h6 class="fw-bold mb-3">Roles & Responsibilities</h6>
+        <div class="d-flex flex-wrap gap-2">
+          {% if player.is_captain %}
+          <span class="badge bg-warning text-dark">Captain</span>
+          {% endif %}
+          {% if player.is_wicket_keeper %}
+          <span class="badge bg-info">Wicket Keeper</span>
+          {% endif %}
+          <span class="badge bg-secondary">{{ player.player_role }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-4" data-aos="fade-up">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">Team Information</h5>
+        {% if player.team %}
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Team:</span>
+              <span class="fw-medium">{{ player.team.team_name }}</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Team Type:</span>
+              <span class="fw-medium">{{ player.team.team_type or 'N/A' }}</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Home City:</span>
+              <span class="fw-medium">{{ player.team.home_city or 'N/A' }}</span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between">
+              <span class="text-muted">Coach:</span>
+              <span class="fw-medium">{{ player.team.coach_name or 'N/A' }}</span>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <p class="text-muted">No team information available.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

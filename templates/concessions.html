@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% block title %}Food & Concessions • CricVerse{% endblock %}
+{% block content %}
+<section class="position-relative rounded-3 overflow-hidden mb-4 shadow-lg" data-aos="zoom-in">
+  <img src="https://images.unsplash.com/photo-1526318472351-c75fcf070305?q=80&w=1600&auto=format&fit=crop" class="w-100 object-fit-cover" style="height: 18rem; filter: brightness(0.75);" alt="Concessions backdrop">
+  <div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center">
+    <div class="container px-4 text-white">
+      <h1 class="display-4 fw-bold mb-2">Food & Concessions</h1>
+      <div class="fs-5 opacity-75">Explore vegetarian international-brand stalls across all stadiums</div>
+      <div class="mt-3">
+        <span class="badge bg-success fs-6 px-3 py-2">
+          <i class="bi bi-leaf me-2"></i>100% Vegetarian
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Filter Section -->
+<div class="card mb-4" data-aos="fade-up">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label fw-medium">🏟️ Stadium</label>
+        <select class="form-select" name="stadium_id">
+          <option value="">All Stadiums</option>
+          {% for s in stadiums %}
+          <option value="{{ s.id }}" {% if selected_stadium_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-medium">🍽️ Category</label>
+        <select class="form-select" name="category">
+          <option value="">All Categories</option>
+          {% for c in categories %}
+          <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-medium">🌱 Dietary</label>
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" id="vegetarianOnly" checked disabled>
+          <label class="form-check-label" for="vegetarianOnly">Vegetarian Only</label>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-fill">
+            <i class="bi bi-funnel me-2"></i>Filter
+          </button>
+          <a href="{{ url_for('concessions') }}" class="btn btn-outline-secondary flex-fill">
+            <i class="bi bi-arrow-clockwise me-2"></i>Reset
+          </a>
+        </div>
+      </div>
+    </form>
+    
+    <div class="mt-4 pt-3 border-top">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="text-muted small">
+          <i class="bi bi-info-circle me-1"></i>Showing {{ concessions|length }} result(s)
+        </div>
+        <div class="text-success small">
+          <i class="bi bi-check-circle me-1"></i>All concessions are 100% vegetarian
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% set grouped = concessions|groupby('stadium.name') %}
+{% if grouped|length == 0 %}
+  <div class="text-center text-muted py-5" data-aos="fade-up">
+    <div class="display-1 mb-3">🍽️</div>
+    <h5 class="fs-4 fw-semibold">No concessions available</h5>
+    <p class="small">Try adjusting your filters or check back later.</p>
+  </div>
+{% endif %}
+
+{% for stadium_name, items in grouped %}
+  <div class="card mb-4 shadow-lg" data-aos="fade-up">
+    <div class="card-header d-flex align-items-center">
+      <div class="rounded-circle bg-gradient me-3" style="width: 2.25rem; height: 2.25rem; background: linear-gradient(135deg, #6366f1, #9333ea);"></div>
+      <h5 class="card-title fs-5 fw-bold mb-0">{{ stadium_name }}</h5>
+      <span class="badge bg-success ms-3">
+        <i class="bi bi-clock me-1"></i>Open All Day
+      </span>
+      <span class="badge bg-warning text-dark ms-2">
+        <i class="bi bi-leaf me-1"></i>Veg Only
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="row g-4">
+        {% for concession in items %}
+        <div class="col-md-6 col-lg-4" data-aos="zoom-in" data-aos-delay="{{ loop.index0 * 40 }}">
+          <div class="card h-100 border hover-card">
+            {% set cat = (concession.category or '')|lower %}
+            {% set img =
+              'https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1200&auto=format&fit=crop' if 'burger' in cat else
+              'https://images.unsplash.com/photo-1544145945-f90425340c7e?q=80&w=1200&auto=format&fit=crop' if 'pizza' in cat else
+              'https://images.unsplash.com/photo-1526318472351-c75fcf070305?q=80&w=1200&auto=format&fit=crop' if 'beverage' in cat or 'coffee' in cat else
+              'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=80&w=1200&auto=format&fit=crop' if 'dessert' in cat or 'vegan' in cat else
+              'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200&auto=format&fit=crop' %}
+            <img src="{{ img }}" alt="{{ concession.category }} concession" class="card-img-top object-fit-cover" style="height: 12rem;">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="card-title fs-6 fw-semibold">{{ concession.name }}</h6>
+                <span class="badge bg-primary">{{ concession.category }}</span>
+              </div>
+              <div class="text-muted small mb-2">
+                <i class="bi bi-geo-alt me-1"></i>
+                <span>{{ concession.location_zone }} Zone</span>
+                <span class="mx-2">•</span>
+                <i class="bi bi-clock me-1"></i>
+                <span>{{ concession.opening_hours or 'Open All Day' }}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="d-flex align-items-center">
+                  <span class="badge bg-success me-2">
+                    <i class="bi bi-leaf me-1"></i>Veg Only
+                  </span>
+                  <small class="text-muted">Fresh & Healthy</small>
+                </div>
+                <div>
+                  {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('concession_menu', concession_id=concession.id) }}" class="btn btn-success btn-sm">
+                      <i class="bi bi-cart-plus me-1"></i>Order Now
+                    </a>
+                  {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-success btn-sm">
+                      <i class="bi bi-box-arrow-in-right me-1"></i>Login to Order
+                    </a>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+<!-- Information Section -->
+<div class="mt-4" data-aos="fade-up">
+  <div class="card shadow-lg">
+    <div class="card-header bg-success text-white">
+      <h5 class="card-title fs-5 fw-bold mb-0">
+        <i class="bi bi-info-circle me-2"></i>Concession Information
+      </h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-4">
+        <div class="col-md-6 col-lg-3">
+          <div class="text-center">
+            <div class="display-3 mb-2">🍔</div>
+            <h6 class="fw-semibold">Fresh Food</h6>
+            <p class="text-muted small">Hot meals, snacks, and beverages prepared fresh daily</p>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="text-center">
+            <div class="display-3 mb-2">🌱</div>
+            <h6 class="fw-semibold">100% Vegetarian</h6>
+            <p class="text-muted small">All menu items are completely vegetarian and healthy</p>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="text-center">
+            <div class="display-3 mb-2">⚡</div>
+            <h6 class="fw-semibold">Quick Service</h6>
+            <p class="text-muted small">Fast ordering and delivery to your seat</p>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <div class="text-center">
+            <div class="display-3 mb-2">💳</div>
+            <h6 class="fw-semibold">Easy Payment</h6>
+            <p class="text-muted small">Multiple payment options available</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.hover-card {
+  transition: all 0.3s ease;
+}
+.hover-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+.object-fit-cover {
+  object-fit: cover;
+}
+</style>
+{% endblock %}

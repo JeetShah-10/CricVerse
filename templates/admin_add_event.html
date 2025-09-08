@@ -1,0 +1,146 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Add Event - {{ stadium.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0 d-flex align-items-center">
+                        <i class="bi bi-calendar-plus me-3"></i>Add New Event
+                    </h3>
+                    <small class="opacity-75">{{ stadium.name }} - {{ stadium.location }}</small>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="event_name" class="form-label">Event Name *</label>
+                                    <input type="text" class="form-control" id="event_name" name="event_name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="event_type" class="form-label">Event Type</label>
+                                    <select class="form-select" id="event_type" name="event_type">
+                                        <option value="">Select Type</option>
+                                        <option value="Test Match">Test Match</option>
+                                        <option value="ODI">One Day International</option>
+                                        <option value="T20">T20 Match</option>
+                                        <option value="T10">T10 Match</option>
+                                        <option value="Domestic">Domestic Match</option>
+                                        <option value="League">League Match</option>
+                                        <option value="Tournament">Tournament</option>
+                                        <option value="Practice">Practice Match</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tournament_name" class="form-label">Tournament/Series Name</label>
+                            <input type="text" class="form-control" id="tournament_name" name="tournament_name" 
+                                   placeholder="e.g., World Cup 2024, IPL, County Championship">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="event_date" class="form-label">Event Date *</label>
+                                    <input type="date" class="form-control" id="event_date" name="event_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="start_time" class="form-label">Start Time *</label>
+                                    <input type="time" class="form-control" id="start_time" name="start_time" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="end_time" class="form-label">End Time (Estimated)</label>
+                                    <input type="time" class="form-control" id="end_time" name="end_time">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="home_team_id" class="form-label">Home Team</label>
+                                    <select class="form-select" id="home_team_id" name="home_team_id">
+                                        <option value="">Select Home Team</option>
+                                        {% for team in teams %}
+                                        <option value="{{ team.id }}">{{ team.team_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="away_team_id" class="form-label">Away Team</label>
+                                    <select class="form-select" id="away_team_id" name="away_team_id">
+                                        <option value="">Select Away Team</option>
+                                        {% for team in teams %}
+                                        <option value="{{ team.id }}">{{ team.team_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="match_status" class="form-label">Match Status</label>
+                            <select class="form-select" id="match_status" name="match_status">
+                                <option value="Scheduled">Scheduled</option>
+                                <option value="Live">Live</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Postponed">Postponed</option>
+                            </select>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('manage_stadium', stadium_id=stadium.id) }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i> Back to Stadium
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-calendar-plus me-2"></i> Add Event
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set minimum date to today
+document.getElementById('event_date').min = new Date().toISOString().split('T')[0];
+
+// Prevent selecting same team for home and away
+document.getElementById('home_team_id').addEventListener('change', function() {
+    const homeTeamId = this.value;
+    const awaySelect = document.getElementById('away_team_id');
+    
+    // Reset away team if same as home team
+    if (awaySelect.value === homeTeamId) {
+        awaySelect.value = '';
+    }
+});
+
+document.getElementById('away_team_id').addEventListener('change', function() {
+    const awayTeamId = this.value;
+    const homeSelect = document.getElementById('home_team_id');
+    
+    // Reset home team if same as away team
+    if (homeSelect.value === awayTeamId) {
+        homeSelect.value = '';
+    }
+});
+</script>
+{% endblock %}

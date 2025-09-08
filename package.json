@@ -1,0 +1,15 @@
+{
+  "name": "stadium-system",
+  "version": "1.0.0",
+  "description": "1. Install Python 3.10+.\r 2. Create and activate a virtualenv.\r 3. Install dependencies:\r ```bash\r pip install -r requirements.txt\r ```\r 4. Configure database in `stadium.env` (fallback `.env`):\r ```\r DATABASE_URL=postgresql://postgres:<password>@localhost:5432/stadium_db\r SECRET_KEY=change_me\r ```\r 5. Ensure PostgreSQL database exists:\r ```bash\r createdb stadium_db\r ```\r 6. Run app:\r ```bash\r python app.py\r ```",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bootstrap": "^5.3.3"
+  }
+}

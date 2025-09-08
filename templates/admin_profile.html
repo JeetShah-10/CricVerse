@@ -1,0 +1,232 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Admin Profile - CricVerse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-secondary">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-person-circle me-2"></i>Admin Profile
+                    </h4>
+                </div>
+                <div class="card-body bg-dark text-light">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-4">
+                            <div class="profile-avatar mb-3">
+                                <i class="bi bi-person-circle display-1 text-primary"></i>
+                            </div>
+                            <h5 class="text-light">{{ current_user.name }}</h5>
+                            <span class="badge bg-success">Stadium Administrator</span>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="profile-info">
+                                <div class="row mb-3">
+                                    <div class="col-sm-4">
+                                        <strong class="text-light">Name:</strong>
+                                    </div>
+                                    <div class="col-sm-8 text-light">
+                                        {{ current_user.name }}
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-sm-4">
+                                        <strong class="text-light">Email:</strong>
+                                    </div>
+                                    <div class="col-sm-8 text-light">
+                                        {{ current_user.email }}
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-sm-4">
+                                        <strong class="text-light">Phone:</strong>
+                                    </div>
+                                    <div class="col-sm-8 text-light">
+                                        {{ current_user.phone or 'Not provided' }}
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-sm-4">
+                                        <strong class="text-light">Role:</strong>
+                                    </div>
+                                    <div class="col-sm-8">
+                                        <span class="badge bg-primary">{{ current_user.role.title() }}</span>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-sm-4">
+                                        <strong class="text-light">Membership Level:</strong>
+                                    </div>
+                                    <div class="col-sm-8 text-light">
+                                        {{ current_user.membership_level }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-secondary">
+
+                    <div class="stadium-management-info">
+                        <h5 class="mb-3 text-light">
+                            <i class="bi bi-building me-2"></i>Stadium Management
+                        </h5>
+                        {% set administered_stadiums = current_user.get_administered_stadiums() %}
+                        {% if administered_stadiums %}
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card bg-secondary border-secondary">
+                                        <div class="card-body text-center">
+                                            <h3 class="text-primary mb-0">{{ administered_stadiums|length }}</h3>
+                                            <small class="text-body-secondary">Stadiums Managed</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-secondary border-secondary">
+                                        <div class="card-body text-center">
+                                            <h3 class="text-success mb-0">Active</h3>
+                                            <small class="text-body-secondary">Admin Status</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <h6 class="text-light">Managed Stadiums:</h6>
+                                <div class="list-group">
+                                    {% for stadium_id in administered_stadiums %}
+                                        <div class="list-group-item d-flex justify-content-between align-items-center bg-secondary border-secondary text-light">
+                                            <div>
+                                                <strong class="text-light">Stadium #{{ stadium_id }}</strong>
+                                            </div>
+                                            <div>
+                                                <a href="{{ url_for('manage_stadium', stadium_id=stadium_id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-gear me-1"></i>Manage
+                                                </a>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-building display-4 text-muted"></i>
+                                <p class="text-body-secondary mt-2">No stadiums assigned yet</p>
+                                <a href="{{ url_for('add_stadium') }}" class="btn btn-primary">
+                                    <i class="bi bi-plus-circle me-1"></i>Create Stadium
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <hr class="border-secondary">
+
+                    <div class="quick-actions">
+                        <h5 class="mb-3 text-light">
+                            <i class="bi bi-lightning me-2"></i>Quick Actions
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                                </a>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <a href="{{ url_for('add_stadium') }}" class="btn btn-outline-success w-100">
+                                    <i class="bi bi-plus-circle me-2"></i>Add Stadium
+                                </a>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <a href="{{ url_for('admin_analytics') }}" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-graph-up me-2"></i>Analytics
+                                </a>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <a href="{{ url_for('admin_stadiums_overview') }}" class="btn btn-outline-warning w-100">
+                                    <i class="bi bi-building me-2"></i>All Stadiums
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-secondary text-center">
+                    <small class="text-body-secondary">
+                        <i class="bi bi-shield-check me-1"></i>
+                        Administrator account with stadium management privileges
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-avatar {
+    margin-bottom: 1rem;
+}
+
+.profile-info .row {
+    border-bottom: 1px solid var(--bs-border-color);
+    padding: 0.5rem 0;
+}
+
+.profile-info .row:last-child {
+    border-bottom: none;
+}
+
+.list-group-item {
+    border-left: 3px solid var(--bs-primary);
+}
+
+.quick-actions .btn {
+    transition: all 0.3s ease;
+}
+
+.quick-actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Dark mode styling */
+.card {
+    background-color: var(--bs-dark);
+    border-color: var(--bs-secondary);
+}
+
+.card-body {
+    background-color: var(--bs-dark) !important;
+    color: var(--bs-light) !important;
+}
+
+.card-footer {
+    background-color: var(--bs-secondary) !important;
+}
+
+/* Light mode overrides */
+[data-bs-theme="light"] .card-body {
+    background-color: var(--bs-light) !important;
+    color: var(--bs-dark) !important;
+}
+
+[data-bs-theme="light"] .card-footer {
+    background-color: var(--bs-light) !important;
+}
+
+[data-bs-theme="light"] .text-light {
+    color: var(--bs-dark) !important;
+}
+
+[data-bs-theme="light"] .bg-secondary {
+    background-color: var(--bs-light) !important;
+}
+
+[data-bs-theme="light"] .list-group-item {
+    background-color: var(--bs-light) !important;
+    color: var(--bs-dark) !important;
+}
+</style>
+{% endblock %}

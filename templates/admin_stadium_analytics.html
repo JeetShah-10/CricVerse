@@ -1,0 +1,306 @@
+{% extends "admin_base.html" %}
+
+{% block title %}{{ analytics.stadium.name }} Analytics - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0 text-white">{{ analytics.stadium.name }} Analytics</h1>
+                    <small class="text-muted">{{ analytics.stadium.location }}</small>
+                </div>
+                <div class="btn-group">
+                    <a href="{{ url_for('admin_analytics') }}" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Analytics
+                    </a>
+                    <a href="{{ url_for('manage_stadium', stadium_id=analytics.stadium.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-cog me-2"></i>Manage Stadium
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stadium Info Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary">
+                <div class="card-body bg-dark">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4 class="text-white">{{ analytics.stadium.name }}</h4>
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-map-marker-alt me-2"></i>{{ analytics.stadium.location }}
+                            </p>
+                            <p class="mb-0 text-light">{{ analytics.stadium.description }}</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <h2 class="text-primary">{{ analytics.stadium.capacity }}</h2>
+                            <p class="text-muted mb-0">Total Capacity</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                    <h3>{{ analytics.total_events }}</h3>
+                    <p class="mb-0">Events</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-ticket-alt fa-2x mb-2"></i>
+                    <h3>{{ analytics.total_tickets_sold }}</h3>
+                    <p class="mb-0">Tickets Sold</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                    <h3>₹{{ "%.0f"|format(analytics.total_revenue) }}</h3>
+                    <p class="mb-0">Revenue</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h3>{{ "%.0f"|format(analytics.average_attendance) }}</h3>
+                    <p class="mb-0">Avg Attendance</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-pie fa-2x mb-2"></i>
+                    <h3>{{ "%.1f"|format(analytics.capacity_utilization) }}%</h3>
+                    <p class="mb-0">Utilization</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark text-white border-0">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                    <h3>₹{{ "%.2f"|format(analytics.total_revenue / analytics.total_tickets_sold) if analytics.total_tickets_sold > 0 else 0 }}</h3>
+                    <p class="mb-0">Avg Revenue</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Analysis -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header bg-secondary border-secondary">
+                    <h5 class="card-title mb-0 text-white">Performance Analysis</h5>
+                </div>
+                <div class="card-body bg-dark">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="text-center p-3 bg-secondary rounded">
+                                <h4 class="text-primary">{{ "%.1f"|format(analytics.capacity_utilization or 0) }}%</h4>
+                                <p class="mb-0 text-light">Capacity Utilization</p>
+                                <div class="progress mt-2" style="height: 10px;">
+                                    <div class="progress-bar 
+                                        {% if (analytics.capacity_utilization or 0) >= 80 %}bg-success
+                                        {% elif (analytics.capacity_utilization or 0) >= 60 %}bg-info
+                                        {% elif (analytics.capacity_utilization or 0) >= 40 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        style="width: {{ analytics.capacity_utilization or 0 }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="text-center p-3 bg-secondary rounded">
+                                <h4 class="text-success">${{ "%.0f"|format(analytics.total_revenue) }}</h4>
+                                <p class="mb-0 text-body-secondary">Total Revenue Generated</p>
+                                <small class="text-muted">From {{ analytics.total_events }} events</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Insights -->
+                    <div class="mt-3">
+                        <h6 class="text-primary">Performance Insights:</h6>
+                        <ul class="list-unstyled">
+                            {% if analytics.capacity_utilization >= 80 %}
+                                <li><i class="fas fa-check-circle text-success me-2"></i>Excellent capacity utilization</li>
+                            {% elif analytics.capacity_utilization >= 60 %}
+                                <li><i class="fas fa-info-circle text-info me-2"></i>Good capacity utilization</li>
+                            {% elif analytics.capacity_utilization >= 40 %}
+                                <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Moderate capacity utilization</li>
+                            {% else %}
+                                <li><i class="fas fa-times-circle text-danger me-2"></i>Low capacity utilization - consider promotional strategies</li>
+                            {% endif %}
+                            
+                            {% if analytics.total_events > 0 %}
+                                <li><i class="fas fa-calendar-check text-primary me-2"></i>{{ analytics.total_events }} events hosted successfully</li>
+                            {% endif %}
+                            
+                            {% if analytics.average_attendance > analytics.stadium.capacity * 0.7 %}
+                                <li><i class="fas fa-users text-success me-2"></i>Strong average attendance per event</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header bg-secondary border-secondary">
+                    <h5 class="card-title mb-0 text-white">Quick Actions</h5>
+                </div>
+                <div class="card-body bg-dark">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('add_event', stadium_id=analytics.stadium.id) }}" class="btn btn-success">
+                            <i class="fas fa-plus me-2"></i>Add Event
+                        </a>
+                        <a href="{{ url_for('add_concession', stadium_id=analytics.stadium.id) }}" class="btn btn-info">
+                            <i class="fas fa-store me-2"></i>Add Concession
+                        </a>
+                        <a href="{{ url_for('add_parking', stadium_id=analytics.stadium.id) }}" class="btn btn-warning">
+                            <i class="fas fa-parking me-2"></i>Add Parking
+                        </a>
+                        <a href="{{ url_for('add_seats', stadium_id=analytics.stadium.id) }}" class="btn btn-outline-light">
+                            <i class="fas fa-chair me-2"></i>Add Seats
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events List -->
+    {% if analytics.events %}
+    <div class="card bg-dark border-secondary">
+        <div class="card-header bg-secondary border-secondary">
+            <h5 class="card-title mb-0 text-white">Recent Events</h5>
+        </div>
+        <div class="card-body bg-dark">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th class="text-white">Event</th>
+                            <th class="text-white">Date</th>
+                            <th class="text-white">Teams</th>
+                            <th class="text-white">Ticket Price</th>
+                            <th class="text-white">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in analytics.events[-10:] %}
+                        <tr>
+                            <td>
+                                <strong class="text-white">{{ event.event_name }}</strong>
+                                <br>
+                                <small class="text-muted">{{ event.event_type }}</small>
+                            </td>
+                            <td class="text-light">
+                                <strong>{{ event.event_date.strftime('%Y-%m-%d') }}</strong>
+                                <br>
+                                <small class="text-muted">{{ event.start_time.strftime('%H:%M') if event.start_time else 'TBD' }}</small>
+                            </td>
+                            <td>
+                                {% if event.home_team_id and event.away_team_id %}
+                                    <span class="badge bg-primary me-1">Home Team</span>
+                                    <small class="text-muted">vs</small>
+                                    <span class="badge bg-secondary ms-1">Away Team</span>
+                                {% else %}
+                                    <span class="text-muted">Teams TBD</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="text-muted">Varies by seat</span>
+                            </td>
+                            <td>
+                                {% set event_date = event.event_date %}
+                                {% set today = moment().date() %}
+                                {% if event_date < today %}
+                                    <span class="badge bg-secondary">Completed</span>
+                                {% elif event_date == today %}
+                                    <span class="badge bg-warning">Today</span>
+                                {% else %}
+                                    <span class="badge bg-success">Upcoming</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card bg-dark border-secondary">
+        <div class="card-body text-center py-4 bg-dark">
+            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Events Yet</h5>
+            <p class="text-muted">Start by adding events to this stadium.</p>
+            <a href="{{ url_for('add_event', stadium_id=analytics.stadium.id) }}" class="btn btn-success">
+                <i class="fas fa-plus me-2"></i>Add First Event
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+}
+
+.table-dark {
+    --bs-table-bg: #212529;
+    --bs-table-striped-bg: #2c3034;
+    --bs-table-hover-bg: #323539;
+}
+
+.bg-secondary {
+    background-color: #495057 !important;
+}
+
+.border-secondary {
+    border-color: #495057 !important;
+}
+
+.text-muted {
+    color: #adb5bd !important;
+}
+
+.progress {
+    background-color: #495057;
+}
+
+.btn-outline-light:hover {
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+.small {
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,244 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Manage {{ stadium.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h2 text-white">{{ stadium.name }}</h1>
+                    <p class="text-body-secondary mb-0">{{ stadium.location }} • Capacity: {{ "{:,}".format(stadium.capacity) }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('edit_stadium', stadium_id=stadium.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit"></i> Edit Stadium
+                    </a>
+                    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs" id="managementTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button" role="tab">
+                        <i class="fas fa-calendar"></i> Events ({{ events|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="concessions-tab" data-bs-toggle="tab" data-bs-target="#concessions" type="button" role="tab">
+                        <i class="fas fa-utensils"></i> Concessions ({{ concessions|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="parking-tab" data-bs-toggle="tab" data-bs-target="#parking" type="button" role="tab">
+                        <i class="fas fa-parking"></i> Parking ({{ parking_zones|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="seats-tab" data-bs-toggle="tab" data-bs-target="#seats" type="button" role="tab">
+                        <i class="fas fa-chair"></i> Seats ({{ sections|length }} sections)
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="managementTabsContent">
+                <!-- Events Tab -->
+                <div class="tab-pane fade show active" id="events" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center my-3">
+                        <h4>Events & Matches</h4>
+                        <a href="{{ url_for('add_event', stadium_id=stadium.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Event
+                        </a>
+                    </div>
+                    
+                    {% if events %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Event Name</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Teams</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in events %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ event.event_name }}</strong>
+                                            {% if event.tournament_name %}
+                                                <br><small class="text-body-secondary">{{ event.tournament_name }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ event.event_date.strftime('%Y-%m-%d') }}</td>
+                                        <td>{{ event.start_time.strftime('%H:%M') }}</td>
+                                        <td>
+                                            {% if event.home_team and event.away_team %}
+                                                {{ event.home_team.team_name }} vs {{ event.away_team.team_name }}
+                                            {% else %}
+                                                <span class="text-body-secondary">TBD</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if event.match_status == 'Completed' else 'primary' if event.match_status == 'Scheduled' else 'warning' }}">
+                                                {{ event.match_status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary">Edit</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-times fa-2x text-muted mb-3"></i>
+                            <p class="text-body-secondary">No events scheduled for this stadium.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Concessions Tab -->
+                <div class="tab-pane fade" id="concessions" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center my-3">
+                        <h4>Food & Beverage Concessions</h4>
+                        <a href="{{ url_for('add_concession', stadium_id=stadium.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Concession
+                        </a>
+                    </div>
+                    
+                    {% if concessions %}
+                        <div class="row">
+                            {% for concession in concessions %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ concession.name }}</h5>
+                                        <p class="card-text">
+                                            <small class="text-body-secondary">
+                                                <i class="fas fa-map-marker-alt"></i> {{ concession.location_zone or 'No location set' }}<br>
+                                                <i class="fas fa-clock"></i> {{ concession.opening_hours or 'Hours not set' }}<br>
+                                                <i class="fas fa-tag"></i> {{ concession.category or 'No category' }}
+                                            </small>
+                                        </p>
+                                        <div class="btn-group w-100">
+                                            <a href="{{ url_for('add_menu_item', concession_id=concession.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-plus"></i> Add Menu Items
+                                            </a>
+                                            <a href="#" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-store-slash fa-2x text-muted mb-3"></i>
+                            <p class="text-body-secondary">No concessions set up for this stadium.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Parking Tab -->
+                <div class="tab-pane fade" id="parking" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center my-3">
+                        <h4>Parking Zones</h4>
+                        <a href="{{ url_for('add_parking', stadium_id=stadium.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Parking Zone
+                        </a>
+                    </div>
+                    
+                    {% if parking_zones %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Zone</th>
+                                        <th>Capacity</th>
+                                        <th>Rate per Hour</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for parking in parking_zones %}
+                                    <tr>
+                                        <td><strong>{{ parking.zone }}</strong></td>
+                                        <td>{{ parking.capacity }} vehicles</td>
+                                        <td>${{ "%.2f"|format(parking.rate_per_hour) }}</td>
+                                        <td>
+                                            <a href="#" class="btn btn-sm btn-outline-primary">Edit</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-parking fa-2x text-muted mb-3"></i>
+                            <p class="text-body-secondary">No parking zones configured for this stadium.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Seats Tab -->
+                <div class="tab-pane fade" id="seats" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center my-3">
+                        <h4>Seating Sections</h4>
+                        <a href="{{ url_for('add_seats', stadium_id=stadium.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Seats
+                        </a>
+                    </div>
+                    
+                    {% if sections %}
+                        <div class="row">
+                            {% for section_name, seats in sections.items() %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Section {{ section_name }}</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="mb-2"><strong>{{ seats|length }}</strong> seats</p>
+                                        {% set seat_types = seats|map(attribute='seat_type')|unique|list %}
+                                        <p class="mb-2">
+                                            <small class="text-body-secondary">
+                                                Types: {{ seat_types|join(', ') }}
+                                            </small>
+                                        </p>
+                                        {% set price_range = seats|map(attribute='price')|list %}
+                                        <p class="mb-0">
+                                            <small class="text-body-secondary">
+                                                Price: ${{ "%.2f"|format(price_range|min) }}
+                                                {% if price_range|min != price_range|max %}
+                                                    - ${{ "%.2f"|format(price_range|max) }}
+                                                {% endif %}
+                                            </small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-chair fa-2x text-muted mb-3"></i>
+                            <p class="text-body-secondary">No seats configured for this stadium.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

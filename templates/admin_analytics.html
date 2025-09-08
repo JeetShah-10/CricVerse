@@ -1,0 +1,345 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Analytics Dashboard - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2 fw-bold">Analytics Dashboard</h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-secondary btn-sm d-flex align-items-center">
+                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+            </a>
+            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center" onclick="window.print()">
+                <i class="bi bi-printer me-2"></i>Print Report
+            </button>
+        </div>
+    </div>
+
+    <!-- Key Performance Indicators -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+            <div class="card bg-primary text-white text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-building display-4 mb-2"></i>
+                    <h3 class="card-title">{{ analytics_data.total_stadiums }}</h3>
+                    <p class="card-text opacity-75">Stadiums</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+            <div class="card bg-success text-white text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-calendar-event display-4 mb-2"></i>
+                    <h3 class="card-title">{{ analytics_data.total_events }}</h3>
+                    <p class="card-text opacity-75">Events</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+            <div class="card bg-info text-white text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-ticket-fill display-4 mb-2"></i>
+                    <h3 class="card-title">{{ analytics_data.total_tickets_sold }}</h3>
+                    <p class="card-text opacity-75">Tickets Sold</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+            <div class="card bg-warning text-dark text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-car-fill display-4 mb-2"></i>
+                    <h3 class="card-title">{{ analytics_data.total_parking_bookings }}</h3>
+                    <p class="card-text opacity-75">Parking</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+            <div class="card bg-secondary text-white text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-cup-fill display-4 mb-2"></i>
+                    <h3 class="card-title">{{ analytics_data.total_concession_orders }}</h3>
+                    <p class="card-text opacity-75">Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+            <div class="card bg-dark text-white text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-currency-rupee display-4 mb-2"></i>
+                    <h3 class="card-title">₹{{ "%.0f"|format(analytics_data.total_revenue) }}</h3>
+                    <p class="card-text opacity-75">Revenue</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stadium Performance Comparison -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Stadium Performance Overview</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th scope="col">Stadium</th>
+                            <th scope="col">Events</th>
+                            <th scope="col">Tickets Sold</th>
+                            <th scope="col">Revenue</th>
+                            <th scope="col">Utilization Rate</th>
+                            <th scope="col">Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for performance in analytics_data.stadium_performance %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ performance.stadium.name }}</div>
+                                <small class="text-muted">{{ performance.stadium.location }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ performance.events_count }}</span>
+                            </td>
+                            <td>
+                                <strong>{{ performance.tickets_sold }}</strong>
+                                <br><small class="text-muted">/ {{ performance.stadium.capacity }} capacity</small>
+                            </td>
+                            <td class="text-success">
+                                <strong>₹{{ "%.2f"|format(performance.revenue) }}</strong>
+                            </td>
+                            <td>
+                                <div class="progress mb-1" style="height: 10px;">
+                                    <div class="progress-bar 
+                                        {% if performance.utilization_rate >= 80 %}bg-success
+                                        {% elif performance.utilization_rate >= 60 %}bg-info
+                                        {% elif performance.utilization_rate >= 40 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        style="width: {{ performance.utilization_rate }}%"></div>
+                                </div>
+                                <small class="text-muted">{{ "%.1f"|format(performance.utilization_rate) }}%</small>
+                            </td>
+                            <td>
+                                {% if performance.utilization_rate >= 80 %}
+                                    <span class="badge bg-success">Excellent</span>
+                                {% elif performance.utilization_rate >= 60 %}
+                                    <span class="badge bg-info">Good</span>
+                                {% elif performance.utilization_rate >= 40 %}
+                                    <span class="badge bg-warning text-dark">Average</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Needs Attention</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue Breakdown and Insights -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Revenue Distribution</h5>
+                </div>
+                <div class="card-body">
+                    {% set ticket_revenue = analytics_data.stadium_performance|sum(attribute='revenue') %}
+                    {% set total_revenue = analytics_data.total_revenue %}
+                    {% set concession_revenue = total_revenue - ticket_revenue %}
+                    
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <i class="bi bi-ticket-fill display-4 text-primary mb-2"></i>
+                            <h4 class="text-primary">₹{{ "%.0f"|format(ticket_revenue) }}</h4>
+                            <p class="text-muted mb-1">Ticket Sales</p>
+                            <small class="text-muted">{{ "%.1f"|format((ticket_revenue/total_revenue)*100) if total_revenue > 0 else 0 }}% of total</small>
+                        </div>
+                        <div class="col-6">
+                            <i class="bi bi-cup-fill display-4 text-success mb-2"></i>
+                            <h4 class="text-success">₹{{ "%.0f"|format(concession_revenue) }}</h4>
+                            <p class="text-muted mb-1">Concessions</p>
+                            <small class="text-muted">{{ "%.1f"|format((concession_revenue/total_revenue)*100) if total_revenue > 0 else 0 }}% of total</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Key Metrics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 text-center">
+                            <h4 class="text-info">
+                                ₹{{ "%.2f"|format(analytics_data.total_revenue / analytics_data.total_tickets_sold) if analytics_data.total_tickets_sold > 0 else 0 }}
+                            </h4>
+                            <p class="text-muted small mb-0">Avg Revenue per Ticket</p>
+                        </div>
+                        <div class="col-6 text-center">
+                            <h4 class="text-warning">
+                                {{ "%.1f"|format(analytics_data.total_tickets_sold / analytics_data.total_events) if analytics_data.total_events > 0 else 0 }}
+                            </h4>
+                            <p class="text-muted small mb-0">Avg Attendance per Event</p>
+                        </div>
+                        <div class="col-6 text-center">
+                            <h4 class="text-success">
+                                {{ "%.1f"|format(analytics_data.total_parking_bookings / analytics_data.total_events) if analytics_data.total_events > 0 else 0 }}
+                            </h4>
+                            <p class="text-muted small mb-0">Avg Parking per Event</p>
+                        </div>
+                        <div class="col-6 text-center">
+                            <h4 class="text-primary">
+                                {{ "%.1f"|format(analytics_data.total_concession_orders / analytics_data.total_events) if analytics_data.total_events > 0 else 0 }}
+                            </h4>
+                            <p class="text-muted small mb-0">Avg Orders per Event</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Insights -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Performance Insights</h5>
+        </div>
+        <div class="card-body">
+            {% set best_stadium = analytics_data.stadium_performance|max(attribute='utilization_rate') if analytics_data.stadium_performance else None %}
+            {% set worst_stadium = analytics_data.stadium_performance|min(attribute='utilization_rate') if analytics_data.stadium_performance else None %}
+            {% set highest_revenue = analytics_data.stadium_performance|max(attribute='revenue') if analytics_data.stadium_performance else None %}
+            
+            <div class="row g-3">
+                {% if best_stadium %}
+                <div class="col-md-4">
+                    <div class="card bg-success text-white text-center h-100">
+                        <div class="card-body">
+                            <i class="bi bi-trophy-fill display-4 mb-2"></i>
+                            <h6>Best Utilization</h6>
+                            <strong class="h5">{{ best_stadium.stadium.name }}</strong>
+                            <p class="mb-0 opacity-75">{{ "%.1f"|format(best_stadium.utilization_rate) }}%</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if highest_revenue %}
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white text-center h-100">
+                        <div class="card-body">
+                            <i class="bi bi-currency-rupee display-4 mb-2"></i>
+                            <h6>Highest Revenue</h6>
+                            <strong class="h5">{{ highest_revenue.stadium.name }}</strong>
+                            <p class="mb-0 opacity-75">₹{{ "%.0f"|format(highest_revenue.revenue) }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if worst_stadium %}
+                <div class="col-md-4">
+                    <div class="card bg-warning text-dark text-center h-100">
+                        <div class="card-body">
+                            <i class="bi bi-exclamation-triangle-fill display-4 mb-2"></i>
+                            <h6>Needs Improvement</h6>
+                            <strong class="h5">{{ worst_stadium.stadium.name }}</strong>
+                            <p class="mb-0 opacity-75">{{ "%.1f"|format(worst_stadium.utilization_rate) }}%</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Quick Actions</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="{{ url_for('admin_events_overview') }}" class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-calendar-event me-2"></i>View All Events
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('admin_parking_overview') }}" class="btn btn-outline-info w-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-car-fill me-2"></i>Parking Management
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('admin_concessions_overview') }}" class="btn btn-outline-success w-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-cup-fill me-2"></i>Concessions Overview
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('admin_bookings_overview') }}" class="btn btn-outline-warning w-100 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-ticket-fill me-2"></i>Booking Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Recommendations</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% if analytics_data.stadium_performance %}
+                    {% set low_utilization = analytics_data.stadium_performance|selectattr('utilization_rate', '<', 50)|list %}
+                    {% if low_utilization %}
+                    <div class="col-md-4">
+                        <div class="alert alert-warning d-flex align-items-start">
+                            <i class="bi bi-lightbulb-fill fs-5 me-3"></i>
+                            <div>
+                                <h6 class="fw-bold">Improve Utilization</h6>
+                                <p class="mb-2">{{ low_utilization|length }} stadium(s) have low utilization rates.</p>
+                                <small class="opacity-75">Consider promotional pricing or marketing campaigns.</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if analytics_data.total_concession_orders < analytics_data.total_tickets_sold * 0.3 %}
+                    <div class="col-md-4">
+                        <div class="alert alert-info d-flex align-items-start">
+                            <i class="bi bi-cup-fill fs-5 me-3"></i>
+                            <div>
+                                <h6 class="fw-bold">Boost Concessions</h6>
+                                <p class="mb-2">Concession orders are below optimal levels.</p>
+                                <small class="opacity-75">Consider expanding menu options or promotional bundles.</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if analytics_data.total_parking_bookings < analytics_data.total_tickets_sold * 0.4 %}
+                    <div class="col-md-4">
+                        <div class="alert alert-secondary d-flex align-items-start">
+                            <i class="bi bi-car-fill fs-5 me-3"></i>
+                            <div>
+                                <h6 class="fw-bold">Parking Optimization</h6>
+                                <p class="mb-2">Parking utilization could be improved.</p>
+                                <small class="opacity-75">Review pricing strategy and accessibility.</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

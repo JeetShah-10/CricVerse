@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ stadium.name }} • CricVerse{% endblock %}
+
+{% block content %}
+<div class="hero-section stadium-image" style="background-image: url('{{ stadium.image_url or url_for('static', filename='img/Stadium Image.jpg') }}');">
+    <div class="overlay"></div>
+    <div class="container h-100 d-flex flex-column justify-content-center hero-content">
+        <h1 class="display-4 fw-bold text-white mb-3">{{ stadium.name }}</h1>
+        <p class="lead text-white-50"><i class="bi bi-geo-alt-fill"></i> {{ stadium.location }}</p>
+        <div class="card card-body bg-dark text-white-50 mt-4 d-flex justify-content-around flex-row">
+            <div><strong>Capacity:</strong> {{ "{:,}".format(stadium.capacity) }}</div>
+            <div><strong>Boundary:</strong> {{ stadium.boundary_length }}m</div>
+            <div><strong>Pitch:</strong> {{ stadium.pitch_type }}</div>
+        </div>
+    </div>
+    <div class="scroll-indicator">
+        <i class="bi bi-chevron-down fs-2 text-white"></i>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="row g-5">
+        <div class="col-lg-8">
+            <ul class="nav nav-tabs nav-fill mb-3" id="stadiumDetailTabs" role="tablist">
+                <li class="nav-item"><a class="nav-link active" id="about-tab" data-bs-toggle="tab" href="#about">About</a></li>
+                <li class="nav-item"><a class="nav-link" id="events-tab" data-bs-toggle="tab" href="#events">Events</a></li>
+                <li class="nav-item"><a class="nav-link" id="gallery-tab" data-bs-toggle="tab" href="#gallery">Gallery</a></li>
+            </ul>
+
+            <div class="card card-body p-4">
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="about">
+                        <p class="mb-4">{{ stadium.description or 'No description available.' }}</p>
+                        <h2 class="mb-3">Facilities</h2>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6"><div class="card card-body text-center">Dressing Rooms: {{ 'Yes' if stadium.has_dressing_rooms else 'No' }}</div></div>
+                            <div class="col-md-6"><div class="card card-body text-center">Practice Nets: {{ 'Yes' if stadium.has_practice_nets else 'No' }}</div></div>
+                        </div>
+
+                        <h2 class="mb-3">Location</h2>
+
+                        <div class="map-container mt-3 card">
+                            <iframe
+                                width="100%"
+                                height="300"
+                                style="border:0;"
+                                loading="lazy"
+                                allowfullscreen
+                                referrerpolicy="no-referrer-when-downgrade"
+                                title="Stadium Location Map"
+                                src="https://www.google.com/maps?q={{ stadium.latitude }},{{ stadium.longitude }}&output=embed&t=k">
+                            </iframe>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="events">
+                        <h2 class="mb-3">Upcoming Matches</h2>
+                        <div class="list-group">
+                            {% for match in stadium.upcoming_matches %}
+                            <a href="{{ url_for('event_detail', event_id=match.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center card mb-2">
+                                <div>
+                                    <h5 class="mb-1">{{ match.event_name }}</h5>
+                                    <small class="text-muted">{{ match.event_date.strftime('%d %b %Y') }} at {{ match.start_time.strftime('%I:%M %p') }}</small>
+                                </div>
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                            {% else %}
+                            <p class="text-muted">No upcoming matches at this stadium.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="gallery">
+                        <h2 class="mb-3">Photo Gallery</h2>
+                        <div id="main-carousel" class="carousel slide mb-3 card" data-bs-ride="carousel">
+                            <div class="carousel-inner rounded">
+                                {% for photo in stadium.photos %}
+                                <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                    <img src="{{ photo.url }}" class="d-block w-100 stadium-image" alt="Stadium Photo {{ loop.index }}">
+                                </div>
+                                {% else %}
+                                <div class="carousel-item active">
+                                    <img src="{{ url_for('static', filename='img/Stadium Image.jpg') }}" class="d-block w-100 stadium-image" alt="No photos available">
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button class="carousel-control-prev" type="button" data-bs-target="#main-carousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon"></span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#main-carousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon"></span>
+                            </button>
+                        </div>
+                        <div class="gallery-thumbnails d-flex gap-2 justify-content-center">
+                            {% for photo in stadium.photos %}
+                            <img src="{{ photo.url }}" class="img-thumbnail stadium-image {% if loop.first %}active{% endif %}" width="100" height="75" data-bs-target="#main-carousel" data-bs-slide-to="{{ loop.index0 }}">
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card booking-card">
+                <div class="card-body">
+                    <h2 class="text-center mb-4">Book Tickets</h2>
+                    <form id="booking-form">
+                        <div class="input-group mb-3">
+                            <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+                            <select class="form-select" id="event" name="event_id" required>
+                                <option selected disabled value="">Select Event</option>
+                                {% for match in stadium.upcoming_matches %}
+                                    <option value="{{ match.id }}">{{ match.event_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                            <select class="form-select" id="seat_category" name="seat_category" required>
+                                <option selected disabled value="">Select Category</option>
+                                <option value="VIP">VIP</option>
+                                <option value="Premium">Premium</option>
+                                <option value="General">General</option>
+                            </select>
+                        </div>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text"><i class="bi bi-people"></i></span>
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="1" max="10" value="1" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Find Tickets</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Hero parallax
+    const hero = document.querySelector('.hero-section');
+    if (hero) {
+        hero.addEventListener('mousemove', e => {
+            const { clientX: x, clientY: y } = e;
+            const { offsetWidth: width, offsetHeight: height } = hero;
+            const xPos = (x / width - 0.5) * 20;
+            const yPos = (y / height - 0.5) * 20;
+            hero.style.backgroundPosition = `calc(50% + ${xPos}px) calc(50% + ${yPos}px)`;
+        });
+    }
+
+    // Gallery thumbnails
+    const mainCarouselEl = document.getElementById('main-carousel');
+    if(mainCarouselEl) {
+        const mainCarousel = new bootstrap.Carousel(mainCarouselEl);
+        const thumbnails = document.querySelectorAll('.gallery-thumbnails img');
+        thumbnails.forEach((thumb, index) => {
+            thumb.addEventListener('click', () => {
+                mainCarousel.to(index);
+                thumbnails.forEach(t => t.classList.remove('active'));
+                thumb.classList.add('active');
+            });
+        });
+    }
+
+    // Booking form submit
+    const bookingForm = document.getElementById('booking-form');
+    if(bookingForm) {
+        bookingForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const eventId = document.getElementById('event').value;
+            if(eventId) window.location.href = `/select_seats/${eventId}`;
+            else alert('Please select an event before proceeding.');
+        });
+    }
+});
+</script>
+{% endblock %}
