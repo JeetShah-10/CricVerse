@@ -1,0 +1,543 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}User Management • CricVerse Admin{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid px-4 py-3">
+    <!-- Header -->
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0 fw-bold">User Management</h1>
+            <p class="text-muted mb-0">Manage user accounts, roles, and permissions across CricVerse</p>
+        </div>
+        <div class="col-auto">
+            <button type="button" class="btn btn-primary" onclick="showCreateUserModal()">
+                <i class="fas fa-plus me-2"></i>Add New User
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-gradient h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">Total Users</div>
+                            <div class="h5 mb-0 fw-bold">{{ total_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-gradient h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">Active Users</div>
+                            <div class="h5 mb-0 fw-bold">{{ active_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-gradient h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs fw-bold text-warning text-uppercase mb-1">Administrators</div>
+                            <div class="h5 mb-0 fw-bold">{{ admin_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-shield fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-gradient h-100">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">Stadium Owners</div>
+                            <div class="h5 mb-0 fw-bold">{{ stadium_owner_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-building fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Search Users</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="userSearch" placeholder="Search by name, email...">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Filter by Role</label>
+                    <select class="form-select" id="roleFilter">
+                        <option value="">All Roles</option>
+                        <option value="customer">Customers</option>
+                        <option value="stadium_owner">Stadium Owners</option>
+                        <option value="admin">Administrators</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Filter by Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button class="btn btn-secondary" onclick="clearFilters()">
+                            <i class="fas fa-times me-1"></i>Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h6 class="mb-0">User Accounts</h6>
+                </div>
+                <div class="col-auto">
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cog me-1"></i>Actions
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="exportUsers()">
+                                <i class="fas fa-download me-2"></i>Export Users
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="bulkEmailUsers()">
+                                <i class="fas fa-envelope me-2"></i>Send Bulk Email
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="archiveSelectedUsers()">
+                                <i class="fas fa-archive me-2"></i>Archive Selected
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="usersTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="50">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAll">
+                                </div>
+                            </th>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Joined</th>
+                            <th>Last Active</th>
+                            <th width="120">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr class="user-row" 
+                            data-user-id="{{ user.id }}" 
+                            data-role="{{ user.role }}"
+                            data-name="{{ user.name.lower() }}"
+                            data-email="{{ user.email.lower() }}">
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input user-checkbox" type="checkbox" value="{{ user.id }}">
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-{{ 'primary' if user.role == 'admin' else 'success' if user.role == 'stadium_owner' else 'info' }} 
+                                              text-white rounded-circle d-flex align-items-center justify-content-center me-3">
+                                        <i class="fas fa-{{ 'user-shield' if user.role == 'admin' else 'building' if user.role == 'stadium_owner' else 'user' }}"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-medium">{{ user.name }}</div>
+                                        <div class="text-muted small">{{ user.email }}</div>
+                                        {% if user.phone %}
+                                        <div class="text-muted small">{{ user.phone }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if user.role == 'admin' else 'success' if user.role == 'stadium_owner' else 'secondary' }}">
+                                    {{ user.role.replace('_', ' ').title() }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">Active</span>
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ moment().format('MMM DD, YYYY') }}</span>
+                            </td>
+                            <td>
+                                <span class="text-muted">Recently</span>
+                            </td>
+                            <td>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        Actions
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="#" onclick="viewUser({{ user.id }})">
+                                            <i class="fas fa-eye me-2"></i>View Details
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="editUser({{ user.id }})">
+                                            <i class="fas fa-edit me-2"></i>Edit User
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="resetPassword({{ user.id }})">
+                                            <i class="fas fa-key me-2"></i>Reset Password
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        {% if user.role != 'admin' or users|selectattr('role', 'equalto', 'admin')|list|length > 1 %}
+                                        <li><a class="dropdown-item text-warning" href="#" onclick="suspendUser({{ user.id }})">
+                                            <i class="fas fa-user-slash me-2"></i>Suspend User
+                                        </a></li>
+                                        {% endif %}
+                                        {% if current_user.id != user.id %}
+                                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteUser({{ user.id }})">
+                                            <i class="fas fa-trash me-2"></i>Delete User
+                                        </a></li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white py-3">
+            <div class="row align-items-center">
+                <div class="col">
+                    <small class="text-muted">Showing {{ users|length }} users</small>
+                </div>
+                <div class="col-auto">
+                    <!-- Pagination would go here -->
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item disabled">
+                                <span class="page-link">Previous</span>
+                            </li>
+                            <li class="page-item active">
+                                <span class="page-link">1</span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">Next</span>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit User Modal -->
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalTitle">Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="userForm">
+                <div class="modal-body">
+                    <input type="hidden" id="userId" name="user_id">
+                    
+                    <div class="mb-3">
+                        <label for="userName" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="userName" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="userEmail" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="userEmail" name="email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="userPhone" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="userPhone" name="phone">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="userRole" class="form-label">Role</label>
+                        <select class="form-select" id="userRole" name="role" required>
+                            <option value="customer">Customer</option>
+                            <option value="stadium_owner">Stadium Owner</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="passwordSection">
+                        <label for="userPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="userPassword" name="password">
+                        <div class="form-text">Leave blank to keep current password (when editing)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="membershipLevel" class="form-label">Membership Level</label>
+                        <select class="form-select" id="membershipLevel" name="membership_level">
+                            <option value="Basic">Basic</option>
+                            <option value="Premium">Premium</option>
+                            <option value="VIP">VIP</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// User Management JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    initializeUserManagement();
+});
+
+function initializeUserManagement() {
+    const userSearch = document.getElementById('userSearch');
+    const roleFilter = document.getElementById('roleFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const userCheckboxes = document.querySelectorAll('.user-checkbox');
+    
+    // Search functionality
+    userSearch.addEventListener('input', filterUsers);
+    roleFilter.addEventListener('change', filterUsers);
+    statusFilter.addEventListener('change', filterUsers);
+    
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        userCheckboxes.forEach(checkbox => {
+            if (checkbox.closest('tr').style.display !== 'none') {
+                checkbox.checked = this.checked;
+            }
+        });
+    });
+    
+    // Individual checkbox change
+    userCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectAll);
+    });
+}
+
+function filterUsers() {
+    const searchTerm = document.getElementById('userSearch').value.toLowerCase();
+    const roleFilter = document.getElementById('roleFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const userRows = document.querySelectorAll('.user-row');
+    let visibleCount = 0;
+    
+    userRows.forEach(row => {
+        const name = row.dataset.name || '';
+        const email = row.dataset.email || '';
+        const role = row.dataset.role || '';
+        
+        const matchesSearch = !searchTerm || 
+            name.includes(searchTerm) || 
+            email.includes(searchTerm);
+        
+        const matchesRole = !roleFilter || role === roleFilter;
+        const matchesStatus = !statusFilter; // For now, all users are active
+        
+        const isVisible = matchesSearch && matchesRole && matchesStatus;
+        
+        row.style.display = isVisible ? '' : 'none';
+        if (isVisible) visibleCount++;
+    });
+    
+    // Update visible count
+    const countElement = document.querySelector('.card-footer .text-muted');
+    if (countElement) {
+        countElement.textContent = `Showing ${visibleCount} users`;
+    }
+    
+    updateSelectAll();
+}
+
+function clearFilters() {
+    document.getElementById('userSearch').value = '';
+    document.getElementById('roleFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterUsers();
+}
+
+function updateSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const visibleCheckboxes = Array.from(document.querySelectorAll('.user-checkbox'))
+        .filter(cb => cb.closest('tr').style.display !== 'none');
+    
+    const checkedVisibleBoxes = visibleCheckboxes.filter(cb => cb.checked);
+    
+    selectAllCheckbox.checked = visibleCheckboxes.length > 0 && checkedVisibleBoxes.length === visibleCheckboxes.length;
+    selectAllCheckbox.indeterminate = checkedVisibleBoxes.length > 0 && checkedVisibleBoxes.length < visibleCheckboxes.length;
+}
+
+function showCreateUserModal() {
+    document.getElementById('userModalTitle').textContent = 'Add New User';
+    document.getElementById('userForm').reset();
+    document.getElementById('userId').value = '';
+    document.getElementById('passwordSection').querySelector('.form-text').style.display = 'none';
+    document.getElementById('userPassword').required = true;
+    
+    const modal = new bootstrap.Modal(document.getElementById('userModal'));
+    modal.show();
+}
+
+function viewUser(userId) {
+    // Implement user details view
+    CricVerse.showNotification(`Viewing user details for ID: ${userId}`, 'info');
+}
+
+function editUser(userId) {
+    document.getElementById('userModalTitle').textContent = 'Edit User';
+    document.getElementById('userId').value = userId;
+    document.getElementById('passwordSection').querySelector('.form-text').style.display = 'block';
+    document.getElementById('userPassword').required = false;
+    
+    // In production, fetch user data and populate form
+    CricVerse.showNotification(`Editing user ID: ${userId}`, 'info');
+    
+    const modal = new bootstrap.Modal(document.getElementById('userModal'));
+    modal.show();
+}
+
+function resetPassword(userId) {
+    CricVerse.showModal(
+        'Reset Password',
+        'Are you sure you want to reset this user\'s password? They will receive an email with reset instructions.',
+        'warning',
+        function() {
+            CricVerse.showNotification(`Password reset sent for user ID: ${userId}`, 'success');
+        }
+    );
+}
+
+function suspendUser(userId) {
+    CricVerse.showModal(
+        'Suspend User',
+        'Are you sure you want to suspend this user? They will not be able to access their account.',
+        'warning',
+        function() {
+            CricVerse.showNotification(`User ID ${userId} has been suspended`, 'warning');
+        }
+    );
+}
+
+function deleteUser(userId) {
+    CricVerse.showModal(
+        'Delete User',
+        'Are you sure you want to permanently delete this user? This action cannot be undone.',
+        'danger',
+        function() {
+            CricVerse.showNotification(`User ID ${userId} has been deleted`, 'success');
+        }
+    );
+}
+
+function exportUsers() {
+    const checkedUsers = Array.from(document.querySelectorAll('.user-checkbox:checked'));
+    const userIds = checkedUsers.map(cb => cb.value);
+    
+    if (userIds.length === 0) {
+        CricVerse.showNotification('Please select users to export', 'warning');
+        return;
+    }
+    
+    CricVerse.showNotification(`Exporting ${userIds.length} users...`, 'info');
+    // Implement export functionality
+}
+
+function bulkEmailUsers() {
+    const checkedUsers = Array.from(document.querySelectorAll('.user-checkbox:checked'));
+    
+    if (checkedUsers.length === 0) {
+        CricVerse.showNotification('Please select users to email', 'warning');
+        return;
+    }
+    
+    CricVerse.showNotification(`Preparing bulk email for ${checkedUsers.length} users...`, 'info');
+}
+
+function archiveSelectedUsers() {
+    const checkedUsers = Array.from(document.querySelectorAll('.user-checkbox:checked'));
+    
+    if (checkedUsers.length === 0) {
+        CricVerse.showNotification('Please select users to archive', 'warning');
+        return;
+    }
+    
+    CricVerse.showModal(
+        'Archive Users',
+        `Are you sure you want to archive ${checkedUsers.length} selected users?`,
+        'warning',
+        function() {
+            CricVerse.showNotification(`${checkedUsers.length} users archived successfully`, 'success');
+        }
+    );
+}
+
+// Form submission
+document.getElementById('userForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const userId = formData.get('user_id');
+    const isEdit = userId && userId !== '';
+    
+    CricVerse.showNotification(
+        isEdit ? 'User updated successfully!' : 'New user created successfully!',
+        'success'
+    );
+    
+    bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+});
+</script>
+{% endblock %}

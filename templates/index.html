@@ -6,173 +6,184 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 {% endblock %}
 {% block content %}
-<!-- HERO BANNER -->
-<section class="hero-banner text-center text-white position-relative overflow-hidden">
-  <div class="overlay"></div>
-  <div class="container position-relative z-1 py-5">
-    <h1 class="display-4 fw-bold mb-4 drop-shadow">Book Your Seat at the Edge of Excitement</h1>
-    <p class="lead mb-4 drop-shadow">Limited seats left for The Ashes! Don't miss out on the action.</p>
-    <div class="countdown-pill mb-4"><i class="bi bi-clock me-2"></i> Next match: 2d 14h 22m</div>
-    <a href="#tickets" class="btn btn-primary btn-lg px-5 py-3 rounded-pill shadow-lg btn-find-tickets">Find Tickets</a>
-    <div class="mt-3 fs-5 text-slate-300">Join <span class="text-primary-300 fw-bold">24,000+</span> cricket fans who booked this week!</div>
+<!-- HERO SECTION -->
+<section class="hero-section fade-in">
+  <div class="container">
+    <div class="row align-items-center min-vh-75">
+      <div class="col-lg-6">
+        <h1 class="hero-title">Welcome to CricVerse</h1>
+        <p class="hero-subtitle">Your ultimate destination for Big Bash League cricket. Book tickets, explore stadiums, discover teams, and experience the excitement of Australia's premier T20 competition.</p>
+        
+        {% if next_match_countdown %}
+        <div class="countdown-widget mb-4 p-3 rounded-3">
+          <div class="d-flex align-items-center text-white">
+            <div class="cricket-ball me-3"></div>
+            <div>
+              <h6 class="mb-1">Next BBL Match</h6>
+              <div class="countdown-timer h5 mb-0" id="countdown-timer">
+                {{ next_match_countdown.days }}d {{ next_match_countdown.hours }}h {{ next_match_countdown.minutes }}m
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        <div class="hero-actions">
+          <a href="{{ url_for('events') }}" class="btn btn-primary btn-lg me-3 mb-3">
+            <i class="bi bi-ticket-perforated me-2"></i>Book Tickets
+          </a>
+          <a href="{{ url_for('stadiums') }}" class="btn btn-outline-primary btn-lg mb-3">
+            <i class="bi bi-geo-alt me-2"></i>Explore Stadiums
+          </a>
+        </div>
+        
+        <div class="hero-stats mt-4">
+          <div class="row text-center">
+            <div class="col-4">
+              <h4 class="text-accent-cyan">8</h4>
+              <small>BBL Teams</small>
+            </div>
+            <div class="col-4">
+              <h4 class="text-accent-cyan">8</h4>
+              <small>Iconic Venues</small>
+            </div>
+            <div class="col-4">
+              <h4 class="text-accent-cyan">50+</h4>
+              <small>Matches Per Season</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-6 text-center">
+        <div class="hero-visual position-relative">
+          <div class="cricket-field-bg"></div>
+          <img src="{{ url_for('static', filename='img/hero-cricket.png') }}" alt="Cricket Action" class="img-fluid" style="max-height: 500px;">
+          <div class="floating-elements">
+            <div class="cricket-ball" style="position: absolute; top: 10%; left: 20%; animation-delay: 0s;"></div>
+            <div class="cricket-ball" style="position: absolute; top: 60%; right: 15%; animation-delay: 2s;"></div>
+            <div class="cricket-ball" style="position: absolute; bottom: 20%; left: 10%; animation-delay: 4s;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- UPCOMING MATCHES -->
+<!-- UPCOMING BBL MATCHES -->
 <section class="upcoming-matches py-5">
   <div class="container">
-    <h2 class="text-center mb-5"><i class="bi bi-calendar-event me-3"></i>Upcoming Matches</h2>
+    <h2 class="text-center mb-5 slide-up">🏏 Upcoming BBL Matches</h2>
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      {% for event in upcoming_events %}
       <div class="col">
         <div class="card h-100 match-card rounded-4 shadow-sm">
           <div class="card-body d-flex flex-column justify-content-between align-items-center">
             <div class="d-flex align-items-center mb-3">
-              <img src="https://upload.wikimedia.org/wikipedia/en/thumb/a/a2/Cricket_Australia_logo.svg/1200px-Cricket_Australia_logo.svg.png" class="team-logo" alt="Australia Flag">
-              <h5 class="card-title mb-0 mx-2">Australia <span class="text-primary">vs</span> England</h5>
-              <img src="https://upload.wikimedia.org/wikipedia/en/thumb/b/be/England_cricket_team_logo.svg/1200px-England_cricket_team_logo.svg.png" class="team-logo" alt="England Flag">
+              {% if event.home_team and event.home_team.team_logo %}
+              <img src="{{ event.home_team.team_logo }}" class="team-logo" alt="{{ event.home_team.team_name }} Logo">
+              {% else %}
+              <img src="{{ url_for('static', filename='img/placeholder_team.png') }}" class="team-logo" alt="Placeholder Team Logo">
+              {% endif %}
+              <h5 class="card-title mb-0 mx-2">{{ event.home_team.team_name if event.home_team else 'TBD' }} <span class="text-primary">vs</span> {{ event.away_team.team_name if event.away_team else 'TBD' }}</h5>
+              {% if event.away_team and event.away_team.team_logo %}
+              <img src="{{ event.away_team.team_logo }}" class="team-logo" alt="{{ event.away_team.team_name }} Logo">
+              {% else %}
+              <img src="{{ url_for('static', filename='img/placeholder_team.png') }}" class="team-logo" alt="Placeholder Team Logo">
+              {% endif %}
             </div>
-            <p class="card-text mb-2 text-muted"><i class="bi bi-calendar-event me-2"></i> <span class="fw-semibold">Dec 15, 2025</span> <span class="ms-3"><i class="bi bi-clock me-2"></i> 10:00 AM</span></p>
-            <p class="card-text mb-4 text-muted"><i class="bi bi-geo-alt me-2"></i> <span class="fw-semibold">Adelaide Oval</span></p>
-            <span class="badge match-type-badge badge-ashes-test"><i class="bi bi-trophy me-2"></i> Ashes Test</span>
+            <p class="card-text mb-2 text-muted"><i class="bi bi-calendar-event me-2"></i> <span class="fw-semibold">{{ event.event_date.strftime('%b %d, %Y') }}</span> <span class="ms-3"><i class="bi bi-clock me-2"></i> {{ event.start_time.strftime('%I:%M %p') }}</span></p>
+            <p class="card-text mb-4 text-muted"><i class="bi bi-geo-alt me-2"></i> <span class="fw-semibold">{{ event.stadium.name if event.stadium else 'TBD' }}</span></p>
+            <div class="match-actions mt-3">
+              <a href="{{ url_for('event_detail', event_id=event.id) }}" class="btn btn-outline-primary btn-sm me-2">View Details</a>
+              <a href="{{ url_for('select_seats', event_id=event.id) }}" class="btn btn-primary btn-sm">Book Now</a>
+            </div>
+            <span class="badge bg-gradient position-absolute top-0 end-0 m-3">{{ event.event_type or 'BBL Match' }}</span>
           </div>
         </div>
       </div>
-      <div class="col">
-        <div class="card h-100 match-card rounded-4 shadow-sm">
-          <div class="card-body d-flex flex-column justify-content-between align-items-center">
-            <div class="d-flex align-items-center mb-3">
-              <img src="https://upload.wikimedia.org/wikipedia/en/3/36/Melbourne_Stars_logo.png" class="team-logo" alt="Melbourne Stars Logo">
-              <h5 class="card-title mb-0 mx-2">Melbourne Stars <span class="text-primary">vs</span> Sydney Sixers</h5>
-              <img src="https://upload.wikimedia.org/wikipedia/en/8/8a/Sydney_Sixers_logo.png" class="team-logo" alt="Sydney Sixers Logo">
-            </div>
-            <p class="card-text mb-2 text-muted"><i class="bi bi-calendar-event me-2"></i> <span class="fw-semibold">Dec 20, 2025</span> <span class="ms-3"><i class="bi bi-clock me-2"></i> 07:00 PM</span></p>
-            <p class="card-text mb-4 text-muted"><i class="bi bi-geo-alt me-2"></i> <span class="fw-semibold">MCG</span></p>
-            <span class="badge match-type-badge badge-bbl"><i class="bi bi-star me-2"></i> BBL</span>
-          </div>
-        </div>
+      {% else %}
+      <div class="col-12 text-center">
+        <p>No upcoming events found.</p>
       </div>
-      <div class="col">
-        <div class="card h-100 match-card rounded-4 shadow-sm">
-          <div class="card-body d-flex flex-column justify-content-between align-items-center">
-            <div class="d-flex align-items-center mb-3">
-              <img src="https://upload.wikimedia.org/wikipedia/en/thumb/c/cf/Flag_of_India.svg/1200px-Flag_of_India.svg.png" class="team-logo" alt="India Flag">
-              <h5 class="card-title mb-0 mx-2">India <span class="text-primary">vs</span> Pakistan</h5>
-              <img src="" class="team-logo" alt="Pakistan">
-            </div>
-            <p class="card-text mb-2 text-muted"><i class="bi bi-calendar-event me-2"></i> <span class="fw-semibold">Jan 5, 2026</span> <span class="ms-3"><i class="bi bi-clock me-2"></i> 02:00 PM</span></p>
-            <p class="card-text mb-4 text-muted"><i class="bi bi-geo-alt me-2"></i> <span class="fw-semibold">MCG</span></p>
-            <span class="badge match-type-badge badge-intl-friendly"><i class="bi bi-globe me-2"></i> Intl Friendly</span>
-          </div>
-        </div>
-      </div>
+      {% endfor %}
     </div>
   </div>
 </section>
 
-<!-- FEATURED STADIUMS -->
+<!-- ICONIC BBL VENUES -->
 <section class="featured-stadiums py-5">
   <div class="container">
-    <h2 class="text-center mb-5"><i class="bi bi-building me-3"></i>Featured Stadiums</h2>
+    <h2 class="text-center mb-5 slide-up">🏟️ Iconic BBL Venues</h2>
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      {% for stadium in featured_stadiums %}
       <div class="col">
         <div class="card h-100 stadium-card rounded-4 shadow-sm">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6e/Adelaide_Oval_panorama.jpg" class="card-img-top rounded-top-4" alt="Adelaide Oval">
+          {% if stadium.image_url %}
+          <img src="{{ stadium.image_url }}" class="card-img-top rounded-top-4" alt="{{ stadium.name }}">
+          {% else %}
+          <img src="{{ url_for('static', filename='img/placeholder_stadium.png') }}" class="card-img-top rounded-top-4" alt="Placeholder Stadium Image">
+          {% endif %}
           <div class="card-body d-flex flex-column">
-            <h5 class="card-title mb-2">Adelaide Oval</h5>
+            <h5 class="card-title mb-2">{{ stadium.name }}</h5>
             <div class="row g-2 mb-3">
               <div class="col-6">
-                <p class="card-text text-muted mb-0"><i class="bi bi-geo-alt me-2"></i> Adelaide, Australia</p>
+                <p class="card-text text-muted mb-0"><i class="bi bi-geo-alt me-2"></i> {{ stadium.location }}</p>
               </div>
               <div class="col-6">
-                <p class="card-text text-muted mb-0"><i class="bi bi-people-fill me-2"></i> <span class="fw-semibold">53,583 seats</span></p>
+                <p class="card-text text-muted mb-0"><i class="bi bi-people-fill me-2"></i> <span class="fw-semibold">{{ stadium.capacity | int }} seats</span></p>
               </div>
               <div class="col-12">
-                <p class="card-text text-muted mb-0"><i class="bi bi-star-fill me-2"></i> Floodlights, VIP Boxes, Museum</p>
+                <p class="card-text text-muted mb-0"><i class="bi bi-star-fill me-2"></i> {{ stadium.description if stadium.description else 'No description available.' }}</p>
               </div>
             </div>
-            <a href="#" class="btn btn-primary w-100 mt-auto btn-view-stadium">View Stadium</a>
+            <a href="{{ url_for('stadium_detail', stadium_id=stadium.id) }}" class="btn btn-primary w-100 mt-auto btn-view-stadium">View Stadium</a>
           </div>
         </div>
       </div>
-      <div class="col">
-        <div class="card h-100 stadium-card rounded-4 shadow-sm">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/4/4e/Melbourne_Cricket_Ground_Panorama.jpg" class="card-img-top rounded-top-4" alt="Melbourne Cricket Ground (MCG)">
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title mb-2">Melbourne Cricket Ground (MCG)</h5>
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <p class="card-text text-muted mb-0"><i class="bi bi-geo-alt me-2"></i> Melbourne, Australia</p>
-              </div>
-              <div class="col-6">
-                <p class="card-text text-muted mb-0"><i class="bi bi-people-fill me-2"></i> <span class="fw-semibold">100,024 seats</span></p>
-              </div>
-              <div class="col-12">
-                <p class="card-text text-muted mb-0"><i class="bi bi-star-fill me-2"></i> Roof, VIP Lounges, Hall of Fame</p>
-              </div>
-            </div>
-            <a href="#" class="btn btn-primary w-100 mt-auto btn-view-stadium">View Stadium</a>
-          </div>
-        </div>
+      {% else %}
+      <div class="col-12 text-center">
+        <p>No featured stadiums found.</p>
       </div>
-      <div class="col">
-        <div class="card h-100 stadium-card rounded-4 shadow-sm">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/2/2e/Sydney_Cricket_Ground_Panorama.jpg" class="card-img-top rounded-top-4" alt="Sydney Cricket Ground">
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title mb-2">Sydney Cricket Ground</h5>
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <p class="card-text text-muted mb-0"><i class="bi bi-geo-alt me-2"></i> Sydney, Australia</p>
-              </div>
-              <div class="col-6">
-                <p class="card-text text-muted mb-0"><i class="bi bi-people-fill me-2"></i> <span class="fw-semibold">48,601 seats</span></p>
-              </div>
-              <div class="col-12">
-                <p class="card-text text-muted mb-0"><i class="bi bi-star-fill me-2"></i> Historic Pavilion, Night Lighting</p>
-              </div>
-            </div>
-            <a href="#" class="btn btn-primary w-100 mt-auto btn-view-stadium">View Stadium</a>
-          </div>
-        </div>
-      </div>
+      {% endfor %}
     </div>
   </div>
 </section>
 
-<!-- TEAMS & STAR PLAYERS -->
+<!-- BBL TEAMS & STAR PLAYERS -->
 <section class="teams-players py-5">
   <div class="container">
-    <h2 class="text-center mb-5"><i class="bi bi-people me-3"></i>Teams & Star Players</h2>
+    <h2 class="text-center mb-5 slide-up">⭐ BBL Teams & Star Players</h2>
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+      {% for team_data in featured_teams_data %}
       <div class="col">
         <div class="card h-100 team-player-card rounded-4 shadow-sm" style="--team-color: #007bff;">
-          <img src="https://upload.wikimedia.org/wikipedia/en/3/36/Melbourne_Stars_logo.png" class="team-logo-small mb-3" alt="Melbourne Stars Logo">
-          <h5 class="card-title mb-2">Melbourne Stars</h5>
-          <p class="card-text text-muted mb-2">Star Player: <span class="fw-semibold">Glenn Maxwell</span></p>
+          {% if team_data.team.team_logo %}
+          <img src="{{ team_data.team.team_logo }}" class="team-logo-small mb-3" alt="{{ team_data.team.team_name }} Logo">
+          {% else %}
+          <img src="{{ url_for('static', filename='img/placeholder_team.png') }}" class="team-logo-small mb-3" alt="Placeholder Team Logo">
+          {% endif %}
+          <h5 class="card-title mb-2">{{ team_data.team.team_name }}</h5>
+          {% if team_data.star_player %}
+          <p class="card-text text-muted mb-2">Star Player: <span class="fw-semibold">{{ team_data.star_player.player_name }}</span></p>
           <div class="d-flex align-items-center text-muted">
-            <img src="https://resources.pulse.icc-cricket.com/players/284/107.png" class="player-image me-2" alt="Player Image"> All-rounder
+            {% if team_data.star_player.photo_url %}
+            <img src="{{ team_data.star_player.photo_url }}" class="player-image me-2" alt="{{ team_data.star_player.player_name }} Image">
+            {% else %}
+            <img src="{{ url_for('static', filename='img/placeholder_player.png') }}" class="player-image me-2" alt="Placeholder Player Image">
+            {% endif %}
+            {{ team_data.star_player.player_role if team_data.star_player.player_role else 'Player' }}
           </div>
+          {% else %}
+          <p class="card-text text-muted mb-2">No star player listed.</p>
+          {% endif %}
         </div>
       </div>
-      <div class="col">
-        <div class="card h-100 team-player-card rounded-4 shadow-sm" style="--team-color: #dc3545;">
-          <img src="https://upload.wikimedia.org/wikipedia/en/8/8a/Sydney_Sixers_logo.png" class="team-logo-small mb-3" alt="Sydney Sixers Logo">
-          <h5 class="card-title mb-2">Sydney Sixers</h5>
-          <p class="card-text text-muted mb-2">Star Player: <span class="fw-semibold">Steve Smith</span></p>
-          <div class="d-flex align-items-center text-muted">
-            <img src="https://resources.pulse.icc-cricket.com/players/284/7749.png" class="player-image me-2" alt="Player Image"> Batsman
-          </div>
-        </div>
+      {% else %}
+      <div class="col-12 text-center">
+        <p>No featured teams found.</p>
       </div>
-      <div class="col">
-        <div class="card h-100 team-player-card rounded-4 shadow-sm" style="--team-color: #ffc107;">
-          <img src="https://upload.wikimedia.org/wikipedia/en/2/2e/Adelaide_Strikers_logo.png" class="team-logo-small mb-3" alt="Adelaide Strikers Logo">
-          <h5 class="card-title mb-2">Adelaide Strikers</h5>
-          <p class="card-text text-muted mb-2">Star Player: <span class="fw-semibold">Rashid Khan</span></p>
-          <div class="d-flex align-items-center text-muted">
-            <img src="https://resources.pulse.icc-cricket.com/players/284/7870.png" class="player-image me-2" alt="Player Image"> Bowler
-          </div>
-        </div>
-      </div>
+      {% endfor %}
     </div>
   </div>
 </section>

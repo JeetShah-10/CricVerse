@@ -19,38 +19,341 @@
     </div>
 </div>
 
-<div class="container my-5">
+<div class="container my-5 stadium-detail-page" data-stadium-id="{{ stadium.id }}" data-stadium-name="{{ stadium.name }}" data-stadium-image-url="{{ stadium.image_url or url_for('static', filename='img/Stadium Image.jpg') }}">
     <div class="row g-5">
         <div class="col-lg-8">
             <ul class="nav nav-tabs nav-fill mb-3" id="stadiumDetailTabs" role="tablist">
                 <li class="nav-item"><a class="nav-link active" id="about-tab" data-bs-toggle="tab" href="#about">About</a></li>
+                <li class="nav-item"><a class="nav-link" id="amenities-tab" data-bs-toggle="tab" href="#amenities">Amenities</a></li>
+                <li class="nav-item"><a class="nav-link" id="seating-tab" data-bs-toggle="tab" href="#seating">Seating Chart</a></li>
+                <li class="nav-item"><a class="nav-link" id="transport-tab" data-bs-toggle="tab" href="#transport">Transport</a></li>
                 <li class="nav-item"><a class="nav-link" id="events-tab" data-bs-toggle="tab" href="#events">Events</a></li>
                 <li class="nav-item"><a class="nav-link" id="gallery-tab" data-bs-toggle="tab" href="#gallery">Gallery</a></li>
             </ul>
 
             <div class="card card-body p-4">
                 <div class="tab-content">
+                    <!-- About Tab -->
                     <div class="tab-pane fade show active" id="about">
-                        <p class="mb-4">{{ stadium.description or 'No description available.' }}</p>
-                        <h2 class="mb-3">Facilities</h2>
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6"><div class="card card-body text-center">Dressing Rooms: {{ 'Yes' if stadium.has_dressing_rooms else 'No' }}</div></div>
-                            <div class="col-md-6"><div class="card card-body text-center">Practice Nets: {{ 'Yes' if stadium.has_practice_nets else 'No' }}</div></div>
+                        <div class="stadium-overview">
+                            <h2 class="mb-3"><i class="bi bi-info-circle me-2"></i>Stadium Overview</h2>
+                            <p class="lead mb-4">{{ stadium.description or 'A premier cricket venue in the heart of Australia\'s sporting landscape.' }}</p>
+                            
+                            <div class="row g-4 mb-5">
+                                <div class="col-md-3">
+                                    <div class="stat-card text-center p-3 rounded">
+                                        <i class="bi bi-people-fill text-accent-cyan fs-1 mb-2"></i>
+                                        <h4 class="text-accent-cyan">{{ "{:,}".format(stadium.capacity) }}</h4>
+                                        <small class="text-muted">Capacity</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card text-center p-3 rounded">
+                                        <i class="bi bi-calendar3 text-secondary-orange fs-1 mb-2"></i>
+                                        <h4 class="text-secondary-orange">{{ stadium.opening_year or 'Historic' }}</h4>
+                                        <small class="text-muted">Est. Year</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card text-center p-3 rounded">
+                                        <i class="bi bi-arrows-fullscreen text-accent-cyan fs-1 mb-2"></i>
+                                        <h4 class="text-accent-cyan">{{ stadium.boundary_length or 'N/A' }}m</h4>
+                                        <small class="text-muted">Boundary</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card text-center p-3 rounded">
+                                        <i class="bi bi-brightness-high text-secondary-orange fs-1 mb-2"></i>
+                                        <h4 class="text-secondary-orange">{{ stadium.floodlight_quality or 'Good' }}</h4>
+                                        <small class="text-muted">Floodlights</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <h3 class="mb-3"><i class="bi bi-geo-alt-fill me-2"></i>Location</h3>
+                                    <div class="location-info p-3 bg-dark rounded">
+                                        <p class="mb-2"><strong>Address:</strong> {{ stadium.location }}</p>
+                                        {% if stadium.contact_number %}
+                                        <p class="mb-2"><strong>Contact:</strong> {{ stadium.contact_number }}</p>
+                                        {% endif %}
+                                        {% if stadium.open_hour and stadium.close_hour %}
+                                        <p class="mb-0"><strong>Hours:</strong> {{ stadium.open_hour.strftime('%I:%M %p') }} - {{ stadium.close_hour.strftime('%I:%M %p') }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h3 class="mb-3"><i class="bi bi-award-fill me-2"></i>Stadium Features</h3>
+                                    <div class="features-list">
+                                        <div class="feature-item d-flex align-items-center mb-2">
+                                            <i class="bi bi-{{ 'check-circle-fill text-success' if stadium.has_dressing_rooms else 'x-circle-fill text-danger' }} me-2"></i>
+                                            <span>Professional Dressing Rooms</span>
+                                        </div>
+                                        <div class="feature-item d-flex align-items-center mb-2">
+                                            <i class="bi bi-{{ 'check-circle-fill text-success' if stadium.has_practice_nets else 'x-circle-fill text-danger' }} me-2"></i>
+                                            <span>Practice Net Facilities</span>
+                                        </div>
+                                        <div class="feature-item d-flex align-items-center mb-2">
+                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                            <span>{{ stadium.pitch_type or 'Professional Cricket Pitch' }}</span>
+                                        </div>
+                                        <div class="feature-item d-flex align-items-center mb-2">
+                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                            <span>Premium Sound System</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amenities Tab -->
+                    <div class="tab-pane fade" id="amenities">
+                        <h2 class="mb-4"><i class="bi bi-star-fill me-2"></i>Stadium Amenities</h2>
+                        
+                        <div class="row g-4">
+                            <!-- Food & Beverage -->
+                            <div class="col-md-6">
+                                <div class="amenity-card p-4 rounded">
+                                    <h4 class="mb-3"><i class="bi bi-cup-hot text-secondary-orange me-2"></i>Food & Beverage</h4>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Vegetarian Food Court</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Premium Coffee Stations</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Craft Beer Gardens</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Healthy Snack Options</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Kids' Meal Combos</li>
+                                    </ul>
+                                    <a href="{{ url_for('concessions') }}?stadium_id={{ stadium.id }}" class="btn btn-outline-primary btn-sm">View Menu</a>
+                                </div>
+                            </div>
+
+                            <!-- Accessibility -->
+                            <div class="col-md-6">
+                                <div class="amenity-card p-4 rounded">
+                                    <h4 class="mb-3"><i class="bi bi-universal-access text-accent-cyan me-2"></i>Accessibility</h4>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Wheelchair Accessible Seating</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Accessible Restrooms</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Elevator Access</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Assistance Animal Friendly</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Hearing Loop Systems</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Entertainment -->
+                            <div class="col-md-6">
+                                <div class="amenity-card p-4 rounded">
+                                    <h4 class="mb-3"><i class="bi bi-music-note text-secondary-orange me-2"></i>Entertainment</h4>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Giant Video Screens</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Live Music Performances</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Kids' Play Areas</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Interactive Fan Zones</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Photo Opportunities</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Services -->
+                            <div class="col-md-6">
+                                <div class="amenity-card p-4 rounded">
+                                    <h4 class="mb-3"><i class="bi bi-gear-fill text-accent-cyan me-2"></i>Services</h4>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Free WiFi</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>ATMs & Card Facilities</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>First Aid Stations</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Lost & Found</li>
+                                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Mobile Charging Stations</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Seating Chart Tab -->
+                    <div class="tab-pane fade" id="seating">
+                        <h2 class="mb-4"><i class="bi bi-grid-3x3-gap-fill me-2"></i>Interactive Seating Chart</h2>
+                        
+                        <div class="seating-chart-container">
+                            <!-- Seating Chart Legend -->
+                            <div class="chart-legend mb-4">
+                                <div class="row text-center">
+                                    <div class="col-md-3">
+                                        <div class="legend-item">
+                                            <div class="seat-sample vip-seat"></div>
+                                            <span>VIP Seats</span>
+                                            <small class="text-muted d-block">$80-120</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="legend-item">
+                                            <div class="seat-sample premium-seat"></div>
+                                            <span>Premium Seats</span>
+                                            <small class="text-muted d-block">$50-80</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="legend-item">
+                                            <div class="seat-sample general-seat"></div>
+                                            <span>General Admission</span>
+                                            <small class="text-muted d-block">$25-50</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="legend-item">
+                                            <div class="seat-sample family-seat"></div>
+                                            <span>Family Areas</span>
+                                            <small class="text-muted d-block">$30-60</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Interactive Stadium Layout -->
+                            <div class="stadium-layout-container">
+                                <svg class="stadium-svg" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+                                    <!-- Cricket Field -->
+                                    <ellipse cx="400" cy="300" rx="200" ry="150" fill="#2ecc71" stroke="#27ae60" stroke-width="2" opacity="0.3"/>
+                                    <ellipse cx="400" cy="300" rx="100" ry="75" fill="#f39c12" stroke="#e67e22" stroke-width="1" opacity="0.5"/>
+                                    
+                                    <!-- Seating Sections -->
+                                    <!-- North Stand -->
+                                    <rect x="200" y="50" width="400" height="80" rx="10" fill="var(--accent-cyan)" opacity="0.7" class="seating-section" data-section="North Stand" data-type="premium"/>
+                                    <text x="400" y="95" text-anchor="middle" fill="white" font-weight="bold">North Stand (Premium)</text>
+                                    
+                                    <!-- South Stand -->
+                                    <rect x="200" y="470" width="400" height="80" rx="10" fill="var(--secondary-orange)" opacity="0.7" class="seating-section" data-section="South Stand" data-type="vip"/>
+                                    <text x="400" y="515" text-anchor="middle" fill="white" font-weight="bold">South Stand (VIP)</text>
+                                    
+                                    <!-- East Stand -->
+                                    <rect x="50" y="180" width="80" height="240" rx="10" fill="var(--dark-gray)" opacity="0.7" class="seating-section" data-section="East Stand" data-type="general"/>
+                                    <text x="90" y="305" text-anchor="middle" fill="white" font-weight="bold" transform="rotate(-90 90 305)">East Stand (General)</text>
+                                    
+                                    <!-- West Stand -->
+                                    <rect x="670" y="180" width="80" height="240" rx="10" fill="var(--dark-gray)" opacity="0.7" class="seating-section" data-section="West Stand" data-type="general"/>
+                                    <text x="710" y="305" text-anchor="middle" fill="white" font-weight="bold" transform="rotate(90 710 305)">West Stand (General)</text>
+                                    
+                                    <!-- Family Areas -->
+                                    <rect x="150" y="150" width="120" height="100" rx="10" fill="#9b59b6" opacity="0.6" class="seating-section" data-section="Family Area A" data-type="family"/>
+                                    <text x="210" y="205" text-anchor="middle" fill="white" font-size="12">Family A</text>
+                                    
+                                    <rect x="530" y="150" width="120" height="100" rx="10" fill="#9b59b6" opacity="0.6" class="seating-section" data-section="Family Area B" data-type="family"/>
+                                    <text x="590" y="205" text-anchor="middle" fill="white" font-size="12">Family B</text>
+                                </svg>
+                                
+                                <!-- Section Info Panel -->
+                                <div id="section-info" class="section-info-panel p-3 rounded" style="display: none;">
+                                    <h5 id="section-name">Select a section</h5>
+                                    <p id="section-details">Click on any seating section to view details and pricing.</p>
+                                    <button class="btn btn-primary btn-sm" id="select-section" style="display: none;">Select Seats</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transportation Tab -->
+                    <div class="tab-pane fade" id="transport">
+                        <h2 class="mb-4"><i class="bi bi-car-front-fill me-2"></i>Getting Here</h2>
+                        
+                        <div class="row g-4">
+                            <!-- Driving Directions -->
+                            <div class="col-lg-6">
+                                <div class="transport-card p-4 rounded">
+                                    <h4 class="mb-3"><i class="bi bi-geo-alt text-secondary-orange me-2"></i>By Car</h4>
+                                    <p class="mb-3">{{ stadium.name }} is easily accessible by car with multiple route options:</p>
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2"><i class="bi bi-arrow-right text-accent-cyan me-2"></i>Follow GPS coordinates: {{ stadium.latitude or '-' }}, {{ stadium.longitude or '-' }}</li>
+                                        <li class="mb-2"><i class="bi bi-arrow-right text-accent-cyan me-2"></i>Major highway exits available</li>
+                                        <li class="mb-2"><i class="bi bi-arrow-right text-accent-cyan me-2"></i>Clear stadium signage from 5km out</li>
+                                    </ul>
+                                    
+                                    <h5 class="mt-4 mb-3"><i class="bi bi-p-square text-accent-cyan me-2"></i>Parking Information</h5>
+                                    <div class="parking-info bg-dark p-3 rounded">
+                                        <div class="row text-center">
+                                            <div class="col-4">
+                                                <h6 class="text-secondary-orange">2,500+</h6>
+                                                <small>Parking Spots</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <h6 class="text-secondary-orange">$15-25</h6>
+                                                <small>Match Day Rate</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <h6 class="text-secondary-orange">Pre-book</h6>
+                                                <small>Recommended</small>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <a href="{{ url_for('book_parking', stadium_id=stadium.id) }}" class="btn btn-outline-primary btn-sm">Reserve Parking</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Public Transport -->
+                            <div class="col-lg-6">
+                                <div class="transport-card p-4 rounded">
+                                    <h4 class="mb-3"><i class="bi bi-train-front text-accent-cyan me-2"></i>Public Transport</h4>
+                                    
+                                    <!-- Train/Metro -->
+                                    <div class="transport-option mb-4">
+                                        <h5 class="mb-2"><i class="bi bi-train-front me-2"></i>Train Services</h5>
+                                        <ul class="list-unstyled">
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>{{ stadium.location }} Station (10 min walk)</li>
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>Direct services on match days</li>
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>Extended services post-match</li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- Bus Services -->
+                                    <div class="transport-option mb-4">
+                                        <h5 class="mb-2"><i class="bi bi-bus-front me-2"></i>Bus Routes</h5>
+                                        <ul class="list-unstyled">
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>Routes 101, 202, 303 stop nearby</li>
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>Stadium shuttle from CBD</li>
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>Match day express services</li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- Rideshare & Taxi -->
+                                    <div class="transport-option">
+                                        <h5 class="mb-2"><i class="bi bi-taxi-front me-2"></i>Rideshare & Taxi</h5>
+                                        <ul class="list-unstyled">
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>Dedicated pickup/drop-off zones</li>
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>Uber, Lyft, and taxi services</li>
+                                            <li class="mb-1"><i class="bi bi-arrow-right text-secondary-orange me-2"></i>15-20 min from city center</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <h2 class="mb-3">Location</h2>
-
-                        <div class="map-container mt-3 card">
-                            <iframe
-                                width="100%"
-                                height="300"
-                                style="border:0;"
-                                loading="lazy"
-                                allowfullscreen
-                                referrerpolicy="no-referrer-when-downgrade"
-                                title="Stadium Location Map"
-                                src="https://www.google.com/maps?q={{ stadium.latitude }},{{ stadium.longitude }}&output=embed&t=k">
-                            </iframe>
+                        <!-- Map Integration -->
+                        <div class="map-container mt-4">
+                            <h4 class="mb-3"><i class="bi bi-map me-2"></i>Stadium Location</h4>
+                            <div class="interactive-map rounded" style="height: 400px;">
+                                {% if stadium.latitude and stadium.longitude %}
+                                <iframe
+                                    width="100%"
+                                    height="400"
+                                    style="border:0;"
+                                    loading="lazy"
+                                    allowfullscreen
+                                    referrerpolicy="no-referrer-when-downgrade"
+                                    title="Stadium Location and Transport Map"
+                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d12345.67890!2d{{ stadium.longitude }}!3d{{ stadium.latitude }}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2s{{ stadium.name }}!5e0!3m2!1sen!2sau!4v1234567890">
+                                </iframe>
+                                {% else %}
+                                <div class="d-flex align-items-center justify-content-center h-100 bg-dark rounded">
+                                    <div class="text-center">
+                                        <i class="bi bi-geo-alt fs-1 text-muted mb-3"></i>
+                                        <p class="text-muted">Interactive map coming soon</p>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
 
@@ -153,6 +456,113 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Interactive Seating Chart
+    const seatingSections = document.querySelectorAll('.seating-section');
+    const sectionInfo = document.getElementById('section-info');
+    const sectionName = document.getElementById('section-name');
+    const sectionDetails = document.getElementById('section-details');
+    const selectSectionBtn = document.getElementById('select-section');
+
+    const sectionData = {
+        'North Stand': {
+            type: 'premium',
+            capacity: '8,000 seats',
+            priceRange: '$50-80',
+            features: ['Premium view', 'Covered seating', 'Easy access to amenities'],
+            description: 'Premium seating with excellent field views and weather protection.'
+        },
+        'South Stand': {
+            type: 'vip',
+            capacity: '3,500 seats',
+            priceRange: '$80-120',
+            features: ['VIP lounges', 'Hospitality packages', 'Reserved parking'],
+            description: 'Luxury VIP experience with exclusive amenities and premium services.'
+        },
+        'East Stand': {
+            type: 'general',
+            capacity: '12,000 seats',
+            priceRange: '$25-50',
+            features: ['General admission', 'Great atmosphere', 'Food courts nearby'],
+            description: 'Affordable general admission seating perfect for the cricket atmosphere.'
+        },
+        'West Stand': {
+            type: 'general',
+            capacity: '12,000 seats',
+            priceRange: '$25-50',
+            features: ['General admission', 'Sunset views', 'Fan zones'],
+            description: 'Popular general seating with beautiful evening light and active fan zones.'
+        },
+        'Family Area A': {
+            type: 'family',
+            capacity: '2,500 seats',
+            priceRange: '$30-60',
+            features: ['Family-friendly', 'Kids activities', 'Alcohol-free zone'],
+            description: 'Perfect for families with children, featuring dedicated play areas.'
+        },
+        'Family Area B': {
+            type: 'family',
+            capacity: '2,500 seats',
+            priceRange: '$30-60',
+            features: ['Family-friendly', 'Kids activities', 'Alcohol-free zone'],
+            description: 'Family seating area with entertainment for all ages.'
+        }
+    };
+
+    seatingSections.forEach(section => {
+        section.addEventListener('click', () => {
+            const sectionNameValue = section.dataset.section;
+            const data = sectionData[sectionNameValue];
+            
+            if (data) {
+                sectionName.textContent = sectionNameValue;
+                sectionDetails.innerHTML = `
+                    <p><strong>Price Range:</strong> ${data.priceRange}</p>
+                    <p><strong>Capacity:</strong> ${data.capacity}</p>
+                    <p><strong>Description:</strong> ${data.description}</p>
+                    <p><strong>Features:</strong></p>
+                    <ul class="list-unstyled">
+                        ${data.features.map(feature => `<li><i class="bi bi-check text-success me-2"></i>${feature}</li>`).join('')}
+                    </ul>
+                `;
+                selectSectionBtn.style.display = 'block';
+                selectSectionBtn.onclick = () => {
+                    CricVerse.showNotification(`${sectionNameValue} selected! Redirecting to booking...`, 'success');
+                    // In a real implementation, this would redirect to seat selection
+                    setTimeout(() => {
+                        window.location.href = '/events';
+                    }, 1500);
+                };
+                sectionInfo.style.display = 'block';
+            }
+        });
+
+        // Add hover effects
+        section.addEventListener('mouseenter', () => {
+            section.style.transform = 'scale(1.02)';
+        });
+
+        section.addEventListener('mouseleave', () => {
+            section.style.transform = 'scale(1)';
+        });
+    });
+
+    // Tab switching analytics
+    const tabButtons = document.querySelectorAll('[data-bs-toggle="tab"]');
+    tabButtons.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            const tabId = e.target.getAttribute('href').substring(1);
+            console.log(`Stadium tab viewed: ${tabId}`);
+            
+            // Add fade-in animation to tab content
+            setTimeout(() => {
+                const tabContent = document.getElementById(tabId);
+                if (tabContent) {
+                    tabContent.classList.add('fade-in');
+                }
+            }, 150);
+        });
+    });
+
     // Gallery thumbnails
     const mainCarouselEl = document.getElementById('main-carousel');
     if(mainCarouselEl) {
@@ -167,14 +577,90 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Booking form submit
+    // Enhanced booking form
     const bookingForm = document.getElementById('booking-form');
     if(bookingForm) {
         bookingForm.addEventListener('submit', e => {
             e.preventDefault();
             const eventId = document.getElementById('event').value;
-            if(eventId) window.location.href = `/select_seats/${eventId}`;
-            else alert('Please select an event before proceeding.');
+            const seatCategory = document.getElementById('seat_category').value;
+            const quantity = document.getElementById('quantity').value;
+            
+            if(!eventId) {
+                CricVerse.showNotification('Please select an event', 'warning');
+                return;
+            }
+            if(!seatCategory) {
+                CricVerse.showNotification('Please select a seat category', 'warning');
+                return;
+            }
+            
+            // Show loading state
+            const submitBtn = bookingForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.innerHTML = '<div class="loading me-2"></div>Finding seats...';
+            submitBtn.disabled = true;
+            
+            // Simulate API call delay
+            setTimeout(() => {
+                CricVerse.showNotification(`Looking for ${quantity} ${seatCategory} seats...`, 'info');
+                window.location.href = `/select_seats/${eventId}`;
+            }, 1000);
+        });
+        
+        // Quantity validation
+        const quantityInput = document.getElementById('quantity');
+        if (quantityInput) {
+            quantityInput.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                if (value > 10) {
+                    e.target.value = 10;
+                    CricVerse.showNotification('Maximum 10 tickets per booking', 'warning');
+                }
+                if (value < 1) {
+                    e.target.value = 1;
+                }
+            });
+        }
+    }
+
+    // Amenities interaction tracking
+    const amenityCards = document.querySelectorAll('.amenity-card');
+    amenityCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const amenityType = card.querySelector('h4').textContent;
+            console.log(`Amenity viewed: ${amenityType}`);
+        });
+    });
+
+    // Transport option interaction
+    const transportCards = document.querySelectorAll('.transport-card');
+    transportCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const transportType = card.querySelector('h4').textContent;
+            console.log(`Transport info viewed: ${transportType}`);
+        });
+    });
+
+    // Add smooth scrolling for internal links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // Initialize tooltips for feature icons
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     }
 });

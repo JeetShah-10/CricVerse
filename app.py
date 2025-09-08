@@ -1,31 +1,77 @@
-from flask import Flask, render_template, request, redirect, url_for, flash  # pyright: ignore[reportMissingImports]
-from flask_sqlalchemy import SQLAlchemy  # pyright: ignore[reportMissingImports]
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user  # pyright: ignore[reportMissingImports]
-from werkzeug.security import generate_password_hash, check_password_hash  # pyright: ignore[reportMissingImports]
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
-from dotenv import load_dotenv  # pyright: ignore[reportMissingImports]
+import re
+from dotenv import load_dotenv
 from functools import wraps
 
-# Load environment variables (prefer local stadium.env, fallback to .env)
-if os.path.exists('stadium.env'):
-    load_dotenv('stadium.env')
+# Import our utility functions
+from utils import (
+    validate_email, validate_phone, validate_password_strength,
+    sanitize_input, flash_errors, get_user_statistics, get_analytics_data,
+    handle_form_errors, REGISTRATION_VALIDATION_RULES, STADIUM_VALIDATION_RULES,
+    EVENT_VALIDATION_RULES, get_upcoming_events
+)
+
+# Load environment variables (prefer local cricverse.env, fallback to .env)
+if os.path.exists('cricverse.env'):
+    load_dotenv('cricverse.env')
 else:
     load_dotenv()
 
 app = Flask(__name__)
 
 # Configuration with fallbacks
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key-change-in-production')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'cricverse-secret-key-change-in-production')
 
-# Get database URL from environment or use SQLite as fallback
+# Database configuration with PostgreSQL fallback
 database_url = os.getenv('DATABASE_URL')
+
+# If no DATABASE_URL is set, try to construct PostgreSQL URL for stadium_db
 if not database_url:
-    print("WARNING: DATABASE_URL not found in environment variables. Using SQLite instead.")
-    database_url = 'sqlite:///cricket_stadium.db'
+    # Try PostgreSQL first with stadium_db database name
+    pg_user = os.getenv('POSTGRES_USER', 'postgres')
+    pg_password = os.getenv('POSTGRES_PASSWORD', 'admin')
+    pg_host = os.getenv('POSTGRES_HOST', 'localhost')
+    pg_port = os.getenv('POSTGRES_PORT', '5432')
+    pg_database = os.getenv('POSTGRES_DB', 'stadium_db')
+    
+    # Construct PostgreSQL URL
+    database_url = f'postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_database}'
+    print(f"No DATABASE_URL found. Attempting PostgreSQL connection to stadium_db...")
+    
+    # Test PostgreSQL connection
+    try:
+        import psycopg2
+        conn = psycopg2.connect(
+            host=pg_host,
+            port=pg_port,
+            database=pg_database,
+            user=pg_user,
+            password=pg_password
+        )
+        conn.close()
+        print(f"[SUCCESS] PostgreSQL connection successful: {pg_database}")
+    except Exception as e:
+        print(f"[WARNING] PostgreSQL connection failed: {e}")
+        print(f"Falling back to SQLite...")
+        database_url = 'sqlite:///cricverse.db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+# Database connection pool settings for PostgreSQL
+if 'postgresql' in database_url:
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_timeout': 20,
+        'max_overflow': 0
+    }
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -33,7 +79,20 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 # Database connection info
-print(f"Using database: {database_url}")
+if 'postgresql' in database_url:
+    # Mask password in PostgreSQL URL for display
+    display_url = database_url
+    if '@' in display_url:
+        parts = display_url.split('@')
+        if ':' in parts[0]:
+            user_pass = parts[0].split('://', 1)[1]
+            if ':' in user_pass:
+                user, password = user_pass.split(':', 1)
+                display_url = display_url.replace(f':{password}@', ':****@')
+else:
+    display_url = database_url
+    
+print(f"[DATABASE] Database configured: {display_url}")
 
 # Models
 class Stadium(db.Model):
@@ -92,11 +151,9 @@ class Team(db.Model):
     team_logo = db.Column(db.String(200))
     home_city = db.Column(db.String(100))
     team_type = db.Column(db.String(50))
-    captain_id = db.Column(db.Integer, db.ForeignKey('player.id'))
     
     # Relationships
-    captain = db.relationship('Player', foreign_keys=[captain_id], backref='captain_of_team')
-    players = db.relationship('Player', foreign_keys='Player.team_id', backref='team')
+    players = db.relationship('Player', backref='team', lazy=True)
     home_events = db.relationship('Event', foreign_keys='Event.home_team_id', backref='home_team', lazy=True)
     away_events = db.relationship('Event', foreign_keys='Event.away_team_id', backref='away_team', lazy=True)
 
@@ -104,7 +161,7 @@ class Player(db.Model):
     __tablename__ = 'player'
     
     id = db.Column(db.Integer, primary_key=True)
-    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
     player_name = db.Column(db.String(100), nullable=False)
     age = db.Column(db.Integer)
     batting_style = db.Column(db.String(50))
@@ -155,7 +212,6 @@ class Match(db.Model):
     away_overs = db.Column(db.Float, default=0.0)
     result_type = db.Column(db.String(20))
     winning_margin = db.Column(db.String(20))
-    man_of_the_match_id = db.Column(db.Integer, db.ForeignKey('player.id'))
 
 class Seat(db.Model):
     __tablename__ = 'seat'
@@ -182,7 +238,7 @@ class Customer(db.Model, UserMixin):
     password_hash = db.Column(db.String(200))
     membership_level = db.Column(db.String(20), default='Basic')
     favorite_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    role = db.Column(db.String(20), default='customer')  # 'customer' or 'admin'
+    role = db.Column(db.String(20), default='customer')  # 'customer', 'admin', or 'stadium_owner'
     
     # Relationships
     tickets = db.relationship('Ticket', backref='customer', lazy=True)
@@ -284,6 +340,7 @@ class MenuItem(db.Model):
     price = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50))  # e.g., "Main", "Side", "Drink"
     is_available = db.Column(db.Boolean, default=True)
+    is_vegetarian = db.Column(db.Boolean, default=False) # New column for vegetarian option
 
     # Relationships
     concession = db.relationship('Concession', backref='menu_items')
@@ -331,6 +388,15 @@ class StadiumAdmin(db.Model):
     stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False)
     assigned_date = db.Column(db.DateTime, default=datetime.utcnow)
 
+class StadiumOwner(db.Model):
+    """Junction table for stadium_owner-stadium relationships"""
+    __tablename__ = 'stadium_owner'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False)
+    assigned_date = db.Column(db.DateTime, default=datetime.utcnow)
+
 class Photo(db.Model):
     __tablename__ = 'photo'
     id = db.Column(db.Integer, primary_key=True)
@@ -360,6 +426,18 @@ def customer_required(f):
         if current_user.is_admin():
             flash('Access denied. This page is for customers only.')
             return redirect(url_for('admin_dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def stadium_owner_required(f):
+    """Decorator to require stadium owner role"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('login'))
+        if current_user.role != 'stadium_owner':
+            flash('Access denied. Stadium owner privileges required.')
+            return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -859,54 +937,28 @@ def admin_concessions_overview():
     
     return render_template('admin_concessions_overview.html', concession_stats=concession_stats)
 
+@app.route('/admin/users')
+@login_required
+@admin_required
+def admin_user_management():
+    """Admin user management page with comprehensive user data and statistics"""
+    
+    # Get all users
+    users = Customer.query.order_by(Customer.name).all()
+    
+    # Get user statistics using utility function
+    user_stats = get_user_statistics(db, Customer)
+    
+    return render_template('admin_user_management.html', 
+                           users=users, 
+                           **user_stats)
+
 @app.route('/admin/analytics')
 @login_required
 @admin_required
 def admin_analytics():
-    """Admin analytics dashboard"""
-    administered_stadiums = current_user.get_administered_stadiums()
-    analytics_data = {
-        'total_stadiums': len(administered_stadiums),
-        'total_events': 0,
-        'total_revenue': 0,
-        'total_tickets_sold': 0,
-        'total_parking_bookings': 0,
-        'total_concession_orders': 0,
-        'stadium_performance': []
-    }
-    
-    for stadium_id in administered_stadiums:
-        stadium = Stadium.query.get(stadium_id)
-        if stadium:
-            # Calculate stadium-specific metrics
-            events_count = Event.query.filter_by(stadium_id=stadium_id).count()
-            tickets_sold = db.session.query(db.func.count(Ticket.id)).join(Event).filter(Event.stadium_id == stadium_id).scalar() or 0
-            
-            # Correctly calculate ticket revenue from distinct bookings for this stadium
-            ticket_revenue = db.session.query(db.func.sum(Booking.total_amount)).filter(
-                Booking.id.in_(
-                    db.session.query(Ticket.booking_id).join(Event).filter(Event.stadium_id == stadium_id).distinct()
-                )
-            ).scalar() or 0
-            parking_bookings = db.session.query(db.func.count(ParkingBooking.id)).join(Parking).filter(Parking.stadium_id == stadium_id).scalar() or 0
-            concession_orders = db.session.query(db.func.count(Order.id)).join(Concession).filter(Concession.stadium_id == stadium_id).scalar() or 0
-            concession_revenue = db.session.query(db.func.sum(Order.total_amount)).join(Concession).filter(Concession.stadium_id == stadium_id).scalar() or 0
-            
-            total_stadium_revenue = ticket_revenue + concession_revenue
-            
-            analytics_data['total_events'] += events_count
-            analytics_data['total_revenue'] += total_stadium_revenue
-            analytics_data['total_tickets_sold'] += tickets_sold
-            analytics_data['total_parking_bookings'] += parking_bookings
-            analytics_data['total_concession_orders'] += concession_orders
-            
-            analytics_data['stadium_performance'].append({
-                'stadium': stadium,
-                'events_count': events_count,
-                'tickets_sold': tickets_sold,
-                'revenue': total_stadium_revenue,
-                'utilization_rate': round((tickets_sold / stadium.capacity) * 100, 1) if stadium.capacity > 0 else 0
-            })
+    # Get comprehensive analytics data using utility function
+    analytics_data = get_analytics_data(db, Stadium, Event, Ticket, Order, ParkingBooking)
     
     return render_template('admin_analytics.html', analytics_data=analytics_data)
 
@@ -954,15 +1006,51 @@ def admin_profile():
 @app.route('/')
 def index():
     try:
-        events = Event.query.order_by(Event.event_date.desc()).limit(5).all()
-        stadiums = Stadium.query.order_by(Stadium.name.asc()).all()
-        news_list = []  # Replace with actual news query if available
-        reviews = []    # Replace with actual reviews query if available
-        sponsors = []   # Replace with actual sponsors query if available
-        return render_template('index.html', events=events, stadiums=stadiums, news_list=news_list, reviews=reviews, sponsors=sponsors)
+        # Fetch upcoming events using utility function
+        upcoming_events = get_upcoming_events(Event, limit=3)
+
+        # Fetch featured stadiums (e.g., top 3 by capacity or simply first 3)
+        featured_stadiums = Stadium.query.order_by(Stadium.capacity.desc()).limit(3).all()
+
+        # Fetch teams and a star player for each (e.g., first 3 teams)
+        # This assumes a 'star_player_id' or similar on Team, or we pick one.
+        # For now, let's just get the first player for each of the first 3 teams.
+        featured_teams_data = []
+        teams = Team.query.limit(3).all()
+        for team in teams:
+            star_player = Player.query.filter_by(team_id=team.id).first() # Get the first player as 'star'
+            featured_teams_data.append({
+                'team': team,
+                'star_player': star_player
+            })
+
+        # Calculate time to next event for countdown
+        next_match_countdown = None
+        if upcoming_events:
+            next_event = upcoming_events[0]
+            # Combine date and time for full datetime object
+            next_event_datetime = datetime.combine(next_event.event_date, next_event.start_time)
+            time_difference = next_event_datetime - datetime.utcnow()
+            if time_difference.total_seconds() > 0:
+                days = time_difference.days
+                hours = time_difference.seconds // 3600
+                minutes = (time_difference.seconds % 3600) // 60
+                next_match_countdown = {'days': days, 'hours': hours, 'minutes': minutes}
+
+        return render_template('index.html',
+                               upcoming_events=upcoming_events,
+                               featured_stadiums=featured_stadiums,
+                               featured_teams_data=featured_teams_data,
+                               next_match_countdown=next_match_countdown)
     except Exception as e:
         print(f"Error in index route: {e}")
-        return render_template('index.html', events=[], stadiums=[], news_list=[], reviews=[], sponsors=[])
+        # Return empty lists in case of error to prevent template errors
+        return render_template('index.html',
+                               upcoming_events=[],
+                               featured_stadiums=[],
+                               featured_teams_data=[],
+                               next_match_countdown=None)
+
 
 @app.route('/stadiums')
 def stadiums():
@@ -1012,47 +1100,130 @@ def player_detail(player_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        phone = request.form['phone']
-        password = request.form['password']
-        role = request.form.get('role', 'customer')  # Default to customer
+        # Sanitize form data
+        form_data = {
+            'name': sanitize_input(request.form.get('name', ''), 100),
+            'email': sanitize_input(request.form.get('email', ''), 100).lower(),
+            'phone': sanitize_input(request.form.get('phone', ''), 20),
+            'password': request.form.get('password', ''),
+            'role': request.form.get('role', 'customer')
+        }
         
-        customer = Customer.query.filter_by(email=email).first()
-        if customer:
-            flash('Email already exists')
-            return redirect(url_for('register'))
+        # Validate form data
+        errors = handle_form_errors(form_data, REGISTRATION_VALIDATION_RULES)
         
-        new_customer = Customer(name=name, email=email, phone=phone, role=role)
-        new_customer.set_password(password)
-        db.session.add(new_customer)
-        db.session.commit()
+        # Additional validations
+        if form_data['email']:
+            existing_customer = Customer.query.filter_by(email=form_data['email']).first()
+            if existing_customer:
+                errors.append('An account with this email already exists. Please try logging in instead.')
         
-        flash('Registration successful')
-        return redirect(url_for('login'))
+        # Password strength validation
+        password_errors = validate_password_strength(form_data['password'])
+        errors.extend(password_errors)
+        
+        # Role validation
+        valid_roles = ['customer', 'admin', 'stadium_owner']
+        if form_data['role'] not in valid_roles:
+            form_data['role'] = 'customer'  # Default fallback
+        
+        # If there are validation errors, return to form with errors
+        if errors:
+            flash_errors(errors)
+            return render_template('register.html')
+        
+        try:
+            # Create new customer account
+            new_customer = Customer(
+                name=form_data['name'], 
+                email=form_data['email'], 
+                phone=form_data['phone'], 
+                role=form_data['role'],
+                membership_level='Basic'
+            )
+            new_customer.set_password(form_data['password'])
+            db.session.add(new_customer)
+            db.session.commit()
+            
+            # Role-specific success messages
+            role_messages = {
+                'admin': f'Administrator account created successfully! Welcome {form_data["name"]}. You now have full system access.',
+                'stadium_owner': f'Stadium Owner account created successfully! Welcome {form_data["name"]}. You can now manage stadium operations.',
+                'customer': f'Account created successfully! Welcome to CricVerse, {form_data["name"]}!'
+            }
+            
+            flash(role_messages.get(form_data['role'], role_messages['customer']), 'success')
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred during registration. Please try again.', 'danger')
+            print(f"Registration error: {e}")
+            return render_template('register.html')
     
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+        # Sanitize form data
+        email = sanitize_input(request.form.get('email', ''), 100).lower()
+        password = request.form.get('password', '')
+        remember_me = request.form.get('remember_me') == 'on'
         
+        # Basic input validation
+        if not email or not password:
+            flash('Please enter both email and password.', 'danger')
+            return render_template('login.html')
+        
+        # Email format validation
+        if not validate_email(email):
+            flash('Please enter a valid email address.', 'danger')
+            return render_template('login.html')
+        
+        # Find user by email
         customer = Customer.query.filter_by(email=email).first()
+        
         if customer and customer.check_password(password):
-            login_user(customer)
-            flash('Login successful')
+            # Successful login
+            login_user(customer, remember=remember_me)
             
-            # Role-based redirect
-            if customer.is_admin():
-                return redirect(url_for('admin_dashboard'))
-            else:
-                return redirect(url_for('dashboard'))
+            # Role-specific welcome messages and redirection
+            role_redirects = {
+                'admin': {
+                    'message': f'Welcome back, Administrator {customer.name}! You have full system access.',
+                    'redirect': 'admin_dashboard'
+                },
+                'stadium_owner': {
+                    'message': f'Welcome back, {customer.name}! Ready to manage your stadiums.',
+                    'redirect': 'stadium_owner_dashboard'
+                },
+                'customer': {
+                    'message': f'Welcome back, {customer.name}! Enjoy your CricVerse experience.',
+                    'redirect': 'dashboard'
+                }
+            }
+            
+            role_config = role_redirects.get(customer.role, role_redirects['customer'])
+            flash(role_config['message'], 'success')
+            
+            next_page = request.args.get('next')
+            return redirect(next_page if next_page else url_for(role_config['redirect']))
+                
         else:
-            flash('Invalid email or password')
+            # Login failed
+            if customer:
+                flash('Incorrect password. Please try again or reset your password.', 'danger')
+            else:
+                flash('No account found with this email address. Please check your email or register for a new account.', 'danger')
     
     return render_template('login.html')
+
+@app.route('/stadium_owner/dashboard')
+@login_required
+@stadium_owner_required
+def stadium_owner_dashboard():
+    return render_template('stadium_owner_dashboard.html')
 
 @app.route('/logout')
 @login_required
@@ -1099,6 +1270,48 @@ def dashboard():
                            orders=orders, 
                            parking_bookings=parking_bookings,
                            stats=stats)
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+@customer_required
+def profile():
+    teams = Team.query.all()
+    if request.method == 'POST':
+        current_user.name = request.form['name']
+        current_user.phone = request.form['phone']
+        favorite_team_id = request.form.get('favorite_team_id')
+        current_user.favorite_team_id = int(favorite_team_id) if favorite_team_id else None
+        
+        try:
+            db.session.commit()
+            flash('Profile updated successfully!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating profile: {e}', 'danger')
+        return redirect(url_for('profile'))
+    return render_template('profile.html', teams=teams)
+
+@app.route('/change_password', methods=['POST'])
+@login_required
+@customer_required
+def change_password():
+    current_password = request.form['current_password']
+    new_password = request.form['new_password']
+    confirm_password = request.form['confirm_password']
+
+    if not current_user.check_password(current_password):
+        flash('Incorrect current password.', 'danger')
+    elif new_password != confirm_password:
+        flash('New password and confirm password do not match.', 'danger')
+    else:
+        current_user.set_password(new_password)
+        try:
+            db.session.commit()
+            flash('Password changed successfully!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error changing password: {e}', 'danger')
+    return redirect(url_for('profile'))
 
 @app.route('/book_ticket/<int:event_id>', methods=['POST'])
 @login_required
@@ -1345,6 +1558,82 @@ def book_parking(stadium_id):
 @app.route('/about')
 def about():
     return render_template('about.html')
+
+@app.route('/chatbot', methods=['POST'])
+def chatbot():
+    user_message = request.json.get('message', '').lower()
+    response = "I'm sorry, I don't understand. Can you please rephrase your question or ask about events, stadiums, teams, concessions, or parking?"
+
+    if "hello" in user_message or "hi" in user_message:
+        response = "Hi there! How can I help you with your stadium experience today?"
+    elif "event" in user_message or "match" in user_message:
+        if "upcoming" in user_message or "next" in user_message:
+            events = Event.query.filter(Event.event_date >= datetime.utcnow().date())
+            events = events.order_by(Event.event_date.asc()).limit(3).all()
+            if events:
+                response = "Here are some upcoming events:\n"
+                for event in events:
+                    response += f"- {event.event_name} at {event.stadium.name} on {event.event_date.strftime('%Y-%m-%d')}\n"
+            else:
+                response = "There are no upcoming events at the moment."
+        elif "all events" in user_message:
+            events = Event.query.order_by(Event.event_date.desc()).limit(5).all()
+            if events:
+                response = "Here are some recent or upcoming events:\n"
+                for event in events:
+                    response += f"- {event.event_name} at {event.stadium.name} on {event.event_date.strftime('%Y-%m-%d')}\n"
+            else:
+                response = "No events found."
+        else:
+            response = "Are you looking for specific events, or upcoming ones?"
+    elif "stadium" in user_message:
+        if "all stadiums" in user_message or "list stadiums" in user_message:
+            stadiums = Stadium.query.limit(5).all()
+            if stadiums:
+                response = "Here are some stadiums:\n"
+                for stadium in stadiums:
+                    response += f"- {stadium.name} in {stadium.location} with capacity {stadium.capacity}\n"
+            else:
+                response = "No stadiums found."
+        else:
+            response = "Which stadium are you interested in? Or would you like to list all stadiums?"
+    elif "team" in user_message:
+        if "all teams" in user_message or "list teams" in user_message:
+            teams = Team.query.limit(5).all()
+            if teams:
+                response = "Here are some teams:\n"
+                for team in teams:
+                    response += f"- {team.team_name} (Home: {team.home_ground})\n"
+            else:
+                response = "No teams found."
+        else:
+            response = "Which team are you interested in? Or would you like to list all teams?"
+    elif "concession" in user_message or "food" in user_message or "menu" in user_message:
+        if "all concessions" in user_message or "list concessions" in user_message:
+            concessions = Concession.query.limit(5).all()
+            if concessions:
+                response = "Here are some concessions:\n"
+                for concession in concessions:
+                    response += f"- {concession.name} ({concession.category}) at {concession.stadium.name}\n"
+            else:
+                response = "No concessions found."
+        else:
+            response = "Are you looking for concessions at a specific stadium, or would you like to see all concessions?"
+    elif "parking" in user_message:
+        if "all parking" in user_message or "list parking" in user_message:
+            parking_zones = Parking.query.limit(5).all()
+            if parking_zones:
+                response = "Here are some parking zones:\n"
+                for parking in parking_zones:
+                    response += f"- {parking.zone} at {parking.stadium.name} (Capacity: {parking.capacity})\n"
+            else:
+                response = "No parking zones found."
+        else:
+            response = "Are you looking for parking at a specific stadium, or would you like to see all parking options?"
+    elif "ticket" in user_message:
+        response = "Are you looking to book tickets for a specific event? You can browse events on our 'Events' page."
+    
+    return jsonify({'response': response})
 
 if __name__ == '__main__':
     with app.app_context():

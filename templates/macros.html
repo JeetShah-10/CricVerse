@@ -1,0 +1,267 @@
+<!-- CricVerse Template Macros -->
+<!-- Reusable UI components to reduce code duplication -->
+
+<!-- Standard Card Component -->
+{% macro render_card(title, content, card_class="", header_class="", body_class="") %}
+<div class="card shadow-sm {{ card_class }}">
+    {% if title %}
+    <div class="card-header {{ header_class }}">
+        <h5 class="mb-0">{{ title }}</h5>
+    </div>
+    {% endif %}
+    <div class="card-body {{ body_class }}">
+        {{ content | safe }}
+    </div>
+</div>
+{% endmacro %}
+
+<!-- Alert/Flash Message Component -->
+{% macro render_alert(message, type="info", dismissible=true, icon=true) %}
+<div class="alert alert-{{ type }} {% if dismissible %}alert-dismissible{% endif %} fade show" role="alert">
+    {% if icon %}
+        {% if type == "success" %}
+            <i class="fas fa-check-circle me-2"></i>
+        {% elif type == "danger" or type == "error" %}
+            <i class="fas fa-exclamation-triangle me-2"></i>
+        {% elif type == "warning" %}
+            <i class="fas fa-exclamation-circle me-2"></i>
+        {% else %}
+            <i class="fas fa-info-circle me-2"></i>
+        {% endif %}
+    {% endif %}
+    {{ message | safe }}
+    {% if dismissible %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    {% endif %}
+</div>
+{% endmacro %}
+
+<!-- Form Field Component -->
+{% macro render_form_field(field_type, name, label, value="", placeholder="", required=false, help_text="", field_class="", label_class="") %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label {{ label_class }}">
+        {{ label }}
+        {% if required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    
+    {% if field_type == "textarea" %}
+        <textarea class="form-control {{ field_class }}" id="{{ name }}" name="{{ name }}" 
+                 {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+                 {% if required %}required{% endif %}>{{ value }}</textarea>
+    {% elif field_type == "select" %}
+        <select class="form-select {{ field_class }}" id="{{ name }}" name="{{ name }}"
+               {% if required %}required{% endif %}>
+            {{ caller() if caller }}
+        </select>
+    {% elif field_type == "password" %}
+        <div class="input-group">
+            <input type="password" class="form-control {{ field_class }}" id="{{ name }}" name="{{ name }}"
+                   value="{{ value }}" {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+                   {% if required %}required{% endif %}>
+            <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('{{ name }}')">
+                <i class="fas fa-eye"></i>
+            </button>
+        </div>
+    {% else %}
+        <input type="{{ field_type }}" class="form-control {{ field_class }}" id="{{ name }}" name="{{ name }}"
+               value="{{ value }}" {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+               {% if required %}required{% endif %}>
+    {% endif %}
+    
+    {% if help_text %}
+        <div class="form-text">{{ help_text }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+<!-- Button Component -->
+{% macro render_button(text, type="button", btn_type="primary", size="", icon="", onclick="", disabled=false, loading=false) %}
+<button type="{{ type }}" 
+        class="btn btn-{{ btn_type }} {% if size %}btn-{{ size }}{% endif %}" 
+        {% if onclick %}onclick="{{ onclick }}"{% endif %}
+        {% if disabled %}disabled{% endif %}>
+    {% if loading %}
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+    {% elif icon %}
+        <i class="{{ icon }} me-2"></i>
+    {% endif %}
+    {{ text }}
+</button>
+{% endmacro %}
+
+<!-- Pagination Component -->
+{% macro render_pagination(total_pages, current_page=1, base_url="#") %}
+{% if total_pages > 1 %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if current_page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="{% if current_page > 1 %}{{ base_url }}?page={{ current_page - 1 }}{% else %}#{% endif %}">
+                <i class="fas fa-chevron-left"></i> Previous
+            </a>
+        </li>
+        
+        {% for page_num in range(1, total_pages + 1) %}
+            {% if page_num == current_page %}
+                <li class="page-item active">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+            {% elif page_num == 1 or page_num == total_pages or (page_num >= current_page - 2 and page_num <= current_page + 2) %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ base_url }}?page={{ page_num }}">{{ page_num }}</a>
+                </li>
+            {% elif page_num == current_page - 3 or page_num == current_page + 3 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        <li class="page-item {% if current_page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{% if current_page < total_pages %}{{ base_url }}?page={{ current_page + 1 }}{% else %}#{% endif %}">
+                Next <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% endmacro %}
+
+<!-- Stats Card Component -->
+{% macro render_stats_card(title, value, subtitle="", icon="", color="primary", trend="") %}
+<div class="card border-0 shadow-sm bg-gradient h-100">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col">
+                <div class="text-xs fw-bold text-{{ color }} text-uppercase mb-1">{{ title }}</div>
+                <div class="h5 mb-0 fw-bold">{{ value }}</div>
+                {% if subtitle %}<div class="text-muted small">{{ subtitle }}</div>{% endif %}
+                {% if trend %}<div class="text-{{ color }} small">{{ trend }}</div>{% endif %}
+            </div>
+            {% if icon %}
+            <div class="col-auto">
+                <i class="{{ icon }} fa-2x text-gray-300"></i>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+<!-- Data Table Component -->
+{% macro render_data_table(headers, rows, table_class="", striped=true, hover=true, responsive=true) %}
+{% if responsive %}<div class="table-responsive">{% endif %}
+<table class="table {% if striped %}table-striped{% endif %} {% if hover %}table-hover{% endif %} {{ table_class }}">
+    <thead class="table-light">
+        <tr>
+            {% for header in headers %}
+            <th>{{ header }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            {% for cell in row %}
+            <td>{{ cell | safe }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if responsive %}</div>{% endif %}
+{% endmacro %}
+
+<!-- Modal Component -->
+{% macro render_modal(modal_id, title, content, footer="", size="", backdrop="true") %}
+<div class="modal fade" id="{{ modal_id }}" tabindex="-1" data-bs-backdrop="{{ backdrop }}">
+    <div class="modal-dialog {% if size %}modal-{{ size }}{% endif %}">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {{ content | safe }}
+            </div>
+            {% if footer %}
+            <div class="modal-footer">
+                {{ footer | safe }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+<!-- Badge Component -->
+{% macro render_badge(text, color="secondary", pill=false) %}
+<span class="badge bg-{{ color }} {% if pill %}rounded-pill{% endif %}">{{ text }}</span>
+{% endmacro %}
+
+<!-- Loading Spinner Component -->
+{% macro render_loading(text="Loading...", size="") %}
+<div class="d-flex justify-content-center align-items-center p-3">
+    <div class="spinner-border {% if size %}spinner-border-{{ size }}{% endif %} text-primary me-2" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <span class="text-muted">{{ text }}</span>
+</div>
+{% endmacro %}
+
+<!-- Breadcrumb Component -->
+{% macro render_breadcrumb(items) %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        {% for item in items %}
+            {% if loop.last %}
+                <li class="breadcrumb-item active" aria-current="page">{{ item.name }}</li>
+            {% else %}
+                <li class="breadcrumb-item">
+                    {% if item.url %}
+                        <a href="{{ item.url }}">{{ item.name }}</a>
+                    {% else %}
+                        {{ item.name }}
+                    {% endif %}
+                </li>
+            {% endif %}
+        {% endfor %}
+    </ol>
+</nav>
+{% endmacro %}
+
+<!-- JavaScript Utility Functions -->
+<script>
+// Shared JavaScript utilities
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const button = input.nextElementSibling;
+    const icon = button.querySelector('i');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+function showLoader(element) {
+    if (element) {
+        const originalText = element.innerHTML;
+        element.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+        element.disabled = true;
+        element.dataset.originalText = originalText;
+    }
+}
+
+function hideLoader(element) {
+    if (element && element.dataset.originalText) {
+        element.innerHTML = element.dataset.originalText;
+        element.disabled = false;
+        delete element.dataset.originalText;
+    }
+}
+</script>

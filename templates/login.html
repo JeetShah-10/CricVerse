@@ -11,11 +11,33 @@
             <label class="form-label fw-medium" for="email">Email</label>
             <input type="email" name="email" id="email" class="form-control form-control-lg" placeholder="Enter your email" required>
           </div>
-          <div class="mb-4">
+          <div class="mb-3">
             <label class="form-label fw-medium" for="password">Password</label>
-            <input type="password" name="password" id="password" class="form-control form-control-lg" placeholder="Enter your password" required>
+            <div class="input-group">
+              <input type="password" name="password" id="password" class="form-control form-control-lg" placeholder="Enter your password" required>
+              <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
           </div>
-          <button type="submit" class="btn btn-primary btn-lg w-100">Login</button>
+          
+          <div class="row mb-4">
+            <div class="col">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="remember_me" id="remember_me">
+                <label class="form-check-label" for="remember_me">
+                  Remember me
+                </label>
+              </div>
+            </div>
+            <div class="col-auto">
+              <a href="#" class="text-decoration-none small" id="forgotPassword">Forgot password?</a>
+            </div>
+          </div>
+          
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+          </div>
         </form>
         <div class="text-center mt-3">
           <p class="text-muted">Don't have an account? <a href="{{ url_for('register') }}" class="text-decoration-none">Register here</a></p>
@@ -24,4 +46,142 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Enhanced Login Form JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.querySelector('form');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const togglePasswordBtn = document.getElementById('togglePassword');
+    const forgotPasswordLink = document.getElementById('forgotPassword');
+    
+    // Password visibility toggle
+    togglePasswordBtn.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+    });
+    
+    // Forgot password functionality
+    forgotPasswordLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Show forgot password modal/alert
+        const email = emailInput.value.trim();
+        if (!email) {
+            CricVerse.showNotification(
+                'Please enter your email address first, then click "Forgot password?"', 
+                'warning'
+            );
+            emailInput.focus();
+            return;
+        }
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            CricVerse.showNotification('Please enter a valid email address.', 'warning');
+            emailInput.focus();
+            return;
+        }
+        
+        // Simulate password reset request
+        CricVerse.showModal(
+            'Password Reset Requested',
+            `
+            <div class="text-center">
+                <i class="fas fa-envelope-circle-check text-success mb-3" style="font-size: 3rem;"></i>
+                <p class="mb-3">If an account with email <strong>${email}</strong> exists, we've sent you password reset instructions.</p>
+                <p class="text-muted small mb-0">Please check your email inbox and spam folder.</p>
+            </div>
+            `,
+            'success'
+        );
+        
+        // In production, this would make an AJAX call to the server
+        console.log(`Password reset requested for: ${email}`);
+    });
+    
+    // Enhanced form validation
+    loginForm.addEventListener('submit', function(e) {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        
+        let isValid = true;
+        let errorMessages = [];
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) {
+            errorMessages.push('Please enter your email address.');
+            isValid = false;
+        } else if (!emailRegex.test(email)) {
+            errorMessages.push('Please enter a valid email address.');
+            isValid = false;
+        }
+        
+        // Password validation
+        if (!password) {
+            errorMessages.push('Please enter your password.');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            
+            // Show validation errors
+            let errorDiv = document.querySelector('.validation-errors');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.className = 'validation-errors alert alert-danger mt-3';
+                loginForm.appendChild(errorDiv);
+            }
+            
+            errorDiv.innerHTML = `
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Please fix the following issues:</h6>
+                <ul class="mb-0">
+                    ${errorMessages.map(msg => `<li>${msg}</li>`).join('')}
+                </ul>
+            `;
+            
+            // Scroll to error
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            // Remove any existing error messages
+            const errorDiv = document.querySelector('.validation-errors');
+            if (errorDiv) {
+                errorDiv.remove();
+            }
+            
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing In...';
+            submitBtn.disabled = true;
+            
+            // Re-enable form if there's an error (handled by Flask flash messages)
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }, 3000);
+        }
+    });
+    
+    // Auto-focus email field
+    emailInput.focus();
+    
+    // Enter key navigation
+    emailInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            passwordInput.focus();
+        }
+    });
+});
+</script>
 {% endblock %}

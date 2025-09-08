@@ -1,28 +1,31 @@
-# Stadium System
+# CricVerse
 
-A web application for managing stadiums, events, bookings, and more.
+A comprehensive stadium management and ticket booking platform specifically designed for Big Bash League (BBL) cricket. CricVerse serves as a one-stop destination for cricket fans to book tickets, explore team information, manage stadium experiences including parking and food court orders, and stay updated with match schedules and player statistics.
 
 ## Features
 
-*   **Admin Dashboard:** Manage stadiums, events, concessions, parking, and seats.
-*   **Customer Dashboard:** View bookings, orders, and profile information.
-*   **Event Management:** Create, edit, and view events.
-*   **Booking System:** Book tickets for events and reserve parking.
-*   **Concession Management:** Manage concessions and menu items.
-*   **User Authentication:** Secure login and registration for admins and customers.
+*   **BBL Team Management:** Complete profiles for all 8 Big Bash League teams with players, statistics, and achievements.
+*   **Stadium Directory:** Comprehensive venue information with interactive seating charts and amenities.
+*   **Smart Booking System:** Seamless ticket booking with seat selection, parking, and food court integration.
+*   **Administrative Dashboard:** Complete management tools for stadiums, matches, and events.
+*   **Stadium Owner Analytics:** Performance metrics, revenue tracking, and operational insights.
+*   **AI Assistant:** Intelligent chatbot for booking assistance and match information.
+*   **Vegetarian Food Court:** Comprehensive vegetarian menu with dietary information.
+*   **Secure Authentication:** Multi-role access control for users, administrators, and stadium owners.
 
 ## Installation
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/stadium-system.git
+    git clone https://github.com/your-username/cricverse.git
     ```
 2.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
-3.  **Set up the database:**
-    - Create a `.env` file and add your `DATABASE_URL`.
+4.  **Set up the database:**
+    - Create a `cricverse.env` or `.env` file and add your `DATABASE_URL`.
+    - Add `SECRET_KEY` for secure session management.
     - Run the application to initialize the database.
 
 ## Usage

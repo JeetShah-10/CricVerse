@@ -1,3 +1,1241 @@
+/* CricVerse - BBL-Inspired Dark Theme CSS */
+
+/* Color Variables */
+:root {
+  /* Primary Colors */
+  --primary-navy: #1a1b3a;
+  --secondary-orange: #ff6b35;
+  --accent-cyan: #00d4ff;
+  
+  /* Supporting Colors */
+  --dark-gray: #2d2d2d;
+  --light-gray: #f5f5f5;
+  --white: #ffffff;
+  --black: #000000;
+  
+  /* Gradient Colors */
+  --gradient-primary: linear-gradient(135deg, #1a1b3a 0%, #2d2d2d 100%);
+  --gradient-accent: linear-gradient(135deg, #ff6b35 0%, #00d4ff 100%);
+  --gradient-card: linear-gradient(145deg, #1e1f47 0%, #2a2a4a 100%);
+  
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #b8bcc8;
+  --text-muted: #8a8a8a;
+  
+  /* Background Colors */
+  --bg-primary: #1a1b3a;
+  --bg-secondary: #2d2d2d;
+  --bg-card: #1e1f47;
+  --bg-glass: rgba(26, 27, 58, 0.85);
+  
+  /* Border Colors */
+  --border-primary: #3d3d5c;
+  --border-accent: #ff6b35;
+  
+  /* Shadow Colors */
+  --shadow-primary: rgba(0, 0, 0, 0.3);
+  --shadow-accent: rgba(255, 107, 53, 0.2);
+  --shadow-cyan: rgba(0, 212, 255, 0.2);
+}
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--gradient-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.75rem; }
+h4 { font-size: 1.5rem; }
+h5 { font-size: 1.25rem; }
+h6 { font-size: 1rem; }
+
+p {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* Header Styles */
+.glass-header {
+  background: var(--bg-glass);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-primary);
+  box-shadow: 0 4px 20px var(--shadow-primary);
+}
+
+.navbar-brand img {
+  filter: brightness(1.2);
+  transition: transform 0.3s ease;
+}
+
+.navbar-brand:hover img {
+  transform: scale(1.05);
+}
+
+.navbar-nav .nav-link {
+  color: var(--text-primary) !important;
+  font-weight: 500;
+  position: relative;
+  transition: all 0.3s ease;
+  margin: 0 0.5rem;
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+  color: var(--accent-cyan) !important;
+}
+
+.navbar-nav .nav-link::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -5px;
+  left: 50%;
+  background: var(--gradient-accent);
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.navbar-nav .nav-link:hover::after,
+.navbar-nav .nav-link.active::after {
+  width: 100%;
+}
+
+/* Button Styles */
+.btn {
+  border-radius: 25px;
+  font-weight: 600;
+  padding: 0.5rem 1.5rem;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background: var(--gradient-accent);
+  border: none;
+  color: var(--white);
+  box-shadow: 0 4px 15px var(--shadow-accent);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--shadow-accent);
+}
+
+.btn-outline-primary {
+  border: 2px solid var(--secondary-orange);
+  color: var(--secondary-orange);
+  background: transparent;
+}
+
+.btn-outline-primary:hover {
+  background: var(--secondary-orange);
+  color: var(--white);
+  transform: translateY(-2px);
+}
+
+.btn-outline-info {
+  border: 2px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  background: transparent;
+}
+
+.btn-outline-info:hover {
+  background: var(--accent-cyan);
+  color: var(--primary-navy);
+  transform: translateY(-2px);
+}
+
+/* Card Styles */
+.card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 15px;
+  box-shadow: 0 8px 25px var(--shadow-primary);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px var(--shadow-primary);
+  border-color: var(--accent-cyan);
+}
+
+.card-header {
+  background: linear-gradient(145deg, var(--secondary-orange), var(--accent-cyan));
+  border-bottom: 1px solid var(--border-primary);
+  border-radius: 15px 15px 0 0 !important;
+  color: var(--white);
+  font-weight: 600;
+}
+
+.card-body {
+  color: var(--text-secondary);
+}
+
+.card-title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Form Styles */
+.form-control {
+  background: rgba(45, 45, 45, 0.8);
+  border: 2px solid var(--border-primary);
+  border-radius: 10px;
+  color: var(--text-primary);
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  background: rgba(45, 45, 45, 1);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 15px var(--shadow-cyan);
+  color: var(--text-primary);
+}
+
+.form-control::placeholder {
+  color: var(--text-muted);
+}
+
+.form-label {
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+/* Table Styles */
+.table {
+  color: var(--text-secondary);
+  background: transparent;
+}
+
+.table th {
+  background: var(--gradient-card);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+  font-weight: 600;
+}
+
+.table td {
+  border-color: var(--border-primary);
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+  background: rgba(45, 45, 45, 0.3);
+}
+
+.table-hover > tbody > tr:hover > td {
+  background: rgba(0, 212, 255, 0.1);
+}
+
+/* Main Content */
+.main-content {
+  padding-top: 100px;
+  min-height: 100vh;
+}
+
+/* Hero Section */
+.hero-section {
+  background: var(--gradient-primary);
+  padding: 4rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="1" fill="rgba(0,212,255,0.1)"/><circle cx="80" cy="40" r="1" fill="rgba(255,107,53,0.1)"/><circle cx="40" cy="80" r="1" fill="rgba(0,212,255,0.1)"/></svg>');
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1.5rem;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+/* Feature Cards */
+.feature-card {
+  text-align: center;
+  padding: 2rem;
+  border-radius: 15px;
+  background: var(--gradient-card);
+  border: 1px solid var(--border-primary);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.feature-card:hover {
+  transform: translateY(-10px);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 15px 35px var(--shadow-primary);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+/* Cricket-themed elements */
+.cricket-ball {
+  width: 20px;
+  height: 20px;
+  background: var(--secondary-orange);
+  border-radius: 50%;
+  display: inline-block;
+  margin: 0 5px;
+  position: relative;
+}
+
+.cricket-ball::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  right: 2px;
+  height: 1px;
+  background: var(--white);
+  transform: translateY(-50%);
+}
+
+/* Stadium seating chart */
+.seat {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  margin: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.seat.available {
+  background: var(--dark-gray);
+  border: 2px solid var(--accent-cyan);
+}
+
+.seat.selected {
+  background: var(--secondary-orange);
+  border: 2px solid var(--secondary-orange);
+  transform: scale(1.1);
+}
+
+.seat.booked {
+  background: #666;
+  border: 2px solid #666;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Chatbot Styles */
+.chatbot-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  background: var(--gradient-accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 20px var(--shadow-accent);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.chatbot-icon:hover {
+  transform: scale(1.1);
+}
+
+.chatbot-icon i {
+  color: var(--white);
+  font-size: 1.5rem;
+}
+
+.chatbot-window {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 350px;
+  height: 450px;
+  background: var(--gradient-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 15px;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 15px 35px var(--shadow-primary);
+  z-index: 1001;
+}
+
+.chatbot-header {
+  background: var(--gradient-accent);
+  color: var(--white);
+  padding: 1rem;
+  border-radius: 15px 15px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+
+.close-chatbot {
+  background: none;
+  border: none;
+  color: var(--white);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.chatbot-body {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.chat-message {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  max-width: 80%;
+}
+
+.bot-message {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  margin-right: auto;
+}
+
+.user-message {
+  background: var(--secondary-orange);
+  color: var(--white);
+  margin-left: auto;
+}
+
+.chatbot-footer {
+  padding: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border-primary);
+}
+
+.chatbot-footer input {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 25px;
+  padding: 0.5rem 1rem;
+  color: var(--text-primary);
+}
+
+.chatbot-footer button {
+  background: var(--secondary-orange);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  color: var(--white);
+  cursor: pointer;
+}
+
+/* Footer */
+footer {
+  background: var(--gradient-card) !important;
+  border-top: 1px solid var(--border-primary);
+  margin-top: 4rem;
+}
+
+footer h5 {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+footer p, footer li {
+  color: var(--text-secondary);
+}
+
+footer a {
+  color: var(--text-secondary);
+  transition: color 0.3s ease;
+}
+
+footer a:hover {
+  color: var(--accent-cyan);
+}
+
+/* Loading States */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-primary);
+  border-radius: 50%;
+  border-top-color: var(--accent-cyan);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Flash Messages */
+.alert {
+  border-radius: 10px;
+  border: none;
+  backdrop-filter: blur(10px);
+}
+
+.alert-success {
+  background: rgba(0, 212, 255, 0.2);
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.alert-danger {
+  background: rgba(220, 53, 69, 0.2);
+  border: 1px solid #dc3545;
+  color: #ff6b6b;
+}
+
+.alert-warning {
+  background: rgba(255, 107, 53, 0.2);
+  border: 1px solid var(--secondary-orange);
+  color: var(--secondary-orange);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.5rem;
+  }
+  
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+  
+  .chatbot-window {
+    width: 300px;
+    right: 10px;
+  }
+  
+  .chatbot-icon {
+    width: 50px;
+    height: 50px;
+    right: 10px;
+  }
+  
+  .feature-card {
+    margin-bottom: 2rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .main-content {
+    padding-top: 80px;
+  }
+  
+  .hero-section {
+    padding: 2rem 0;
+  }
+  
+  .card {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Team-specific color themes (for future enhancement) */
+.team-adelaide-strikers { --team-primary: #003d82; --team-secondary: #ffd100; }
+.team-brisbane-heat { --team-primary: #e74c3c; --team-secondary: #f39c12; }
+.team-hobart-hurricanes { --team-primary: #9b59b6; --team-secondary: #3498db; }
+.team-melbourne-renegades { --team-primary: #e74c3c; --team-secondary: #2c3e50; }
+.team-melbourne-stars { --team-primary: #2ecc71; --team-secondary: #f1c40f; }
+.team-perth-scorchers { --team-primary: #e67e22; --team-secondary: #2c3e50; }
+.team-sydney-sixers { --team-primary: #e91e63; --team-secondary: #9c27b0; }
+.team-sydney-thunder { --team-primary: #9b59b6; --team-secondary: #f1c40f; }
+
+/* Hero Section Enhancements */
+.hero-visual img {
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.3));
+  transition: transform 0.5s ease;
+}
+
+.hero-visual:hover img {
+  transform: scale(1.05) rotate(2deg);
+}
+
+.cricket-field-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: pulse 3s infinite;
+  z-index: -1;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+}
+
+.countdown-widget {
+  background: var(--gradient-card);
+  border: 1px solid var(--border-accent);
+  box-shadow: 0 4px 15px var(--shadow-accent);
+}
+
+.hero-stats h4 {
+  color: var(--accent-cyan);
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.hero-stats small {
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.text-accent-cyan {
+  color: var(--accent-cyan);
+}
+
+.min-vh-75 {
+  min-height: 75vh;
+}
+
+/* Enhanced Card Styles */
+.match-card, .stadium-card, .team-player-card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border-primary);
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.match-card::before,
+.stadium-card::before,
+.team-player-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 2px;
+  background: var(--gradient-accent);
+  transition: left 0.4s ease;
+}
+
+.match-card:hover::before,
+.stadium-card:hover::before,
+.team-player-card:hover::before {
+  left: 0;
+}
+
+.match-card:hover,
+.stadium-card:hover,
+.team-player-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px var(--shadow-primary);
+  border-color: var(--accent-cyan);
+}
+
+/* Team Logo Enhancements */
+.team-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: brightness(1.1);
+  transition: transform 0.3s ease;
+}
+
+.team-logo:hover {
+  transform: scale(1.15);
+}
+
+.team-logo-small {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+
+/* Player Image Styles */
+.player-image {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent-cyan);
+}
+
+/* Match Actions */
+.match-actions .btn {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.8rem;
+}
+
+/* Floating Cricket Ball Animation */
+.floating-ball {
+  animation: floatBall 6s ease-in-out infinite;
+}
+
+@keyframes floatBall {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.7;
+  }
+  25% {
+    transform: translateY(-20px) rotate(90deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-10px) rotate(180deg);
+    opacity: 0.8;
+  }
+  75% {
+    transform: translateY(-15px) rotate(270deg);
+    opacity: 0.9;
+  }
+}
+
+/* Badge Enhancements */
+.bg-gradient {
+  background: var(--gradient-accent) !important;
+  color: var(--white) !important;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+/* Section Spacing */
+.py-5 {
+  padding-top: 4rem !important;
+  padding-bottom: 4rem !important;
+}
+
+/* Animation Classes */
+.fade-in {
+  animation: fadeIn 0.6s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Hover Effects for Interactive Elements */
+.card-img-top {
+  transition: transform 0.3s ease;
+}
+
+.card:hover .card-img-top {
+  transform: scale(1.05);
+}
+
+/* Stadium Detail Enhancements */
+.stat-card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border-primary);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 10px 25px var(--shadow-primary);
+}
+
+.text-secondary-orange {
+  color: var(--secondary-orange) !important;
+}
+
+.amenity-card,
+.transport-card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border-primary);
+  transition: all 0.3s ease;
+}
+
+.amenity-card:hover,
+.transport-card:hover {
+  border-color: var(--accent-cyan);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px var(--shadow-primary);
+}
+
+/* Interactive Seating Chart */
+.seating-chart-container {
+  position: relative;
+}
+
+.stadium-svg {
+  width: 100%;
+  height: auto;
+  background: var(--gradient-card);
+  border-radius: 15px;
+  padding: 20px;
+}
+
+.seating-section {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.seating-section:hover {
+  opacity: 1 !important;
+  stroke: var(--accent-cyan);
+  stroke-width: 3;
+  transform: scale(1.02);
+}
+
+.chart-legend {
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 1.5rem;
+  border: 1px solid var(--border-primary);
+}
+
+.legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.seat-sample {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  border: 2px solid;
+}
+
+.seat-sample.vip-seat {
+  background: var(--secondary-orange);
+  border-color: var(--secondary-orange);
+}
+
+.seat-sample.premium-seat {
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+
+.seat-sample.general-seat {
+  background: var(--dark-gray);
+  border-color: var(--border-primary);
+}
+
+.seat-sample.family-seat {
+  background: #9b59b6;
+  border-color: #9b59b6;
+}
+
+.section-info-panel {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: var(--gradient-card);
+  border: 1px solid var(--border-accent);
+  min-width: 250px;
+  box-shadow: 0 10px 30px var(--shadow-primary);
+}
+
+/* Stadium Layout Responsive */
+.stadium-layout-container {
+  position: relative;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Transport and Amenities */
+.transport-option {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.transport-option:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.parking-info {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-primary);
+}
+
+/* Location and Contact Info */
+.location-info {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-primary);
+}
+
+.features-list .feature-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.features-list .feature-item:last-child {
+  border-bottom: none;
+}
+
+/* Interactive Map */
+.interactive-map iframe {
+  border-radius: 10px;
+}
+
+/* Tab Navigation Enhancements */
+.nav-tabs .nav-link {
+  background: transparent;
+  border: 2px solid transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.nav-tabs .nav-link.active {
+  background: var(--gradient-card);
+  border-color: var(--accent-cyan);
+  color: var(--text-primary);
+}
+
+/* Responsive Stadium Details */
+@media (max-width: 768px) {
+  .hero-stats .col-4 {
+    margin-bottom: 1rem;
+  }
+  
+  .hero-actions .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stadium-svg {
+    padding: 10px;
+  }
+  
+  .section-info-panel {
+    position: static;
+    margin-top: 20px;
+  }
+  
+  .nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  
+  .nav-tabs .nav-link {
+    white-space: nowrap;
+    font-size: 0.875rem;
+  }
+}
+
+/* Enhanced Analytics Dashboard */
+.text-gradient {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.kpi-card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 15px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-accent);
+}
+
+.kpi-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px var(--shadow-primary);
+}
+
+.kpi-card .kpi-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.kpi-card .kpi-icon.success {
+  background: #2ecc71;
+}
+
+.kpi-card .kpi-icon.warning {
+  background: var(--secondary-orange);
+}
+
+.kpi-card .kpi-icon.info {
+  background: var(--accent-cyan);
+}
+
+.kpi-card .kpi-icon i {
+  font-size: 1.5rem;
+  color: white;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.kpi-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-trend {
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.kpi-trend.positive {
+  color: #2ecc71;
+}
+
+.kpi-trend.negative {
+  color: #e74c3c;
+}
+
+.analytics-card {
+  background: var(--gradient-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 15px;
+  transition: all 0.3s ease;
+}
+
+.analytics-card:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 10px 25px var(--shadow-primary);
+}
+
+.analytics-card .card-header {
+  background: transparent;
+  border-bottom: 1px solid var(--border-primary);
+  padding: 1.25rem 1.5rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.analytics-card .card-body {
+  padding: 1.5rem;
+}
+
+/* Performance Heatmap */
+.performance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.performance-cell {
+  padding: 1rem;
+  border-radius: 10px;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.performance-cell.high {
+  background: rgba(46, 204, 113, 0.2);
+  border: 2px solid #2ecc71;
+}
+
+.performance-cell.medium {
+  background: rgba(0, 212, 255, 0.2);
+  border: 2px solid var(--accent-cyan);
+}
+
+.performance-cell.low {
+  background: rgba(255, 107, 53, 0.2);
+  border: 2px solid var(--secondary-orange);
+}
+
+.performance-cell.critical {
+  background: rgba(231, 76, 60, 0.2);
+  border: 2px solid #e74c3c;
+}
+
+.performance-cell:hover {
+  transform: scale(1.05);
+  z-index: 10;
+}
+
+.cell-header {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.cell-metric {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.cell-revenue {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Legend Styles */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* Chart Container */
+canvas {
+  max-height: 300px !important;
+}
+
+/* Button Group Enhancements */
+.btn-group .btn {
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
+}
+
+.btn-group .btn.active,
+.btn-group .btn:hover {
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  color: var(--primary-navy);
+}
+
+/* Export and Filter Controls */
+#dateFilter {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+#dateFilter:focus {
+  background: var(--bg-secondary);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px var(--shadow-cyan);
+  color: var(--text-primary);
+}
+
+/* Responsive Analytics */
+@media (max-width: 768px) {
+  .performance-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .kpi-card {
+    padding: 1rem;
+  }
+  
+  .kpi-value {
+    font-size: 1.5rem;
+  }
+  
+  .btn-group {
+    flex-direction: column;
+  }
+  
+  .btn-group .btn {
+    border-radius: 0.375rem !important;
+    margin-bottom: 0.25rem;
+  }
+}
+
 /* --- THEME VARIABLES --- */
 :root {
     --bs-primary: #0d6efd;
@@ -1250,4 +2488,293 @@ footer .social-icons a {
 
 footer .social-icons a:hover {
     color: var(--secondary-color);
+}
+
+/* Chatbot Styles */
+.chatbot-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #0d6efd;
+    color: white;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    transition: transform 0.2s ease-in-out;
+}
+
+.chatbot-icon:hover {
+    transform: scale(1.1);
+}
+
+.chatbot-window {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 350px;
+    height: 450px;
+    background-color: var(--bs-body-bg);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.chatbot-header {
+    background-color: var(--bs-primary);
+    color: white;
+    padding: 15px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.chatbot-header .close-chatbot {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.chatbot-body {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background-color: var(--bs-secondary-bg);
+}
+
+.chat-message {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.user-message {
+    background-color: #e0f2f7; /* Light blue for user messages */
+    color: #333;
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+.bot-message {
+    background-color: #f0f0f0; /* Light gray for bot messages */
+    color: #333;
+    align-self: flex-start;
+    margin-right: auto;
+}
+
+[data-bs-theme="dark"] .user-message {
+    background-color: #0056b3; /* Darker blue for user messages in dark mode */
+    color: white;
+}
+
+[data-bs-theme="dark"] .bot-message {
+    background-color: #343a40; /* Darker gray for bot messages in dark mode */
+    color: white;
+}
+
+.chatbot-footer {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid var(--bs-border-color);
+    background-color: var(--bs-body-bg);
+}
+
+.chatbot-footer input {
+    flex-grow: 1;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 20px;
+    padding: 8px 15px;
+    margin-right: 10px;
+    outline: none;
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+}
+
+.chatbot-footer button {
+    background-color: var(--bs-primary);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.chatbot-footer button:hover {
+    background-color: #0b5ed7;
+}
+
+@media (max-width: 768px) {
+    .chatbot-window {
+        width: 90%;
+        height: 70%;
+        bottom: 10px;
+        right: 5%;
+        left: 5%;
+    }
+
+    .chatbot-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+        bottom: 10px;
+        right: 10px;
+    }
+}
+/* Recently Viewed Section */
+#recently-viewed-section {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recently-viewed-item {
+    transition: transform 0.2s ease-in-out;
+}
+
+.recently-viewed-item:hover {
+    transform: translateY(-3px);
+}
+
+/* Chatbot Styles (if not already present or to override) */
+.chatbot-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: var(--bs-primary);
+    color: white;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    transition: transform 0.2s ease-in-out;
+}
+
+.chatbot-icon:hover {
+    transform: scale(1.05);
+}
+
+.chatbot-window {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 350px;
+    height: 450px;
+    background-color: var(--bs-body-bg);
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    display: none; /* Hidden by default */
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.chatbot-header {
+    background-color: var(--bs-primary);
+    color: white;
+    padding: 15px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.close-chatbot {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.chatbot-body {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: var(--bs-light); /* Lighter background for chat body */
+}
+
+.chat-message {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    word-wrap: break-word;
+}
+
+.user-message {
+    align-self: flex-end;
+    background-color: var(--bs-primary);
+    color: white;
+    border-bottom-right-radius: 2px;
+}
+
+.bot-message {
+    align-self: flex-start;
+    background-color: var(--bs-secondary);
+    color: white;
+    border-bottom-left-radius: 2px;
+}
+
+.loading-indicator {
+    font-style: italic;
+    color: var(--bs-gray-600);
+    background-color: transparent;
+    padding: 0;
+}
+
+.chatbot-footer {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid var(--bs-gray-300);
+    background-color: var(--bs-body-bg);
+}
+
+.chatbot-footer input {
+    flex-grow: 1;
+    border: 1px solid var(--bs-gray-400);
+    border-radius: 20px;
+    padding: 8px 15px;
+    margin-right: 10px;
+    outline: none;
+}
+
+.chatbot-footer button {
+    background-color: var(--bs-primary);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.chatbot-footer button:hover {
+    background-color: var(--bs-primary-dark);
 }

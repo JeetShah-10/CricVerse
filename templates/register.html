@@ -27,6 +27,25 @@
                     <div class="mb-4">
                         <label for="password" class="form-label fw-medium">Password</label>
                         <input type="password" class="form-control form-control-lg" id="password" name="password" placeholder="Create a password" required>
+                        <div class="form-text text-muted">
+                            Password must be at least 8 characters long
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="role" class="form-label fw-medium">Account Type</label>
+                        <select class="form-select form-select-lg" id="role" name="role" required>
+                            <option value="customer">Fan Account (Default)</option>
+                            <option value="stadium_owner">Stadium Owner</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                        <div class="form-text text-muted">
+                            <small>
+                                <strong>Fan:</strong> Book tickets, order concessions, manage your profile<br>
+                                <strong>Stadium Owner:</strong> Manage stadium operations and bookings<br>
+                                <strong>Administrator:</strong> Full system access and analytics
+                            </small>
+                        </div>
                     </div>
                     
                     <div class="d-grid">
@@ -41,4 +60,166 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Enhanced Registration Form Validation
+document.addEventListener('DOMContentLoaded', function() {
+    const registerForm = document.querySelector('form');
+    const passwordInput = document.getElementById('password');
+    const roleSelect = document.getElementById('role');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    
+    // Password strength validation
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        const feedback = this.parentNode.querySelector('.password-feedback');
+        
+        if (!feedback) {
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.className = 'password-feedback mt-2';
+            this.parentNode.appendChild(feedbackDiv);
+        }
+        
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /\d/.test(password),
+            special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+        };
+        
+        const strength = Object.values(requirements).filter(Boolean).length;
+        const colors = ['text-danger', 'text-warning', 'text-info', 'text-success', 'text-primary'];
+        const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+        
+        const feedbackElement = this.parentNode.querySelector('.password-feedback');
+        feedbackElement.innerHTML = `
+            <div class="${colors[strength - 1] || 'text-muted'} small">
+                <i class="fas fa-shield-alt me-1"></i>
+                Password Strength: ${labels[strength - 1] || 'Too Short'}
+            </div>
+            <div class="mt-1 small text-muted">
+                <div class="${requirements.length ? 'text-success' : 'text-muted'}">
+                    <i class="fas ${requirements.length ? 'fa-check' : 'fa-times'} me-1"></i>
+                    At least 8 characters
+                </div>
+                <div class="${requirements.uppercase ? 'text-success' : 'text-muted'}">
+                    <i class="fas ${requirements.uppercase ? 'fa-check' : 'fa-times'} me-1"></i>
+                    Uppercase letter
+                </div>
+                <div class="${requirements.lowercase ? 'text-success' : 'text-muted'}">
+                    <i class="fas ${requirements.lowercase ? 'fa-check' : 'fa-times'} me-1"></i>
+                    Lowercase letter
+                </div>
+                <div class="${requirements.number ? 'text-success' : 'text-muted'}">
+                    <i class="fas ${requirements.number ? 'fa-check' : 'fa-times'} me-1"></i>
+                    Number
+                </div>
+            </div>
+        `;
+    });
+    
+    // Role selection guidance
+    roleSelect.addEventListener('change', function() {
+        const selectedRole = this.value;
+        let roleInfo = '';
+        
+        switch(selectedRole) {
+            case 'customer':
+                roleInfo = 'Perfect for cricket fans! You\'ll have access to ticket booking, concession orders, and your personal dashboard.';
+                break;
+            case 'stadium_owner':
+                roleInfo = 'Ideal for venue managers. You\'ll manage stadium operations, view detailed analytics, and handle bookings.';
+                break;
+            case 'admin':
+                roleInfo = 'Full system administrator access. Manage all stadiums, users, analytics, and system configuration.';
+                break;
+        }
+        
+        let infoDiv = this.parentNode.querySelector('.role-info');
+        if (!infoDiv) {
+            infoDiv = document.createElement('div');
+            infoDiv.className = 'role-info alert alert-info mt-2 small';
+            this.parentNode.appendChild(infoDiv);
+        }
+        
+        infoDiv.innerHTML = `<i class="fas fa-info-circle me-1"></i>${roleInfo}`;
+    });
+    
+    // Form validation on submit
+    registerForm.addEventListener('submit', function(e) {
+        const password = passwordInput.value;
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        
+        let isValid = true;
+        let errorMessages = [];
+        
+        // Name validation
+        if (name.length < 2) {
+            errorMessages.push('Name must be at least 2 characters long.');
+            isValid = false;
+        }
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            errorMessages.push('Please enter a valid email address.');
+            isValid = false;
+        }
+        
+        // Password validation
+        if (password.length < 8) {
+            errorMessages.push('Password must be at least 8 characters long.');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            
+            // Show validation errors
+            let errorDiv = document.querySelector('.validation-errors');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.className = 'validation-errors alert alert-danger mt-3';
+                registerForm.appendChild(errorDiv);
+            }
+            
+            errorDiv.innerHTML = `
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Please fix the following issues:</h6>
+                <ul class="mb-0">
+                    ${errorMessages.map(msg => `<li>${msg}</li>`).join('')}
+                </ul>
+            `;
+            
+            // Scroll to error
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            // Remove any existing error messages
+            const errorDiv = document.querySelector('.validation-errors');
+            if (errorDiv) {
+                errorDiv.remove();
+            }
+            
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating Account...';
+            submitBtn.disabled = true;
+            
+            // Re-enable form if there's an error (handled by Flask flash messages)
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }, 3000);
+        }
+    });
+    
+    // Trigger initial role info display
+    roleSelect.dispatchEvent(new Event('change'));
+});
+</script>
 {% endblock %}
