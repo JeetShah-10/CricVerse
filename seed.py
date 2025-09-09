@@ -444,7 +444,7 @@ if __name__ == '__main__':
     print("Starting database seeding...")
     try:
         with app.app_context():
-            seed_database()
+            seed_data()
             print("Database seeding completed successfully!")
     except Exception as e:
         print(f"Error during seeding: {e}")
