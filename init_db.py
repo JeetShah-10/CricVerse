@@ -26,7 +26,7 @@ def create_database_if_not_exists():
     
     # Get database configuration
     pg_user = os.getenv('POSTGRES_USER', 'postgres')
-    pg_password = os.getenv('POSTGRES_PASSWORD', 'admin')
+    pg_password = os.getenv('POSTGRES_PASSWORD', 'misha1002')
     pg_host = os.getenv('POSTGRES_HOST', 'localhost')
     pg_port = os.getenv('POSTGRES_PORT', '5432')
     pg_database = os.getenv('POSTGRES_DB', 'stadium_db')

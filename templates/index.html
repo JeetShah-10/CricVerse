@@ -1,189 +1,375 @@
 {% extends 'base.html' %}
-{% block title %}Home • CricVerse{% endblock %}
+{% block title %}Big Bash League - CricVerse{% endblock %}
 {% block head %}
     {{ super() }}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-enhanced.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 {% endblock %}
 {% block content %}
-<!-- HERO SECTION -->
-<section class="hero-section fade-in">
+<!-- HERO BANNER -->
+<section class="hero-banner">
+  <div class="hero-background">
+    <div class="hero-video-bg">
+      <video autoplay muted loop>
+        <source src="{{ url_for('static', filename='img/Main Page Video.mp4') }}" type="video/mp4">
+      </video>
+      <img src="{{ url_for('static', filename='img/Main GIF.gif') }}" alt="Cricket Action GIF" class="hero-gif-bg">
+      <img src="{{ url_for('static', filename='img/Match Action .png') }}" alt="Cricket Action" class="hero-fallback-img">
+    </div>
+    <div class="hero-gradient-overlay"></div>
+  </div>
   <div class="container">
-    <div class="row align-items-center min-vh-75">
-      <div class="col-lg-6">
-        <h1 class="hero-title">Welcome to CricVerse</h1>
-        <p class="hero-subtitle">Your ultimate destination for Big Bash League cricket. Book tickets, explore stadiums, discover teams, and experience the excitement of Australia's premier T20 competition.</p>
-        
-        {% if next_match_countdown %}
-        <div class="countdown-widget mb-4 p-3 rounded-3">
-          <div class="d-flex align-items-center text-white">
-            <div class="cricket-ball me-3"></div>
-            <div>
-              <h6 class="mb-1">Next BBL Match</h6>
-              <div class="countdown-timer h5 mb-0" id="countdown-timer">
-                {{ next_match_countdown.days }}d {{ next_match_countdown.hours }}h {{ next_match_countdown.minutes }}m
-              </div>
+    <div class="row">
+      <div class="col-lg-8">
+        <div class="hero-content">
+          <div class="energy-elements">
+            <div class="cricket-ball floating"></div>
+            <div class="lightning-bolt"></div>
+            <div class="trophy-element">
+              <img src="{{ url_for('static', filename='img/Big Bash League Trophy.png') }}" alt="BBL Trophy" class="floating-trophy">
             </div>
           </div>
+          <h1 class="hero-headline">BIG BASH TICKETS NOW ON SALE!</h1>
+          <p class="hero-subtext">Experience the ultimate T20 cricket action. Australia's most electrifying tournament awaits!</p>
+          <div class="hero-buttons">
+            <a href="{{ url_for('events') }}" class="btn btn-primary-yellow">
+              <span>Buy Tickets</span>
+              <i class="bi bi-arrow-right"></i>
+            </a>
+            <a href="{{ url_for('teams') }}" class="btn btn-secondary-gradient">
+              <span>View Teams</span>
+              <i class="bi bi-people-fill"></i>
+            </a>
+          </div>
         </div>
-        {% endif %}
-        
-        <div class="hero-actions">
-          <a href="{{ url_for('events') }}" class="btn btn-primary btn-lg me-3 mb-3">
-            <i class="bi bi-ticket-perforated me-2"></i>Book Tickets
-          </a>
-          <a href="{{ url_for('stadiums') }}" class="btn btn-outline-primary btn-lg mb-3">
-            <i class="bi bi-geo-alt me-2"></i>Explore Stadiums
-          </a>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- HIGHLIGHTS SECTION -->
+<section class="highlights-section">
+  <div class="container-fluid p-0">
+    <div class="row g-0">
+      <div class="col-lg-7 highlights-text-side">
+        <div class="highlights-content">
+          <div class="highlights-decoration"></div>
+          <h2 class="highlights-headline">
+            EVERYTHING<br>
+            <span class="text-yellow">BIG BASH</span><br>
+            ALL IN<br>
+            <span class="text-pink">ONE PLACE</span>
+          </h2>
+          <p class="highlights-description">Live scores, player stats, match highlights, team updates, and exclusive content all in your hands.</p>
         </div>
-        
-        <div class="hero-stats mt-4">
-          <div class="row text-center">
-            <div class="col-4">
-              <h4 class="text-accent-cyan">8</h4>
-              <small>BBL Teams</small>
+      </div>
+      <div class="col-lg-5 highlights-image-side">
+        <div class="highlights-cricket-action">
+          <img src="{{ url_for('static', filename='img/fan celebrations.png') }}" alt="Fan Celebrations" class="highlights-bg-img">
+          <div class="action-overlay"></div>
+          <div class="celebration-gif">
+            <img src="{{ url_for('static', filename='img/Celebration GIF.gif') }}" alt="Celebration" class="celebration-animation">
+          </div>
+          <div class="crowd-energy"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- LEADERBOARDS SECTION -->
+<section class="leaderboards-section">
+  <div class="container">
+    <div class="row g-4">
+      <!-- Team Standings -->
+      <div class="col-lg-4">
+        <div class="leaderboard-panel standings-panel">
+          <div class="panel-header">
+            <h3>BBL TEAM STANDINGS</h3>
+          </div>
+          <div class="panel-content">
+            <div class="stat-item">
+              <div class="team-info">
+                <span class="position red-accent">1</span>
+                <div class="team-logo-mini stars">
+                  <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars" class="mini-team-logo">
+                </div>
+                <span class="team-name">Melbourne Stars</span>
+              </div>
+              <span class="points yellow-accent">16</span>
             </div>
-            <div class="col-4">
-              <h4 class="text-accent-cyan">8</h4>
-              <small>Iconic Venues</small>
+            <div class="stat-item">
+              <div class="team-info">
+                <span class="position red-accent">2</span>
+                <div class="team-logo-mini sixers">SS</div>
+                <span class="team-name">Sydney Sixers</span>
+              </div>
+              <span class="points yellow-accent">14</span>
             </div>
-            <div class="col-4">
-              <h4 class="text-accent-cyan">50+</h4>
-              <small>Matches Per Season</small>
+            <div class="stat-item">
+              <div class="team-info">
+                <span class="position red-accent">3</span>
+                <div class="team-logo-mini scorchers">PS</div>
+                <span class="team-name">Perth Scorchers</span>
+              </div>
+              <span class="points yellow-accent">12</span>
+            </div>
+            <div class="stat-item">
+              <div class="team-info">
+                <span class="position red-accent">4</span>
+                <div class="team-logo-mini heat">BH</div>
+                <span class="team-name">Brisbane Heat</span>
+              </div>
+              <span class="points yellow-accent">10</span>
             </div>
           </div>
         </div>
       </div>
       
-      <div class="col-lg-6 text-center">
-        <div class="hero-visual position-relative">
-          <div class="cricket-field-bg"></div>
-          <img src="{{ url_for('static', filename='img/hero-cricket.png') }}" alt="Cricket Action" class="img-fluid" style="max-height: 500px;">
-          <div class="floating-elements">
-            <div class="cricket-ball" style="position: absolute; top: 10%; left: 20%; animation-delay: 0s;"></div>
-            <div class="cricket-ball" style="position: absolute; top: 60%; right: 15%; animation-delay: 2s;"></div>
-            <div class="cricket-ball" style="position: absolute; bottom: 20%; left: 10%; animation-delay: 4s;"></div>
+      <!-- Most Runs -->
+      <div class="col-lg-4">
+        <div class="leaderboard-panel runs-panel">
+          <div class="panel-header">
+            <h3>MOST RUNS</h3>
+          </div>
+          <div class="panel-content">
+            <div class="stat-item">
+              <div class="player-details">
+                <div class="player-avatar runs-avatar">MS</div>
+                <div>
+                  <span class="player-name">Marcus Stoinis</span>
+                  <span class="team-badge stars-badge">STA</span>
+                </div>
+              </div>
+              <span class="stat-value blue-accent">485</span>
+            </div>
+            <div class="stat-item">
+              <div class="player-details">
+                <div class="player-avatar">JI</div>
+                <div>
+                  <span class="player-name">Josh Inglis</span>
+                  <span class="team-badge">SCO</span>
+                </div>
+              </div>
+              <span class="stat-value">423</span>
+            </div>
+            <div class="stat-item">
+              <div class="player-details">
+                <div class="player-avatar">AH</div>
+                <div>
+                  <span class="player-name">Alex Hales</span>
+                  <span class="team-badge">SIX</span>
+                </div>
+              </div>
+              <span class="stat-value">395</span>
+            </div>
+            <div class="stat-item">
+              <div class="player-details">
+                <div class="player-avatar">CL</div>
+                <div>
+                  <span class="player-name">Chris Lynn</span>
+                  <span class="team-badge">HEA</span>
+                </div>
+              </div>
+              <span class="stat-value">367</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Most Wickets -->
+      <div class="col-lg-4">
+        <div class="leaderboard-panel wickets-panel">
+          <div class="panel-header">
+            <h3>MOST WICKETS</h3>
+          </div>
+          <div class="panel-content">
+            <div class="stat-item">
+              <div class="player-details">
+                <div class="player-avatar">TB</div>
+                <div>
+                  <span class="player-name">Trent Boult</span>
+                  <span class="team-badge">HUR</span>
+                </div>
+              </div>
+              <span class="stat-value">24</span>
+            </div>
+            <div class="stat-item">
+              <div class="player-details">
+                <div class="player-avatar">JR</div>
+                <div>
+                  <span class="player-name">Jhye Richardson</span>
+                  <span class="team-badge">SCO</span>
+                </div>
+              </div>
+              <span class="stat-value">22</span>
+            </div>
+            <div class="stat-item">
+              <div class="player-details">
+                <div class="player-avatar">AZ</div>
+                <div>
+                  <span class="player-name">Adam Zampa</span>
+                  <span class="team-badge">STA</span>
+                </div>
+              </div>
+              <span class="stat-value">21</span>
+            </div>
+            <div class="stat-item">
+              <div class="player-details">
+                <div class="player-avatar">SA</div>
+                <div>
+                  <span class="player-name">Sean Abbott</span>
+                  <span class="team-badge">SIX</span>
+                </div>
+              </div>
+              <span class="stat-value">19</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 </section>
-
-<!-- UPCOMING BBL MATCHES -->
-<section class="upcoming-matches py-5">
+<!-- TEAMS SECTION -->
+<section class="teams-section">
   <div class="container">
-    <h2 class="text-center mb-5 slide-up">🏏 Upcoming BBL Matches</h2>
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-      {% for event in upcoming_events %}
-      <div class="col">
-        <div class="card h-100 match-card rounded-4 shadow-sm">
-          <div class="card-body d-flex flex-column justify-content-between align-items-center">
-            <div class="d-flex align-items-center mb-3">
-              {% if event.home_team and event.home_team.team_logo %}
-              <img src="{{ event.home_team.team_logo }}" class="team-logo" alt="{{ event.home_team.team_name }} Logo">
-              {% else %}
-              <img src="{{ url_for('static', filename='img/placeholder_team.png') }}" class="team-logo" alt="Placeholder Team Logo">
-              {% endif %}
-              <h5 class="card-title mb-0 mx-2">{{ event.home_team.team_name if event.home_team else 'TBD' }} <span class="text-primary">vs</span> {{ event.away_team.team_name if event.away_team else 'TBD' }}</h5>
-              {% if event.away_team and event.away_team.team_logo %}
-              <img src="{{ event.away_team.team_logo }}" class="team-logo" alt="{{ event.away_team.team_name }} Logo">
-              {% else %}
-              <img src="{{ url_for('static', filename='img/placeholder_team.png') }}" class="team-logo" alt="Placeholder Team Logo">
-              {% endif %}
+    <div class="row g-3">
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="team-card adelaide-strikers">
+          <div class="team-logo">
+            <div class="team-logo-official strikers-logo">
+              <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Adelaide Strikers" class="real-team-logo">
+              <div class="logo-glow"></div>
             </div>
-            <p class="card-text mb-2 text-muted"><i class="bi bi-calendar-event me-2"></i> <span class="fw-semibold">{{ event.event_date.strftime('%b %d, %Y') }}</span> <span class="ms-3"><i class="bi bi-clock me-2"></i> {{ event.start_time.strftime('%I:%M %p') }}</span></p>
-            <p class="card-text mb-4 text-muted"><i class="bi bi-geo-alt me-2"></i> <span class="fw-semibold">{{ event.stadium.name if event.stadium else 'TBD' }}</span></p>
-            <div class="match-actions mt-3">
-              <a href="{{ url_for('event_detail', event_id=event.id) }}" class="btn btn-outline-primary btn-sm me-2">View Details</a>
-              <a href="{{ url_for('select_seats', event_id=event.id) }}" class="btn btn-primary btn-sm">Book Now</a>
-            </div>
-            <span class="badge bg-gradient position-absolute top-0 end-0 m-3">{{ event.event_type or 'BBL Match' }}</span>
           </div>
+          <h4>Adelaide<br>Strikers</h4>
+          <div class="card-shine"></div>
         </div>
       </div>
-      {% else %}
-      <div class="col-12 text-center">
-        <p>No upcoming events found.</p>
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="team-card brisbane-heat">
+          <div class="team-logo">
+            <div class="team-logo-official heat-logo">
+              <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Brisbane Heat" class="real-team-logo">
+              <div class="logo-glow"></div>
+            </div>
+          </div>
+          <h4>Brisbane<br>Heat</h4>
+          <div class="card-shine"></div>
+        </div>
       </div>
-      {% endfor %}
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="team-card hobart-hurricanes">
+          <div class="team-logo">
+            <div class="team-logo-official hurricanes-logo">
+              <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hobart Hurricanes" class="real-team-logo">
+              <div class="logo-glow"></div>
+            </div>
+          </div>
+          <h4>Hobart<br>Hurricanes</h4>
+          <div class="card-shine"></div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="team-card melbourne-renegades">
+          <div class="team-logo">
+            <div class="team-logo-official renegades-logo">
+              <img src="{{ url_for('static', filename='img/teams/Melbourne Renegades.png') }}" alt="Melbourne Renegades" class="real-team-logo">
+              <div class="logo-glow"></div>
+            </div>
+          </div>
+          <h4>Melbourne<br>Renegades</h4>
+          <div class="card-shine"></div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="team-card melbourne-stars">
+          <div class="team-logo">
+            <div class="team-logo-official stars-logo">
+              <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Melbourne Stars" class="real-team-logo">
+              <div class="logo-glow"></div>
+            </div>
+          </div>
+          <h4>Melbourne<br>Stars</h4>
+          <div class="card-shine"></div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="team-card perth-scorchers">
+          <div class="team-logo">
+            <div class="team-logo-official scorchers-logo">
+              <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Perth Scorchers" class="real-team-logo">
+              <div class="logo-glow"></div>
+            </div>
+          </div>
+          <h4>Perth<br>Scorchers</h4>
+          <div class="card-shine"></div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="team-card sydney-sixers">
+          <div class="team-logo">
+            <div class="team-logo-official sixers-logo">
+              <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sydney Sixers" class="real-team-logo">
+              <div class="logo-glow"></div>
+            </div>
+          </div>
+          <h4>Sydney<br>Sixers</h4>
+          <div class="card-shine"></div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 col-6">
+        <div class="team-card sydney-thunder">
+          <div class="team-logo">
+            <div class="team-logo-official thunder-logo">
+              <img src="{{ url_for('static', filename='img/teams/Sydney Thunder.png') }}" alt="Sydney Thunder" class="real-team-logo">
+              <div class="logo-glow"></div>
+            </div>
+          </div>
+          <h4>Sydney<br>Thunder</h4>
+          <div class="card-shine"></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ICONIC BBL VENUES -->
-<section class="featured-stadiums py-5">
-  <div class="container">
-    <h2 class="text-center mb-5 slide-up">🏟️ Iconic BBL Venues</h2>
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-      {% for stadium in featured_stadiums %}
-      <div class="col">
-        <div class="card h-100 stadium-card rounded-4 shadow-sm">
-          {% if stadium.image_url %}
-          <img src="{{ stadium.image_url }}" class="card-img-top rounded-top-4" alt="{{ stadium.name }}">
-          {% else %}
-          <img src="{{ url_for('static', filename='img/placeholder_stadium.png') }}" class="card-img-top rounded-top-4" alt="Placeholder Stadium Image">
-          {% endif %}
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title mb-2">{{ stadium.name }}</h5>
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <p class="card-text text-muted mb-0"><i class="bi bi-geo-alt me-2"></i> {{ stadium.location }}</p>
-              </div>
-              <div class="col-6">
-                <p class="card-text text-muted mb-0"><i class="bi bi-people-fill me-2"></i> <span class="fw-semibold">{{ stadium.capacity | int }} seats</span></p>
-              </div>
-              <div class="col-12">
-                <p class="card-text text-muted mb-0"><i class="bi bi-star-fill me-2"></i> {{ stadium.description if stadium.description else 'No description available.' }}</p>
-              </div>
-            </div>
-            <a href="{{ url_for('stadium_detail', stadium_id=stadium.id) }}" class="btn btn-primary w-100 mt-auto btn-view-stadium">View Stadium</a>
-          </div>
-        </div>
-      </div>
-      {% else %}
-      <div class="col-12 text-center">
-        <p>No featured stadiums found.</p>
-      </div>
-      {% endfor %}
-    </div>
+<!-- MEMBERSHIP SECTION -->
+<section class="membership-section">
+  <div class="stadium-background">
+    <img src="{{ url_for('static', filename='img/Stadium Image.jpg') }}" alt="Stadium" class="stadium-bg-img">
+    <div class="stadium-overlay"></div>
   </div>
-</section>
-
-<!-- BBL TEAMS & STAR PLAYERS -->
-<section class="teams-players py-5">
   <div class="container">
-    <h2 class="text-center mb-5 slide-up">⭐ BBL Teams & Star Players</h2>
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-      {% for team_data in featured_teams_data %}
-      <div class="col">
-        <div class="card h-100 team-player-card rounded-4 shadow-sm" style="--team-color: #007bff;">
-          {% if team_data.team.team_logo %}
-          <img src="{{ team_data.team.team_logo }}" class="team-logo-small mb-3" alt="{{ team_data.team.team_name }} Logo">
-          {% else %}
-          <img src="{{ url_for('static', filename='img/placeholder_team.png') }}" class="team-logo-small mb-3" alt="Placeholder Team Logo">
-          {% endif %}
-          <h5 class="card-title mb-2">{{ team_data.team.team_name }}</h5>
-          {% if team_data.star_player %}
-          <p class="card-text text-muted mb-2">Star Player: <span class="fw-semibold">{{ team_data.star_player.player_name }}</span></p>
-          <div class="d-flex align-items-center text-muted">
-            {% if team_data.star_player.photo_url %}
-            <img src="{{ team_data.star_player.photo_url }}" class="player-image me-2" alt="{{ team_data.star_player.player_name }} Image">
-            {% else %}
-            <img src="{{ url_for('static', filename='img/placeholder_player.png') }}" class="player-image me-2" alt="Placeholder Player Image">
-            {% endif %}
-            {{ team_data.star_player.player_role if team_data.star_player.player_role else 'Player' }}
+    <div class="row align-items-center">
+      <div class="col-lg-6">
+        <div class="membership-visual">
+          <div class="crowd-cheering">
+            <img src="{{ url_for('static', filename='img/Celebration.png') }}" alt="Stadium Celebration" class="membership-bg-img">
+            <div class="crowd-silhouettes"></div>
+            <div class="stadium-lights"></div>
+            <div class="energy-burst">
+              <img src="{{ url_for('static', filename='img/Stadium FireCracker.png') }}" alt="Stadium Fireworks" class="fireworks-img">
+            </div>
           </div>
-          {% else %}
-          <p class="card-text text-muted mb-2">No star player listed.</p>
-          {% endif %}
         </div>
       </div>
-      {% else %}
-      <div class="col-12 text-center">
-        <p>No featured teams found.</p>
+      <div class="col-lg-6">
+        <div class="membership-content">
+          <div class="content-backdrop"></div>
+          <h2>BENEFITS OF BIG BASH MEMBERSHIP</h2>
+          <ul class="benefits-list enhanced">
+            <li><i class="bi bi-check-circle-fill"></i>Access to home matches with reserved seating</li>
+            <li><i class="bi bi-check-circle-fill"></i>Priority access to finals tickets</li>
+            <li><i class="bi bi-check-circle-fill"></i>Exclusive member discounts on merchandise</li>
+            <li><i class="bi bi-check-circle-fill"></i>VIP matchday experiences and events</li>
+            <li><i class="bi bi-check-circle-fill"></i>Meet & greet opportunities with players</li>
+          </ul>
+          <a href="{{ url_for('register') }}" class="btn btn-membership enhanced">
+            <span>JOIN NOW</span>
+            <div class="btn-glow"></div>
+          </a>
+        </div>
       </div>
-      {% endfor %}
     </div>
   </div>
 </section>
