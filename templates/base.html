@@ -25,7 +25,8 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav mx-auto">
-            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'events' %}active{% endif %}" href="{{ url_for('events') }}">MATCHES</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">HOME</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'events' %}active{% endif %}" href="{{ url_for('events') }}">TICKETS</a></li>
             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'teams' %}active{% endif %}" href="{{ url_for('teams') }}">TEAMS</a></li>
             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'stadiums' %}active{% endif %}" href="{{ url_for('stadiums') }}">STADIUMS</a></li>
             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'players' %}active{% endif %}" href="{{ url_for('players') }}">PLAYERS</a></li>
@@ -42,8 +43,8 @@
                 {% endif %}
                 <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a></li>
             {% else %}
-                <li class="nav-item"><a href="{{ url_for('login') }}" class="btn btn-outline-primary me-2">Login</a></li>
-                <li class="nav-item"><a href="{{ url_for('register') }}" class="btn btn-primary">Register</a></li>
+                <li class="nav-item"><a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-auth me-2">Login</a></li>
+                <li class="nav-item"><a href="{{ url_for('register') }}" class="btn btn-primary btn-auth">Register</a></li>
             {% endif %}
           </ul>
         </div>
@@ -59,52 +60,57 @@
   <div class="footer-divider"></div>
   
   <footer class="enhanced-footer">
-      <!-- Sponsors Section -->
-      <div class="sponsors-section">
+      <!-- Social Media Section -->
+      <div class="social-section">
           <div class="container">
-              <div class="sponsors-grid">
-                  <div class="sponsor-logo">KFC</div>
-                  <div class="sponsor-logo">Toyota</div>
-                  <div class="sponsor-logo">Foxtel</div>
-                  <div class="sponsor-logo">Weber</div>
-                  <div class="sponsor-logo">Rebel</div>
-                  <div class="sponsor-logo">Kayo</div>
+              <h5 class="social-heading">Follow Big Bash</h5>
+              <div class="social-icons-enhanced">
+                  <a href="#" class="social-icon-enhanced twitter"><i class="bi bi-twitter-x"></i></a>
+                  <a href="#" class="social-icon-enhanced facebook"><i class="bi bi-facebook"></i></a>
+                  <a href="#" class="social-icon-enhanced instagram"><i class="bi bi-instagram"></i></a>
+                  <a href="#" class="social-icon-enhanced youtube"><i class="bi bi-youtube"></i></a>
+              </div>
+          </div>
+      </div>
+      
+      <!-- Sponsors Section -->
+      <div class="sponsors-section-redesigned">
+          <div class="container">
+              <div class="sponsors-horizontal">
+                  <div class="sponsor-logo-small">KFC</div>
+                  <div class="sponsor-logo-small">Toyota</div>
+                  <div class="sponsor-logo-small">Foxtel</div>
+                  <div class="sponsor-logo-small">Weber</div>
+                  <div class="sponsor-logo-small">Rebel</div>
+                  <div class="sponsor-logo-small">Kayo</div>
               </div>
           </div>
       </div>
       
       <!-- Main Footer Content -->
-      <div class="container py-5">
+      <div class="container py-4">
           <div class="row">
-              <div class="col-md-4">
+              <div class="col-md-6">
                   <div class="footer-brand">
                       <img src="{{ url_for('static', filename='img/BBL Logo.png') }}" alt="Big Bash League" class="footer-logo">
                       <h5 class="footer-heading">CricVerse</h5>
                   </div>
                   <p class="footer-text">Australia's premier cricket experience platform. Live the Big Bash League like never before.</p>
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6">
                   <h5 class="footer-heading">Quick Links</h5>
                   <ul class="footer-links">
-                      <li><a href="{{ url_for('events') }}">Matches</a></li>
+                      <li><a href="{{ url_for('index') }}">Home</a></li>
+                      <li><a href="{{ url_for('events') }}">Tickets</a></li>
                       <li><a href="{{ url_for('teams') }}">Teams</a></li>
                       <li><a href="{{ url_for('stadiums') }}">Stadiums</a></li>
                       <li><a href="{{ url_for('players') }}">Players</a></li>
                   </ul>
               </div>
-              <div class="col-md-4">
-                  <h5 class="footer-heading">Follow Big Bash</h5>
-                  <div class="social-icons">
-                      <a href="#" class="social-icon twitter"><i class="bi bi-twitter-x"></i></a>
-                      <a href="#" class="social-icon facebook"><i class="bi bi-facebook"></i></a>
-                      <a href="#" class="social-icon instagram"><i class="bi bi-instagram"></i></a>
-                      <a href="#" class="social-icon youtube"><i class="bi bi-youtube"></i></a>
-                  </div>
-              </div>
           </div>
           
           <!-- Copyright -->
-          <div class="row mt-4 pt-4 border-top border-secondary">
+          <div class="row mt-3 pt-3 border-top border-secondary">
               <div class="col-12 text-center">
                   <p class="copyright">&copy; 2024 Big Bash League - CricVerse. All rights reserved.</p>
               </div>
