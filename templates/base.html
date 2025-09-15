@@ -30,6 +30,8 @@
             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'teams' %}active{% endif %}" href="{{ url_for('teams') }}">TEAMS</a></li>
             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'stadiums' %}active{% endif %}" href="{{ url_for('stadiums') }}">STADIUMS</a></li>
             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'players' %}active{% endif %}" href="{{ url_for('players') }}">PLAYERS</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'chat_interface' %}active{% endif %}" href="{{ url_for('chat_interface') }}"><i class="bi bi-robot me-1"></i>AI ASSISTANT</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'realtime_demo' %}active{% endif %}" href="{{ url_for('realtime_demo') }}"><i class="bi bi-broadcast me-1"></i>LIVE</a></li>
           </ul>
           <ul class="navbar-nav">
             {% if current_user.is_authenticated %}

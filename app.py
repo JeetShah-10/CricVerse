@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,6 +7,8 @@ import os
 import re
 from dotenv import load_dotenv
 from functools import wraps
+from flask_socketio import SocketIO
+from chatbot import handle_chat_message
 
 # Import our utility functions
 from utils import (
@@ -77,6 +79,10 @@ if 'postgresql' in database_url:
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+# Initialize SocketIO for real-time features
+from realtime_simple import init_socketio
+socketio = init_socketio(app)
 
 # Database connection info
 if 'postgresql' in database_url:
@@ -1149,7 +1155,7 @@ def register():
             role_messages = {
                 'admin': f'Administrator account created successfully! Welcome {form_data["name"]}. You now have full system access.',
                 'stadium_owner': f'Stadium Owner account created successfully! Welcome {form_data["name"]}. You can now manage stadium operations.',
-                'customer': f'Account created successfully! Welcome to CricVerse, {form_data["name"]}!'
+                'customer': f'Account created successfully! Welcome to CricVerse, {form_data["name`]}!',
             }
             
             flash(role_messages.get(form_data['role'], role_messages['customer']), 'success')
@@ -1639,7 +1645,483 @@ def chatbot():
         print(f"Error in chatbot: {e}")
         return jsonify({'response': "An error occurred while processing your request. Please try again later."})
 
+#============================================================================
+# ENHANCED AI CHATBOT ROUTES
+# ============================================================================
+
+@app.route('/chat')
+def chat_interface():
+    """Render the enhanced AI chatbot interface"""
+    return render_template('chat.html')
+
+@app.route('/api/chat', methods=['POST'])
+def enhanced_chat_api():
+    """Enhanced AI chatbot API endpoint using OpenAI GPT-4"""
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': 'Message cannot be empty'
+            }), 400
+        
+        # Get user context
+        from flask import session
+        customer_id = current_user.id if current_user.is_authenticated else None
+        session_id = session.get('chat_session_id')
+        
+        if not session_id:
+            import uuid
+            session_id = str(uuid.uuid4())
+            session['chat_session_id'] = session_id
+        
+        # Import and use the chatbot
+        from chatbot import get_chatbot_response, detect_user_intent, get_intent_actions
+        
+        # Get AI response
+        ai_response = get_chatbot_response(message, customer_id, session_id)
+        
+        # Detect intent and get quick actions
+        intent = detect_user_intent(message)
+        quick_actions = get_intent_actions(intent)
+        
+        return jsonify({
+            'success': True,
+            'response': ai_response.get('response', 'I apologize, but I\'m having trouble processing your request.'),
+            'confidence': ai_response.get('confidence', 0.5),
+            'intent': intent,
+            'quick_actions': quick_actions,
+            'tokens_used': ai_response.get('tokens_used', 0),
+            'model': ai_response.get('model', 'gpt-4'),
+            'session_id': session_id,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"Enhanced chatbot error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Sorry, I\'m experiencing technical difficulties. Please try again or contact support.',
+            'fallback_response': True
+        }), 500
+
+@app.route('/api/chat/suggestions')
+def chat_suggestions():
+    """Get smart chat suggestions based on user context"""
+    try:
+        customer_id = current_user.id if current_user.is_authenticated else None
+        query_type = request.args.get('type', 'general')
+        
+        from chatbot import get_chat_suggestions
+        suggestions = get_chat_suggestions(customer_id, query_type)
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions
+        })
+        
+    except Exception as e:
+        print(f"Error getting chat suggestions: {e}")
+        return jsonify({
+            'success': False,
+            'suggestions': [
+                "Help me book tickets",
+                "What matches are coming up?",
+                "Show me stadium information",
+                "How do I cancel a booking?"
+            ]
+        })
+
+@app.route('/api/chat/history')
+@login_required
+def chat_history():
+    """Get user's chat history"""
+    try:
+        from enhanced_models import ChatConversation, ChatMessage
+        
+        conversations = ChatConversation.query.filter_by(
+            customer_id=current_user.id
+        ).order_by(ChatConversation.created_at.desc()).limit(5).all()
+        
+        history = []
+        for conv in conversations:
+            messages = ChatMessage.query.filter_by(
+                conversation_id=conv.id
+            ).order_by(ChatMessage.created_at).limit(20).all()
+            
+            history.append({
+                'conversation_id': conv.id,
+                'session_id': conv.session_id,
+                'created_at': conv.created_at.isoformat(),
+                'message_count': conv.message_count,
+                'messages': [{
+                    'sender': msg.sender_type,
+                    'message': msg.message,
+                    'timestamp': msg.created_at.isoformat()
+                } for msg in messages]
+            })
+        
+        return jsonify({
+            'success': True,
+            'history': history
+        })
+        
+    except Exception as e:
+        print(f"Error getting chat history: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Could not retrieve chat history'
+        })
+
+# ============================================================================ 
+# REAL-TIME WEBSOCKET ROUTES
+# ============================================================================ 
+
+@app.route('/realtime')
+def realtime_demo():
+    """Real-time features demo page"""
+    return render_template('realtime.html')
+
+@app.route('/api/realtime/stats')
+def realtime_stats():
+    """Get real-time connection statistics"""
+    try:
+        from realtime_simple import get_realtime_stats
+        stats = get_realtime_stats()
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/realtime/broadcast', methods=['POST'])
+@admin_required
+def broadcast_message():
+    """Admin endpoint to broadcast messages to all users"""
+    try:
+        data = request.get_json()
+        message = data.get('message')
+        message_type = data.get('type', 'info')
+        
+        if not message:
+            return jsonify({
+                'success': False,
+                'error': 'Message is required'
+            }), 400
+        
+        from realtime_simple import broadcast_general_announcement
+        broadcast_general_announcement(message, message_type)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Broadcast sent successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/match/<int:match_id>/update', methods=['POST'])
+@admin_required  
+def update_match_live(match_id):
+    """Update live match data and broadcast to subscribers"""
+    try:
+        data = request.get_json()
+        
+        # Update match in database
+        event = Event.query.get_or_404(match_id)
+        match = event.match
+        
+        if not match:
+            return jsonify({
+                'success': False,
+                'error': 'Match record not found'
+            }), 404
+        
+        # Update match data
+        if 'score_home' in data:
+            match.score_home = data['score_home']
+        if 'score_away' in data:
+            match.score_away = data['score_away']
+        if 'overs_home' in data:
+            match.overs_home = data['overs_home']
+        if 'overs_away' in data:
+            match.overs_away = data['overs_away']
+        if 'current_innings' in data:
+            match.current_innings = data['current_innings']
+        if 'is_live' in data:
+            match.is_live = data['is_live']
+        
+        db.session.commit()
+        
+        # Broadcast update to subscribers
+        from realtime_simple import broadcast_match_update
+        update_data = {
+            'type': data.get('update_type', 'score_update'),
+            'score_home': match.score_home,
+            'score_away': match.score_away,
+            'overs_home': match.overs_home,
+            'overs_away': match.overs_away,
+            'current_innings': match.current_innings,
+            'is_live': match.is_live,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        broadcast_match_update(match_id, update_data)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Match updated and broadcast sent'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    
+# ============================================================================ 
+# QR CODE GENERATION ROUTES
+# ============================================================================ 
+
+@app.route('/qr-demo')
+def qr_demo():
+    """QR code generation demo page"""
+    return render_template('qr_demo.html')
+
+@app.route('/api/qr/generate/ticket', methods=['POST'])
+@login_required
+def generate_ticket_qr():
+    """Generate QR code for ticket"""
+    try:
+        data = request.get_json()
+        
+        # Add customer ID from current user
+        data['customer_id'] = current_user.id
+        
+        from qr_generator import qr_generator
+        qr_result = qr_generator.generate_ticket_qr(data)
+        
+        if qr_result:
+            return jsonify({
+                'success': True,
+                'qr_code': qr_result['qr_code_base64'],
+                'verification_code': qr_result['verification_code'],
+                'ticket_info': qr_result['ticket_info']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate QR code'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/qr/generate/parking', methods=['POST'])
+@login_required
+def generate_parking_qr():
+    """Generate QR code for parking pass"""
+    try:
+        data = request.get_json()
+        
+        from qr_generator import qr_generator
+        qr_result = qr_generator.generate_parking_qr(data)
+        
+        if qr_result:
+            return jsonify({
+                'success': True,
+                'qr_code': qr_result['qr_code_base64'],
+                'verification_code': qr_result['verification_code'],
+                'parking_info': qr_result['parking_info']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate parking QR code'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/qr/generate/entry', methods=['POST'])
+@login_required
+def generate_entry_qr():
+    """Generate QR code for event entry"""
+    try:
+        data = request.get_json()
+        data['customer_id'] = current_user.id
+        data['customer_name'] = current_user.name
+        
+        from qr_generator import qr_generator
+        qr_result = qr_generator.generate_event_entry_qr(data)
+        
+        if qr_result:
+            return jsonify({
+                'success': True,
+                'qr_code': qr_result['qr_code_base64'],
+                'verification_code': qr_result['verification_code'],
+                'entry_info': qr_result['entry_info']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate entry QR code'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/qr/generate/pass', methods=['POST'])
+@login_required
+def generate_digital_pass():
+    """Generate digital pass with QR code"""
+    try:
+        data = request.get_json()
+        pass_type = data.get('type', 'general')
+        
+        # Add customer info
+        data['customer_name'] = current_user.name
+        
+        from qr_generator import qr_generator
+        pass_result = qr_generator.generate_digital_pass(data, pass_type)
+        
+        if pass_result:
+            return jsonify({
+                'success': True,
+                'qr_code': pass_result['qr_code_base64'],
+                'pass_image': pass_result['pass_image_base64'],
+                'verification_code': pass_result['verification_code'],
+                'pass_info': pass_result['pass_info']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate digital pass'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/verify/ticket/<verification_code>')
+def verify_ticket_qr(verification_code):
+    """Verify ticket QR code"""
+    try:
+        from qr_generator import qr_generator
+        result = qr_generator.verify_qr_code(verification_code)
+        
+        if result['valid']:
+            ticket_data = result['data']
+            return render_template('qr_verification.html', 
+                                 verification_result=result,
+                                 data_type='ticket',
+                                 ticket_data=ticket_data)
+        else:
+            return render_template('qr_verification.html',
+                                 verification_result=result,
+                                 data_type='ticket')
+            
+    except Exception as e:
+        return render_template('qr_verification.html',
+                             verification_result={'valid': False, 'error': str(e)},
+                             data_type='ticket')
+
+@app.route('/verify/parking/<verification_code>')
+def verify_parking_qr(verification_code):
+    """Verify parking QR code"""
+    try:
+        from qr_generator import qr_generator
+        result = qr_generator.verify_qr_code(verification_code)
+        
+        if result['valid']:
+            parking_data = result['data']
+            return render_template('qr_verification.html',
+                                 verification_result=result,
+                                 data_type='parking',
+                                 parking_data=parking_data)
+        else:
+            return render_template('qr_verification.html',
+                                 verification_result=result,
+                                 data_type='parking')
+            
+    except Exception as e:
+        return render_template('qr_verification.html',
+                             verification_result={'valid': False, 'error': str(e)},
+                             data_type='parking')
+
+@app.route('/verify/entry/<verification_code>')
+def verify_entry_qr(verification_code):
+    """Verify event entry QR code"""
+    try:
+        from qr_generator import qr_generator
+        result = qr_generator.verify_qr_code(verification_code)
+        
+        if result['valid']:
+            entry_data = result['data']
+            return render_template('qr_verification.html',
+                                 verification_result=result,
+                                 data_type='entry',
+                                 entry_data=entry_data)
+        else:
+            return render_template('qr_verification.html',
+                                 verification_result=result,
+                                 data_type='entry')
+            
+    except Exception as e:
+        return render_template('qr_verification.html',
+                             verification_result={'valid': False, 'error': str(e)},
+                             data_type='entry')
+
+@app.route('/verify/pass/<verification_code>')
+def verify_pass_qr(verification_code):
+    """Verify digital pass QR code"""
+    try:
+        from qr_generator import qr_generator
+        result = qr_generator.verify_qr_code(verification_code)
+        
+        if result['valid']:
+            pass_data = result['data']
+            return render_template('qr_verification.html',
+                                 verification_result=result,
+                                 data_type='pass',
+                                 pass_data=pass_data)
+        else:
+            return render_template('qr_verification.html',
+                                 verification_result=result,
+                                 data_type='pass')
+            
+    except Exception as e:
+        return render_template('qr_verification.html',
+                             verification_result={'valid': False, 'error': str(e)},
+                             data_type='pass')
+
+@app.route('/chatbot', methods=['POST'])
+def chatbot_endpoint():
+    """Handle chatbot messages"""
+    return handle_chat_message()
+
 if __name__ == '__main__':
     with app.app_context():
         init_db()
-    app.run(debug=True)
+    # Use SocketIO run for real-time features
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)

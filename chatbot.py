@@ -1,3 +1,4 @@
+
 """
 OpenAI GPT-4 Chatbot Integration for CricVerse
 Intelligent booking assistant and customer support
@@ -16,7 +17,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
-openai.api_key = os.getenv('OPENAI_API_KEY')
+from openai import OpenAI
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 class CricVerseChatbot:
     """AI-powered chatbot for CricVerse"""
@@ -52,7 +54,6 @@ Current Context: You're helping customers with the CricVerse platform for cricke
     def get_conversation_context(self, customer_id, session_id):
         """Get conversation history for context"""
         try:
-            from enhanced_models import ChatConversation, ChatMessage
             from app import db
             
             # Get recent conversation
@@ -159,7 +160,7 @@ Current Context: You're helping customers with the CricVerse platform for cricke
             messages.append({"role": "user", "content": user_message})
             
             # Generate response
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 max_tokens=self.max_tokens,
@@ -180,7 +181,7 @@ Current Context: You're helping customers with the CricVerse platform for cricke
                 'model': self.model
             }
             
-        except openai.error.OpenAIError as e:
+        except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             return {
                 'response': "I'm having trouble connecting to my AI services right now. Please try again in a moment, or contact our support team for immediate assistance.",

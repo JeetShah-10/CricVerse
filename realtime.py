@@ -45,12 +45,18 @@ def init_socketio(app):
                           cors_allowed_origins="*",
                           async_mode='threading')
     
-    logger.info("✅ SocketIO initialized successfully")
-    return socketio
+    # Register event handlers after SocketIO is initialized
+        register_socketio_handlers()
+    
+        logger.info("✅ SocketIO initialized successfully")
+        return socketio
 
+    def register_socketio_handlers():
+        """Register SocketIO event handlers"""
+        global socketio
 
-# WebSocket Event Handlers
-@socketio.on('connect')
+        @socketio.on('connect')
+
 def handle_connect():
     """Handle client connection"""
     try:
