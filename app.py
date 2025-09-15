@@ -1155,7 +1155,7 @@ def register():
             role_messages = {
                 'admin': f'Administrator account created successfully! Welcome {form_data["name"]}. You now have full system access.',
                 'stadium_owner': f'Stadium Owner account created successfully! Welcome {form_data["name"]}. You can now manage stadium operations.',
-                'customer': f'Account created successfully! Welcome to CricVerse, {form_data["name`]}!',
+                'customer': f'Account created successfully! Welcome to CricVerse, {form_data["name`"]}',
             }
             
             flash(role_messages.get(form_data['role'], role_messages['customer']), 'success')
@@ -1565,90 +1565,6 @@ def book_parking(stadium_id):
 def about():
     return render_template('about.html')
 
-@app.route('/chatbot', methods=['POST'])
-def chatbot():
-    try:
-        user_message = request.json.get('message', '').lower()
-        response = "I'm sorry, I don't understand. Can you please rephrase your question or ask about events, stadiums, teams, concessions, or parking?"
-
-        if "hello" in user_message or "hi" in user_message:
-            response = "Hi there! How can I help you with your stadium experience today?"
-        elif "event" in user_message or "match" in user_message:
-            if "upcoming" in user_message or "next" in user_message:
-                events = Event.query.filter(Event.event_date >= datetime.utcnow().date())
-                events = events.order_by(Event.event_date.asc()).limit(3).all()
-                if events:
-                    response = "Here are some upcoming events:\n"
-                    for event in events:
-                        response += f"- {event.event_name} at {event.stadium.name} on {event.event_date.strftime('%Y-%m-%d')}\n"
-                else:
-                    response = "There are no upcoming events at the moment."
-            elif "all events" in user_message:
-                events = Event.query.order_by(Event.event_date.desc()).limit(5).all()
-                if events:
-                    response = "Here are some recent or upcoming events:\n"
-                    for event in events:
-                        response += f"- {event.event_name} at {event.stadium.name} on {event.event_date.strftime('%Y-%m-%d')}\n"
-                else:
-                    response = "No events found."
-            else:
-                response = "Are you looking for specific events, or upcoming ones?"
-        elif "stadium" in user_message:
-            if "all stadiums" in user_message or "list stadiums" in user_message:
-                stadiums = Stadium.query.limit(5).all()
-                if stadiums:
-                    response = "Here are some stadiums:\n"
-                    for stadium in stadiums:
-                        response += f"- {stadium.name} in {stadium.location} with capacity {stadium.capacity}\n"
-                else:
-                    response = "No stadiums found."
-            else:
-                response = "Which stadium are you interested in? Or would you like to list all stadiums?"
-        elif "team" in user_message:
-            if "all teams" in user_message or "list teams" in user_message:
-                teams = Team.query.limit(5).all()
-                if teams:
-                    response = "Here are some teams:\n"
-                    for team in teams:
-                        response += f"- {team.team_name} (Home: {team.home_ground})\n"
-                else:
-                    response = "No teams found."
-            else:
-                response = "Which team are you interested in? Or would you like to list all teams?"
-        elif "concession" in user_message or "food" in user_message or "menu" in user_message:
-            if "all concessions" in user_message or "list concessions" in user_message:
-                concessions = Concession.query.limit(5).all()
-                if concessions:
-                    response = "Here are some concessions:\n"
-                    for concession in concessions:
-                        response += f"- {concession.name} ({concession.category}) at {concession.stadium.name}\n"
-                else:
-                    response = "No concessions found."
-            else:
-                response = "Are you looking for concessions at a specific stadium, or would you like to see all concessions?"
-        elif "parking" in user_message:
-            if "all parking" in user_message or "list parking" in user_message:
-                parking_zones = Parking.query.limit(5).all()
-                if parking_zones:
-                    response = "Here are some parking zones:\n"
-                    for parking in parking_zones:
-                        response += f"- {parking.zone} at {parking.stadium.name} (Capacity: {parking.capacity})\n"
-                else:
-                    response = "No parking zones found."
-            else:
-                response = "Are you looking for parking at a specific stadium, or would you like to see all parking options?"
-        elif "ticket" in user_message:
-            response = "Are you looking to book tickets for a specific event? You can browse events on our 'Events' page."
-        
-        return jsonify({'response': response})
-    except Exception as e:
-        print(f"Error in chatbot: {e}")
-        return jsonify({'response': "An error occurred while processing your request. Please try again later."})
-
-#============================================================================
-# ENHANCED AI CHATBOT ROUTES
-# ============================================================================
-
 @app.route('/chat')
 def chat_interface():
     """Render the enhanced AI chatbot interface"""
@@ -1696,7 +1612,7 @@ def enhanced_chat_api():
             'tokens_used': ai_response.get('tokens_used', 0),
             'model': ai_response.get('model', 'gpt-4'),
             'session_id': session_id,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
@@ -1872,7 +1788,7 @@ def update_match_live(match_id):
             'overs_away': match.overs_away,
             'current_innings': match.current_innings,
             'is_live': match.is_live,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now().isoformat()
         }
         
         broadcast_match_update(match_id, update_data)
@@ -2115,13 +2031,23 @@ def verify_pass_qr(verification_code):
                              verification_result={'valid': False, 'error': str(e)},
                              data_type='pass')
 
-@app.route('/chatbot', methods=['POST'])
-def chatbot_endpoint():
-    """Handle chatbot messages"""
-    return handle_chat_message()
-
 if __name__ == '__main__':
     with app.app_context():
-        init_db()
-    # Use SocketIO run for real-time features
+        try:
+            # Create all basic tables
+            db.create_all()
+            print("✅ Basic database tables created")
+            
+            # Create enhanced tables
+            try:
+                from enhanced_models import create_enhanced_tables
+                create_enhanced_tables()
+                print("✅ Enhanced database tables created")
+            except Exception as e:
+                print(f"⚠️ Could not create enhanced tables: {e}")
+                
+        except Exception as e:
+            print(f"❌ Database initialization failed: {e}")
+    
+    # Start the application
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)

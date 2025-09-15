@@ -1,0 +1,82 @@
+{
+  "test_run": {
+    "timestamp": "2025-09-15T18:16:33.313558",
+    "total_tests": 9,
+    "passed": 9,
+    "failed": 0
+  },
+  "results": [
+    {
+      "test": "OpenAI API Key",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "API key is configured",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:12.379306"
+    },
+    {
+      "test": "Chatbot Import",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "Chatbot module imported successfully",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:14.071244"
+    },
+    {
+      "test": "Realtime Import",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "Realtime module imported successfully",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:14.407629"
+    },
+    {
+      "test": "App Startup",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "Flask app is running",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:16.883460"
+    },
+    {
+      "test": "Chat Interface",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "Chat page loads successfully",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:18.945371"
+    },
+    {
+      "test": "Chat Endpoint",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "Chat API working correctly",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:20.998382"
+    },
+    {
+      "test": "Chat Suggestions",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "Got 5 suggestions",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:23.043178"
+    },
+    {
+      "test": "Realtime Stats",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "Real-time stats working",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:25.102555"
+    },
+    {
+      "test": "Chatbot Functionality",
+      "status": "\u2705 PASS",
+      "success": true,
+      "message": "4/4 scenarios passed (100.0%)",
+      "details": null,
+      "timestamp": "2025-09-15T18:16:33.312919"
+    }
+  ]
+}

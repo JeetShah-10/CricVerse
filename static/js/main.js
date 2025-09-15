@@ -85,7 +85,9 @@ function initializeChatbot() {
     function addMessageToChat(message, sender) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${sender}-message fade-in`;
-        messageDiv.textContent = message;
+        
+        // Preserve line breaks and formatting
+        messageDiv.innerHTML = message.replace(/\n/g, '<br>');
         
         chatbotBody?.appendChild(messageDiv);
         chatbotBody?.scrollTo(0, chatbotBody.scrollHeight);
@@ -653,7 +655,7 @@ document.addEventListener('DOMContentLoaded', function() {
       hideLoadingIndicator(); // Hide loading indicator
       const botMessageDiv = document.createElement('div');
       botMessageDiv.classList.add('chat-message', 'bot-message');
-      botMessageDiv.textContent = data.response;
+      botMessageDiv.innerHTML = data.response.replace(/\n/g, '<br>'); // Preserve line breaks and formatting
       chatbotBody.appendChild(botMessageDiv);
       chatbotBody.scrollTop = chatbotBody.scrollHeight; // Scroll to bottom
     })

@@ -46,173 +46,167 @@ def init_socketio(app):
                           async_mode='threading')
     
     # Register event handlers after SocketIO is initialized
-        register_socketio_handlers()
+    register_socketio_handlers()
     
-        logger.info("✅ SocketIO initialized successfully")
-        return socketio
+    logger.info("✅ SocketIO initialized successfully")
+    return socketio
 
-    def register_socketio_handlers():
-        """Register SocketIO event handlers"""
-        global socketio
+def register_socketio_handlers():
+    """Register SocketIO event handlers"""
+    global socketio
 
-        @socketio.on('connect')
+    @socketio.on('connect')
+    def handle_connect():
+        """Handle client connection"""
+        try:
+            # Log connection
+            client_id = request.sid
+            ip_address = request.environ.get('REMOTE_ADDR', 'unknown')
+            user_agent = request.environ.get('HTTP_USER_AGENT', 'unknown')
+            
+            logger.info(f"🔌 Client connected: {client_id} from {ip_address}")
+            
+            # Store connection info in Redis if available
+            if redis_client:
+                connection_data = {
+                    'connected_at': datetime.utcnow().isoformat(),
+                    'ip_address': ip_address,
+                    'user_agent': user_agent[:500],  # Truncate long user agents
+                    'customer_id': current_user.id if current_user.is_authenticated else None
+                }
+                redis_client.hset(f'ws_connection:{client_id}', mapping=connection_data)
+                redis_client.expire(f'ws_connection:{client_id}', 3600)  # Expire after 1 hour
+            
+            # Send welcome message
+            emit('connection_status', {
+                'status': 'connected',
+                'message': 'Welcome to CricVerse live updates!',
+                'timestamp': datetime.utcnow().isoformat()
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Connection error: {e}")
 
-def handle_connect():
-    """Handle client connection"""
-    try:
-        # Log connection
-        client_id = request.sid
-        ip_address = request.environ.get('REMOTE_ADDR', 'unknown')
-        user_agent = request.environ.get('HTTP_USER_AGENT', 'unknown')
-        
-        logger.info(f"🔌 Client connected: {client_id} from {ip_address}")
-        
-        # Store connection info in Redis if available
-        if redis_client:
-            connection_data = {
-                'connected_at': datetime.utcnow().isoformat(),
-                'ip_address': ip_address,
-                'user_agent': user_agent[:500],  # Truncate long user agents
-                'customer_id': current_user.id if current_user.is_authenticated else None
-            }
-            redis_client.hset(f'ws_connection:{client_id}', mapping=connection_data)
-            redis_client.expire(f'ws_connection:{client_id}', 3600)  # Expire after 1 hour
-        
-        # Send welcome message
-        emit('connection_status', {
-            'status': 'connected',
-            'message': 'Welcome to CricVerse live updates!',
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Connection error: {e}")
+    @socketio.on('disconnect')
+    def handle_disconnect():
+        """Handle client disconnection"""
+        try:
+            client_id = request.sid
+            logger.info(f"🔌 Client disconnected: {client_id}")
+            
+            # Clean up Redis data
+            if redis_client:
+                redis_client.delete(f'ws_connection:{client_id}')
+            
+        except Exception as e:
+            logger.error(f"❌ Disconnection error: {e}")
 
+    @socketio.on('join_match')
+    def handle_join_match(data):
+        """Subscribe to match updates"""
+        try:
+            match_id = data.get('match_id')
+            client_id = request.sid
+            
+            if not match_id:
+                emit('error', {'message': 'Match ID is required'})
+                return
+            
+            # Join the match room
+            room = f'match_{match_id}'
+            join_room(room)
+            
+            # Store subscription in Redis
+            if redis_client:
+                redis_client.sadd(f'match_subscribers:{match_id}', client_id)
+                redis_client.expire(f'match_subscribers:{match_id}', 7200)  # 2 hours
+            
+            logger.info(f"👥 Client {client_id} joined match {match_id}")
+            
+            # Send confirmation
+            emit('subscription_status', {
+                'type': 'match',
+                'id': match_id,
+                'status': 'subscribed',
+                'message': f'You are now receiving updates for match {match_id}'
+            })
+            
+            # Send current match status if available
+            send_current_match_status(match_id)
+            
+        except Exception as e:
+            logger.error(f"❌ Join match error: {e}")
+            emit('error', {'message': 'Failed to join match updates'})
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    """Handle client disconnection"""
-    try:
-        client_id = request.sid
-        logger.info(f"🔌 Client disconnected: {client_id}")
-        
-        # Clean up Redis data
-        if redis_client:
-            redis_client.delete(f'ws_connection:{client_id}')
-        
-    except Exception as e:
-        logger.error(f"❌ Disconnection error: {e}")
+    @socketio.on('leave_match')
+    def handle_leave_match(data):
+        """Unsubscribe from match updates"""
+        try:
+            match_id = data.get('match_id')
+            client_id = request.sid
+            
+            if not match_id:
+                emit('error', {'message': 'Match ID is required'})
+                return
+            
+            # Leave the match room
+            room = f'match_{match_id}'
+            leave_room(room)
+            
+            # Remove subscription from Redis
+            if redis_client:
+                redis_client.srem(f'match_subscribers:{match_id}', client_id)
+            
+            logger.info(f"👥 Client {client_id} left match {match_id}")
+            
+            # Send confirmation
+            emit('subscription_status', {
+                'type': 'match',
+                'id': match_id,
+                'status': 'unsubscribed',
+                'message': f'You are no longer receiving updates for match {match_id}'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Leave match error: {e}")
+            emit('error', {'message': 'Failed to leave match updates'})
 
-
-@socketio.on('join_match')
-def handle_join_match(data):
-    """Subscribe to match updates"""
-    try:
-        match_id = data.get('match_id')
-        client_id = request.sid
-        
-        if not match_id:
-            emit('error', {'message': 'Match ID is required'})
-            return
-        
-        # Join the match room
-        room = f'match_{match_id}'
-        join_room(room)
-        
-        # Store subscription in Redis
-        if redis_client:
-            redis_client.sadd(f'match_subscribers:{match_id}', client_id)
-            redis_client.expire(f'match_subscribers:{match_id}', 7200)  # 2 hours
-        
-        logger.info(f"👥 Client {client_id} joined match {match_id}")
-        
-        # Send confirmation
-        emit('subscription_status', {
-            'type': 'match',
-            'id': match_id,
-            'status': 'subscribed',
-            'message': f'You are now receiving updates for match {match_id}'
-        })
-        
-        # Send current match status if available
-        send_current_match_status(match_id)
-        
-    except Exception as e:
-        logger.error(f"❌ Join match error: {e}")
-        emit('error', {'message': 'Failed to join match updates'})
-
-
-@socketio.on('leave_match')
-def handle_leave_match(data):
-    """Unsubscribe from match updates"""
-    try:
-        match_id = data.get('match_id')
-        client_id = request.sid
-        
-        if not match_id:
-            emit('error', {'message': 'Match ID is required'})
-            return
-        
-        # Leave the match room
-        room = f'match_{match_id}'
-        leave_room(room)
-        
-        # Remove subscription from Redis
-        if redis_client:
-            redis_client.srem(f'match_subscribers:{match_id}', client_id)
-        
-        logger.info(f"👥 Client {client_id} left match {match_id}")
-        
-        # Send confirmation
-        emit('subscription_status', {
-            'type': 'match',
-            'id': match_id,
-            'status': 'unsubscribed',
-            'message': f'You are no longer receiving updates for match {match_id}'
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Leave match error: {e}")
-        emit('error', {'message': 'Failed to leave match updates'})
-
-
-@socketio.on('join_stadium')
-def handle_join_stadium(data):
-    """Subscribe to stadium updates (booking notifications, occupancy)"""
-    try:
-        stadium_id = data.get('stadium_id')
-        client_id = request.sid
-        
-        if not stadium_id:
-            emit('error', {'message': 'Stadium ID is required'})
-            return
-        
-        # Join the stadium room
-        room = f'stadium_{stadium_id}'
-        join_room(room)
-        
-        # Store subscription in Redis
-        if redis_client:
-            redis_client.sadd(f'stadium_subscribers:{stadium_id}', client_id)
-            redis_client.expire(f'stadium_subscribers:{stadium_id}', 7200)  # 2 hours
-        
-        logger.info(f"🏟️ Client {client_id} joined stadium {stadium_id}")
-        
-        # Send confirmation
-        emit('subscription_status', {
-            'type': 'stadium',
-            'id': stadium_id,
-            'status': 'subscribed',
-            'message': f'You are now receiving updates for stadium {stadium_id}'
-        })
-        
-        # Send current stadium occupancy
-        send_stadium_occupancy(stadium_id)
-        
-    except Exception as e:
-        logger.error(f"❌ Join stadium error: {e}")
-        emit('error', {'message': 'Failed to join stadium updates'})
-
+    @socketio.on('join_stadium')
+    def handle_join_stadium(data):
+        """Subscribe to stadium updates (booking notifications, occupancy)"""
+        try:
+            stadium_id = data.get('stadium_id')
+            client_id = request.sid
+            
+            if not stadium_id:
+                emit('error', {'message': 'Stadium ID is required'})
+                return
+            
+            # Join the stadium room
+            room = f'stadium_{stadium_id}'
+            join_room(room)
+            
+            # Store subscription in Redis
+            if redis_client:
+                redis_client.sadd(f'stadium_subscribers:{stadium_id}', client_id)
+                redis_client.expire(f'stadium_subscribers:{stadium_id}', 7200)  # 2 hours
+            
+            logger.info(f"🏟️ Client {client_id} joined stadium {stadium_id}")
+            
+            # Send confirmation
+            emit('subscription_status', {
+                'type': 'stadium',
+                'id': stadium_id,
+                'status': 'subscribed',
+                'message': f'You are now receiving updates for stadium {stadium_id}'
+            })
+            
+            # Send current stadium occupancy
+            send_stadium_occupancy(stadium_id)
+            
+        except Exception as e:
+            logger.error(f"❌ Join stadium error: {e}")
+            emit('error', {'message': 'Failed to join stadium updates'})
 
 # Broadcasting Functions
 def broadcast_match_update(match_id, update_type, update_data):

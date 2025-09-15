@@ -273,7 +273,7 @@ class SystemLog(db.Model):
     request_method = db.Column(db.String(10))
     
     # Additional data
-    metadata = db.Column(db.Text)  # JSON additional data
+    extra_data = db.Column(db.Text)  # JSON additional data
     
     # Timing
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -314,9 +314,11 @@ class WebSocketConnection(db.Model):
 def create_enhanced_tables():
     """Create all enhanced tables"""
     try:
-        db.create_all()
-        print("✅ Enhanced database tables created successfully!")
-        return True
+        from app import app, db
+        with app.app_context():
+            db.create_all()
+            print("✅ Enhanced database tables created successfully!")
+            return True
     except Exception as e:
         print(f"❌ Failed to create enhanced tables: {e}")
         return False

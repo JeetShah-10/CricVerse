@@ -449,7 +449,7 @@
             messageDiv.innerHTML = `
                 <div class="message-avatar">${avatar}</div>
                 <div class="message-content">
-                    <div>${content}</div>
+                    <div>${content.replace(/\n/g, '<br>')}</div>
                     ${quickActions}
                     <div class="message-time">${new Date().toLocaleTimeString()}</div>
                     ${confidenceIndicator}
