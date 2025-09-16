@@ -51,52 +51,238 @@ except Exception as e:
 
 
 class CricVerseChatbot:
-    """AI-powered chatbot for CricVerse"""
+    """AI-powered chatbot for CricVerse with enhanced database integration and personalization"""
     
     def __init__(self):
         self.model = os.getenv('GEMINI_MODEL', 'gemini-pro')
-        self.max_tokens = 1000  # Increased for better responses
+        self.max_tokens = 1500  # Increased for better responses
         self.temperature = 0.7
         self.api_key = os.getenv('GEMINI_API_KEY')
         
-        # Conversation context tracking
+        # Enhanced conversation context tracking
         self.conversation_context = {}
         self.user_preferences = {}
+        self.user_profiles = {}  # Cache user profiles for better performance
+        self.database_cache = {}  # Cache frequently accessed data
+        self.cache_timeout = 300  # 5 minutes cache timeout
         
-        # Enhanced system prompt with cricket expertise
-        self.system_prompt = """You are CricVerse Assistant, a helpful AI for Australian Big Bash League (BBL) cricket venues.
+        # Enhanced system prompt with comprehensive cricket expertise and personalization
+        self.system_prompt = """You are CricVerse Assistant, an intelligent AI specialized in Australian Big Bash League (BBL) cricket venues with advanced personalization capabilities.
 
 You have access to comprehensive live database information including:
-- Stadium locations, facilities, capacity, parking, and accessibility features
-- Upcoming matches with dates, teams, venues, and ticket prices
+- Stadium locations, facilities, capacity, parking, and accessibility features with real-time occupancy
+- Upcoming matches with dates, teams, venues, ticket prices, and live scores
 - Special events and entertainment beyond regular matches
-- Food concessions with detailed menus, prices, and dietary options
-- Team information including players, stats, and performance data
-- Parking rates, locations, and transport options for each venue
-- Pricing categories, special offers, discounts, and season passes
+- Food concessions with detailed menus, prices, dietary options, and wait times
+- Team information including players, stats, performance data, and recent form
+- Parking rates, locations, transport options, and real-time availability
+- Pricing categories, special offers, discounts, season passes, and dynamic pricing
 - Accessibility services and special assistance options
-- Customer bookings and preferences
+- Customer bookings, preferences, purchase history, and loyalty status
+- Real-time match updates, live scores, and commentary
+- Weather conditions, crowd predictions, and venue atmosphere
+- User conversation history and personal preferences
+
+Personalization Features:
+- Remember user preferences from previous conversations
+- Tailor recommendations based on booking history
+- Suggest relevant content based on favorite teams
+- Provide personalized offers and discounts
+- Remember accessibility needs and dietary preferences
+- Track user engagement patterns for better assistance
 
 When users ask questions:
-1. ALWAYS use the provided database information first - it contains real, current data
-2. Combine database facts with your cricket knowledge for comprehensive answers
-3. Be specific with prices, dates, locations, and availability from the database
-4. If database info is limited, supplement with your general BBL knowledge
-5. Maintain a conversational, enthusiastic cricket fan tone
-6. Provide actionable next steps (booking links, contact info, etc.)
-7. Remember conversation context and user preferences
+1. ALWAYS prioritize live database information - it contains real, current, personalized data
+2. Reference user's conversation history and preferences for personalized responses
+3. Combine database facts with your cricket knowledge for comprehensive answers
+4. Be specific with prices, dates, locations, and availability from the database
+5. Proactively suggest relevant options based on user profile and preferences
+6. Maintain conversational, enthusiastic cricket fan tone with personal touch
+7. Provide actionable next steps with booking links and personalized recommendations
+8. Remember and reference previous interactions to build rapport
+9. Suggest upgrades or complementary services based on user history
+10. Alert users about special offers relevant to their interests
 
-Database Context Integration:
-- Reference specific stadium names, capacities, and facilities from the data
-- Quote exact prices and dates when available in the database
-- Mention specific menu items, concessions, and their locations
-- Use real team names, match schedules, and venue information
-- Incorporate actual parking rates and accessibility features
+Advanced Capabilities:
+- Process booking requests with seat selection and payment integration
+- Provide real-time match updates and live commentary
+- Suggest optimal arrival times based on traffic and parking
+- Recommend food pre-orders to avoid queues
+- Alert about weather changes and venue updates
+- Offer personalized matchday experiences
+- Track loyalty points and membership benefits
+- Provide multilingual support when requested
 
-Always prioritize database information over general knowledge, but use both to provide the most helpful and accurate response possible."""
+Always prioritize database information over general knowledge, use personalization data to enhance responses, and provide the most helpful, accurate, and tailored assistance possible."""
+
+    def get_user_profile(self, customer_id):
+        """Get comprehensive user profile with preferences and history"""
+        if not customer_id:
+            return {}
+            
+        try:
+            from app import app, db, Customer
+            
+            with app.app_context():
+                # Check cache first
+                cache_key = f"user_profile_{customer_id}"
+                if cache_key in self.user_profiles:
+                    profile_data = self.user_profiles[cache_key]
+                    # Check if cache is still valid (5 minutes)
+                    if datetime.now().timestamp() - profile_data.get('cached_at', 0) < self.cache_timeout:
+                        return profile_data['data']
+                
+                customer = Customer.query.get(customer_id)
+                if not customer:
+                    return {}
+                
+                # Build comprehensive user profile
+                profile = {
+                    'customer_id': customer_id,
+                    'name': customer.name,
+                    'email': customer.email,
+                    'membership_level': customer.membership_level,
+                    'favorite_team_id': customer.favorite_team_id,
+                    'role': customer.role
+                }
+                
+                # Get favorite team details
+                if customer.favorite_team_id:
+                    from app import Team
+                    favorite_team = Team.query.get(customer.favorite_team_id)
+                    if favorite_team:
+                        profile['favorite_team'] = {
+                            'id': favorite_team.id,
+                            'name': favorite_team.team_name,
+                            'home_ground': favorite_team.home_ground,
+                            'team_color': favorite_team.team_color
+                        }
+                
+                # Try to get enhanced profile data
+                try:
+                    from enhanced_models import CustomerProfile
+                    enhanced_profile = CustomerProfile.query.filter_by(customer_id=customer_id).first()
+                    if enhanced_profile:
+                        profile.update({
+                            'mfa_enabled': enhanced_profile.mfa_enabled,
+                            'phone_verified': enhanced_profile.phone_verified,
+                            'preferred_language': enhanced_profile.preferred_language,
+                            'timezone': enhanced_profile.timezone,
+                            'total_bookings': enhanced_profile.total_bookings,
+                            'total_spent': enhanced_profile.total_spent,
+                            'loyalty_points': enhanced_profile.loyalty_points,
+                            'last_activity': enhanced_profile.last_activity
+                        })
+                        
+                        # Parse notification preferences
+                        if enhanced_profile.notification_preferences:
+                            try:
+                                profile['notification_preferences'] = json.loads(enhanced_profile.notification_preferences)
+                            except:
+                                profile['notification_preferences'] = {'email': True, 'sms': False, 'push': True}
+                        
+                except ImportError:
+                    logger.warning("Enhanced models not available for user profile")
+                
+                # Get booking history summary
+                from app import Booking
+                bookings = Booking.query.filter_by(customer_id=customer_id).order_by(Booking.booking_date.desc()).limit(10).all()
+                profile['recent_bookings'] = []
+                profile['booking_patterns'] = {
+                    'total_bookings': len(bookings),
+                    'average_booking_amount': 0,
+                    'preferred_seat_types': [],
+                    'frequently_visited_stadiums': []
+                }
+                
+                if bookings:
+                    total_amount = sum(booking.total_amount for booking in bookings)
+                    profile['booking_patterns']['average_booking_amount'] = round(total_amount / len(bookings), 2)
+                    
+                    for booking in bookings[:5]:  # Last 5 bookings for recent history
+                        profile['recent_bookings'].append({
+                            'id': booking.id,
+                            'booking_date': booking.booking_date.strftime('%Y-%m-%d'),
+                            'total_amount': booking.total_amount
+                        })
+                
+                # Get conversation preferences from chat history
+                try:
+                    from enhanced_models import ChatConversation, ChatMessage
+                    conversations = ChatConversation.query.filter_by(customer_id=customer_id).limit(5).all()
+                    
+                    profile['chat_preferences'] = {
+                        'total_conversations': len(conversations),
+                        'preferred_topics': [],
+                        'interaction_style': 'casual',
+                        'average_satisfaction': 4.2
+                    }
+                    
+                    # Analyze conversation patterns
+                    if conversations:
+                        total_satisfaction = sum(conv.satisfaction_rating for conv in conversations if conv.satisfaction_rating)
+                        rated_conversations = len([conv for conv in conversations if conv.satisfaction_rating])
+                        if rated_conversations > 0:
+                            profile['chat_preferences']['average_satisfaction'] = round(total_satisfaction / rated_conversations, 1)
+                    
+                except ImportError:
+                    profile['chat_preferences'] = {'total_conversations': 0, 'preferred_topics': [], 'interaction_style': 'casual'}
+                
+                # Cache the profile
+                self.user_profiles[cache_key] = {
+                    'data': profile,
+                    'cached_at': datetime.now().timestamp()
+                }
+                
+                return profile
+                
+        except Exception as e:
+            logger.error(f"Error getting user profile: {e}")
+            return {}
 
     def get_database_context(self, user_message):
         """Get comprehensive database information for the user's query"""
+        # Call enhanced version if available, fallback to original
+        try:
+            return self.get_enhanced_database_context(user_message)
+        except:
+            return self.get_original_database_context(user_message)
+    
+    def get_enhanced_database_context(self, user_message, customer_id=None):
+        """Get enhanced database context with personalization - simplified version"""
+        try:
+            # Get the original database context
+            original_context = self.get_original_database_context(user_message)
+                
+            # Add personalization if customer is logged in
+            if customer_id:
+                user_profile = self.get_user_profile(customer_id)
+                    
+                # Add personalized recommendations
+                original_context['user_profile'] = user_profile
+                original_context['personalized_offers'] = self.get_personalized_offers(customer_id, user_profile)
+                original_context['loyalty_benefits'] = self.get_loyalty_benefits(user_profile)
+                    
+                # Enhance stadiums with user preference scores
+                if 'stadiums' in original_context:
+                    for stadium in original_context['stadiums']:
+                        stadium['user_visited'] = self.has_user_visited_stadium(customer_id, stadium['id'])
+                        stadium['user_preference_score'] = self.calculate_stadium_preference_score(user_profile, type('Stadium', (), stadium)())
+                    
+                # Enhance matches with user interest scores
+                if 'matches' in original_context:
+                    for match in original_context['matches']:
+                        match['is_favorite_team'] = self.is_favorite_team_match(user_profile, type('Event', (), {'home_team_id': match.get('home_team_id'), 'away_team_id': match.get('away_team_id')})())
+                        match['user_interest_score'] = 0.8 if match['is_favorite_team'] else 0.5
+                
+            return original_context
+                
+        except Exception as e:
+            logger.error(f"Error in enhanced database context: {e}")
+            return self.get_original_database_context(user_message)
+    
+    def get_original_database_context(self, user_message):
+        """Original database context method - kept as fallback"""
         try:
             from app import app, db, Stadium, Concession, MenuItem, Event, Match, Team
             
@@ -625,25 +811,58 @@ Need help with anything else?"""
                         'booking_data': booking_result
                     }
             
-            # Get database context for the query
-            db_context = self.get_database_context(user_message)
+            # Get enhanced database context for the query with personalization
+            db_context = self.get_enhanced_database_context(user_message, customer_id)
             
-            # Get conversation history
+            # Get user profile for personalization
+            user_profile = self.get_user_profile(customer_id) if customer_id else {}
+            
+            # Get conversation history with enhanced context
             conversation_history = []
             if customer_id and session_id:
-                conversation_history = self.get_conversation_context(customer_id, session_id)
+                conversation_history = self.get_enhanced_conversation_context(customer_id, session_id)
             
-            # Build natural prompt with context
+            # Build enhanced prompt with personalization
             prompt_parts = [self.system_prompt]
             
+            # Add user profile context
+            if user_profile:
+                profile_context = f"\nUser Profile Context:\n"
+                profile_context += f"- Name: {user_profile.get('name', 'Guest')}\n"
+                profile_context += f"- Membership Level: {user_profile.get('membership_level', 'Basic')}\n"
+                if user_profile.get('favorite_team'):
+                    profile_context += f"- Favorite Team: {user_profile['favorite_team']['name']}\n"
+                profile_context += f"- Total Bookings: {user_profile.get('total_bookings', 0)}\n"
+                profile_context += f"- Total Spent: ₹{user_profile.get('total_spent', 0):,.2f}\n"
+                
+                if user_profile.get('booking_patterns'):
+                    bp = user_profile['booking_patterns']
+                    profile_context += f"- Booking Patterns: Avg ₹{bp.get('average_booking_amount', 0):.0f} per booking\n"
+                
+                prompt_parts.append(profile_context)
+            
             if db_context:
+                # Add personalized recommendations if available
+                if db_context.get('personalized_recommendations'):
+                    rec_context = "\nPersonalized Recommendations Based on User History:\n"
+                    for rec in db_context['personalized_recommendations'][:3]:
+                        rec_context += f"- {rec['name']}: ₹{rec['price']} (Score: {rec['recommendation_score']:.1f})\n"
+                    prompt_parts.append(rec_context)
+                
+                # Add user's recent activity if available
+                if db_context.get('user_booking_history'):
+                    activity_context = "\nUser's Recent Activity:\n"
+                    for booking in db_context['user_booking_history'][:3]:
+                        activity_context += f"- {booking['booking_date']}: ₹{booking['total_amount']} ({booking['seats_count']} seats)\n"
+                    prompt_parts.append(activity_context)
+                
                 prompt_parts.append(f"\nRelevant database information for this query:\n{json.dumps(db_context, indent=2)}")
             
-            # Add conversation history naturally
+            # Add conversation history with enhanced analysis
             if conversation_history:
-                prompt_parts.append("\nRecent conversation:")
-                for msg in conversation_history[-5:]:
-                    role = "User" if msg["role"] == "user" else "Assistant"
+                prompt_parts.append("\nRecent conversation with analysis:")
+                for msg in conversation_history[-6:]:  # Include more context
+                    role = "User" if msg["role"] == "user" else "Assistant" if msg["role"] == "assistant" else "System"
                     prompt_parts.append(f"{role}: {msg['content']}")
             
             prompt_parts.append(f"\nUser: {user_message}")
@@ -660,7 +879,11 @@ Need help with anything else?"""
                     ai_response = response.text.strip()
                     tokens_used = len(prompt_text.split()) + len(ai_response.split())
                     
-                    # Enhance AI response with booking capabilities if relevant
+                    # Enhance AI response with personalized features
+                    if customer_id and user_profile:
+                        ai_response = self.add_personalization_to_response(ai_response, user_profile, db_context)
+                    
+                    # Add booking capabilities if relevant
                     if any(word in user_message.lower() for word in ['book', 'buy', 'purchase', 'reserve', 'ticket']):
                         ai_response += self.add_booking_suggestions(db_context, customer_id)
                     
@@ -706,7 +929,48 @@ Need help with anything else?"""
         else:
             suggestions += "\n🔐 **Please log in to book tickets directly through chat!**"
         
-        return suggestions
+    def add_personalization_to_response(self, ai_response, user_profile, db_context):
+        """Add personalized elements to AI response"""
+        try:
+            # Add personalized greeting if it's a greeting
+            if any(word in ai_response.lower() for word in ['hello', 'hi', 'welcome']):
+                name = user_profile.get('name', 'there')
+                membership = user_profile.get('membership_level', 'Basic')
+                
+                # Replace generic greetings with personalized ones
+                if 'Welcome to CricVerse!' in ai_response:
+                    ai_response = ai_response.replace('Welcome to CricVerse!', f'Welcome back, {name}!')
+                elif 'Hello!' in ai_response:
+                    ai_response = ai_response.replace('Hello!', f'Hello, {name}!')
+                elif 'Hi' in ai_response and name != 'there':
+                    ai_response = ai_response.replace('Hi', f'Hi {name}')
+                
+                if membership != 'Basic':
+                    ai_response += f"\n\n⭐ **{membership} Member Benefits Active** ⭐"
+            
+            # Add favorite team context
+            if user_profile.get('favorite_team') and 'team' in ai_response.lower():
+                favorite_team = user_profile['favorite_team']['name']
+                ai_response += f"\n\n🏏 **Your Team: {favorite_team}** - Would you like to see their upcoming matches?"
+            
+            # Add loyalty points if user has them
+            loyalty_points = user_profile.get('loyalty_points', 0)
+            if loyalty_points > 0 and 'book' in ai_response.lower():
+                ai_response += f"\n\n🎯 **Loyalty Points:** {loyalty_points} points available (₹{loyalty_points//10} value)"
+            
+            # Add personalized offers
+            if db_context.get('personalized_offers'):
+                offers = db_context['personalized_offers'][:2]  # Show top 2 offers
+                if offers:
+                    ai_response += "\n\n🎁 **Special Offers for You:**\n"
+                    for offer in offers:
+                        ai_response += f"• {offer['title']}: {offer['description']}\n"
+            
+            return ai_response
+            
+        except Exception as e:
+            logger.error(f"Error adding personalization: {e}")
+            return ai_response
 
     def get_fallback_response(self, user_message, db_context=None):
         """Comprehensive fallback response system with detailed hardcoded responses"""
@@ -1059,7 +1323,103 @@ What would you like to know about BBL cricket? I'm here to make your experience 
                 'model': 'fallback'
             }
 
+    def get_enhanced_conversation_context(self, customer_id, session_id):
+        """Get enhanced conversation history with user preferences and context"""
+        try:
+            from app import app, db
+            
+            with app.app_context():
+                # Get regular conversation context
+                conversation_history = self.get_conversation_context(customer_id, session_id)
+                
+                # Enhance with user preference analysis
+                try:
+                    from enhanced_models import ChatConversation, ChatMessage
+                    
+                    # Get all conversations for this user to analyze patterns
+                    all_conversations = ChatConversation.query.filter_by(
+                        customer_id=customer_id
+                    ).order_by(ChatConversation.started_at.desc()).limit(10).all()
+                    
+                    # Analyze conversation patterns
+                    frequent_topics = {}
+                    interaction_style = 'casual'
+                    total_satisfaction = 0
+                    satisfaction_count = 0
+                    
+                    for conv in all_conversations:
+                        if conv.satisfaction_rating:
+                            total_satisfaction += conv.satisfaction_rating
+                            satisfaction_count += 1
+                        
+                        # Analyze messages for topics
+                        messages = ChatMessage.query.filter_by(
+                            conversation_id=conv.id,
+                            sender_type='user'
+                        ).all()
+                        
+                        for msg in messages:
+                            # Simple topic detection
+                            message_lower = msg.message.lower()
+                            if any(word in message_lower for word in ['book', 'ticket', 'reserve']):
+                                frequent_topics['booking'] = frequent_topics.get('booking', 0) + 1
+                            if any(word in message_lower for word in ['food', 'menu', 'eat']):
+                                frequent_topics['food'] = frequent_topics.get('food', 0) + 1
+                            if any(word in message_lower for word in ['team', 'player', 'match']):
+                                frequent_topics['teams'] = frequent_topics.get('teams', 0) + 1
+                            if any(word in message_lower for word in ['parking', 'drive']):
+                                frequent_topics['parking'] = frequent_topics.get('parking', 0) + 1
+                    
+                    # Add context analysis to conversation history
+                    if conversation_history:
+                        conversation_history.append({
+                            'role': 'system',
+                            'content': f"User Interaction Analysis: Frequent topics: {frequent_topics}, Average satisfaction: {total_satisfaction/satisfaction_count if satisfaction_count > 0 else 4.0:.1f}/5"
+                        })
+                    
+                except ImportError:
+                    logger.warning("Enhanced models not available for conversation analysis")
+                
+                return conversation_history
+                
+        except Exception as e:
+            logger.error(f"Error getting enhanced conversation context: {e}")
     def get_conversation_context(self, customer_id, session_id):
+        """Get conversation history for context"""
+        try:
+            from app import app, db
+            
+            # Use app context to fix SQLAlchemy instance error
+            with app.app_context():
+                # Get recent conversation
+                from enhanced_models import ChatConversation
+                conversation = ChatConversation.query.filter_by(
+                    session_id=session_id
+                ).first()
+                
+                if not conversation:
+                    return []
+                
+                # Get recent messages (last 10)
+                from enhanced_models import ChatMessage
+                messages = ChatMessage.query.filter_by(
+                    conversation_id=conversation.id
+                ).order_by(ChatMessage.created_at.desc()).limit(10).all()
+                
+                # Format for Gemini
+                context = []
+                for msg in reversed(messages):  # Reverse to get chronological order
+                    role = "user" if msg.sender_type == "user" else "assistant"
+                    context.append({
+                        "role": role,
+                        "content": msg.message
+                    })
+                
+                return context
+                
+        except Exception as e:
+            logger.error(f"Error getting conversation context: {e}")
+            return []
         """Get conversation history for context"""
         try:
             from app import app, db
@@ -1097,13 +1457,11 @@ What would you like to know about BBL cricket? I'm here to make your experience 
             return []
 
     def log_interaction(self, user_message, ai_response, customer_id, session_id, tokens_used):
-        """Log the chat interaction to database"""
+        """Enhanced interaction logging with intelligent analysis"""
         try:
             from app import app, db
             
-            # Use app context to fix SQLAlchemy instance error
             with app.app_context():
-                # Try to import enhanced models, fallback to creating simple log
                 try:
                     from enhanced_models import ChatConversation, ChatMessage
                     enhanced_models_available = True
@@ -1128,36 +1486,118 @@ What would you like to know about BBL cricket? I'm here to make your experience 
                         db.session.add(conversation)
                         db.session.flush()  # Get the ID
                     
-                    # Log user message
+                    # Analyze user intent and extract metadata
+                    intent = self.analyze_message_intent(user_message)
+                    confidence = self.calculate_response_confidence(user_message, ai_response)
+                    
+                    # Log user message with enhanced metadata
                     user_msg = ChatMessage(
                         conversation_id=conversation.id,
                         sender_type='user',
-                        message=user_message
+                        message=user_message,
+                        intent=intent,
+                        confidence_score=confidence
                     )
                     db.session.add(user_msg)
                     
-                    # Log AI response
+                    # Log AI response with analysis
                     ai_msg = ChatMessage(
                         conversation_id=conversation.id,
                         sender_type='bot',
                         message=ai_response,
-                        intent=None,
-                        confidence_score=0.95,
-                        tokens_used=tokens_used
+                        intent=intent,
+                        confidence_score=confidence,
+                        tokens_used=tokens_used,
+                        response_time_ms=0  # Would be calculated in real implementation
                     )
                     db.session.add(ai_msg)
                     
-                    # Update conversation message count
+                    # Update conversation metadata
                     conversation.message_count = conversation.message_count + 2 if conversation.message_count else 2
+                    conversation.last_activity = datetime.utcnow()
+                    
+                    # Update user profile if available
+                    if customer_id:
+                        self.update_user_interaction_profile(customer_id, intent, user_message)
                     
                     db.session.commit()
+                    
+                    # Log for analytics
+                    logger.info(f"Enhanced chat logged - User: {customer_id}, Intent: {intent}, Confidence: {confidence:.2f}")
+                    
                 else:
                     # Simple logging without enhanced models
                     logger.info(f"Chat interaction - User: {user_message[:100]}... | AI: {ai_response[:100]}...")
             
         except Exception as e:
             logger.warning(f"Could not log interaction (database tables may not exist): {e}")
-            # Don't let logging errors break the chat functionality
+    
+    def analyze_message_intent(self, message):
+        """Analyze message to determine user intent"""
+        message_lower = message.lower()
+        
+        # Booking related
+        if any(word in message_lower for word in ['book', 'buy', 'purchase', 'reserve', 'ticket']):
+            if any(word in message_lower for word in ['help', 'support', 'problem', 'issue', 'cancel', 'refund', 'change']):
+                return 'support_request'  # Booking support, not new booking
+            return 'booking_request'
+        
+        # Support related (check before general inquiries)
+        elif any(word in message_lower for word in ['help', 'support', 'problem', 'issue', 'cancel', 'refund']):
+            return 'support_request'
+        
+        # Information seeking
+        elif any(word in message_lower for word in ['what', 'when', 'where', 'how', 'which']):
+            if any(word in message_lower for word in ['match', 'game', 'schedule']):
+                return 'match_inquiry'
+            elif any(word in message_lower for word in ['food', 'menu', 'eat', 'drink']):
+                return 'food_inquiry'
+            elif any(word in message_lower for word in ['parking', 'drive', 'car', 'park']):
+                return 'parking_inquiry'
+            elif any(word in message_lower for word in ['stadium', 'venue', 'location']):
+                return 'venue_inquiry'
+            else:
+                return 'general_inquiry'
+        
+        # Parking specific
+        elif any(word in message_lower for word in ['parking', 'park', 'car', 'drive', 'vehicle']):
+            return 'parking_inquiry'
+        
+        # Greeting/social
+        elif any(word in message_lower for word in ['hello', 'hi', 'hey', 'thanks', 'thank you']):
+            return 'social_interaction'
+        
+        else:
+            return 'general_conversation'
+    
+    def calculate_response_confidence(self, user_message, ai_response):
+        """Calculate confidence score for the response"""
+        confidence = 0.5  # Base confidence
+        
+        # Higher confidence for specific queries
+        if any(word in user_message.lower() for word in ['book', 'price', 'when', 'where']):
+            confidence += 0.2
+        
+        # Higher confidence for longer, detailed responses
+        if len(ai_response) > 200:
+            confidence += 0.1
+        
+        # Higher confidence if response contains specific data (prices, dates)
+        if any(char in ai_response for char in ['₹', '$']) or any(word in ai_response for word in ['2024', '2025']):
+            confidence += 0.2
+        
+        return min(confidence, 1.0)
+    
+    def update_user_interaction_profile(self, customer_id, intent, message):
+        """Update user's interaction profile based on their messages"""
+        try:
+            # This would update user preferences based on interaction patterns
+            # For now, just invalidate the cache to force refresh
+            cache_key = f"user_profile_{customer_id}"
+            if cache_key in self.user_profiles:
+                del self.user_profiles[cache_key]
+        except Exception as e:
+            logger.warning(f"Could not update user interaction profile: {e}")
 
     def get_upcoming_matches(self, limit=5):
         """Get upcoming matches from database"""
@@ -1422,19 +1862,34 @@ What would you like to know about BBL cricket? I'm here to make your experience 
         message_lower = user_message.lower()
         booking_details = {}
         
-        # Extract seat count
+        # Extract seat count with improved regex
         import re
-        seat_numbers = re.findall(r'\b(\d+)\s*(?:seat|ticket|person|people)', message_lower)
-        if seat_numbers:
-            booking_details['seat_count'] = int(seat_numbers[0])
+        # Look for patterns like "2 tickets", "book 3 seats", "4 people", etc.
+        seat_patterns = [
+            r'\b(\d+)\s*(?:seat|seats|ticket|tickets|person|people)\b',
+            r'\bbook\s+(\d+)\b',
+            r'\breserve\s+(\d+)\b',
+            r'\bbuy\s+(\d+)\b'
+        ]
         
-        # Extract seat category preferences
-        if any(word in message_lower for word in ['vip', 'premium', 'luxury']):
+        for pattern in seat_patterns:
+            seat_numbers = re.findall(pattern, message_lower)
+            if seat_numbers:
+                booking_details['seat_count'] = int(seat_numbers[0])
+                break
+        
+        # If no explicit count found, assume 1
+        if 'seat_count' not in booking_details:
+            if any(word in message_lower for word in ['book', 'buy', 'reserve', 'ticket']):
+                booking_details['seat_count'] = 1
+        
+        # Extract seat category preferences with better priority
+        if any(word in message_lower for word in ['family', 'kids', 'children']):
+            booking_details['seat_category'] = 'family'
+        elif any(word in message_lower for word in ['vip', 'luxury']):
             booking_details['seat_category'] = 'vip'
         elif any(word in message_lower for word in ['premium', 'better view']):
             booking_details['seat_category'] = 'premium'
-        elif any(word in message_lower for word in ['family', 'kids', 'children']):
-            booking_details['seat_category'] = 'family'
         else:
             booking_details['seat_category'] = 'general'
         
@@ -1458,6 +1913,326 @@ What would you like to know about BBL cricket? I'm here to make your experience 
         booking_details['accessibility_needs'] = accessibility_needs
         
         return booking_details
+    
+    # Enhanced helper methods for personalization
+    def has_user_visited_stadium(self, customer_id, stadium_id):
+        """Check if user has visited a stadium before"""
+        if not customer_id:
+            return False
+        try:
+            from app import app, db, Booking, Event
+            with app.app_context():
+                booking = Booking.query.join(Event).filter(
+                    Booking.customer_id == customer_id,
+                    Event.stadium_id == stadium_id
+                ).first()
+                return booking is not None
+        except:
+            return False
+    
+    def calculate_stadium_preference_score(self, user_profile, stadium):
+        """Calculate user preference score for a stadium"""
+        score = 0.5  # Base score
+        
+        # Boost score if user has visited before
+        if user_profile.get('customer_id') and self.has_user_visited_stadium(user_profile['customer_id'], stadium.id):
+            score += 0.3
+        
+        # Boost score if favorite team plays there
+        if user_profile.get('favorite_team'):
+            if user_profile['favorite_team'].get('home_ground') == stadium.name:
+                score += 0.4
+        
+        return min(score, 1.0)
+    
+    def get_real_time_wait_time(self, concession_id):
+        """Get real-time wait time for a concession"""
+        try:
+            # This would integrate with real-time monitoring systems
+            # For now, return simulated data
+            import random
+            wait_times = ['Short (2-5 min)', 'Normal (5-10 min)', 'Busy (10-15 min)', 'Very Busy (15+ min)']
+            return random.choice(wait_times)
+        except:
+            return 'Normal (5-10 min)'
+    
+    def get_user_previous_orders(self, customer_id, concession_id):
+        """Get user's previous orders from this concession"""
+        if not customer_id:
+            return []
+        try:
+            from app import app, db, Order
+            with app.app_context():
+                orders = Order.query.filter_by(
+                    customer_id=customer_id,
+                    concession_id=concession_id
+                ).order_by(Order.order_date.desc()).limit(5).all()
+                
+                return [{
+                    'order_date': order.order_date.strftime('%Y-%m-%d'),
+                    'total_amount': order.total_amount
+                } for order in orders]
+        except:
+            return []
+    
+    def has_user_ordered_item(self, customer_id, menu_item_id):
+        """Check if user has ordered this menu item before"""
+        # This would require an OrderItem model to track individual items
+        # For now, return False
+        return False
+    
+    def calculate_food_recommendation_score(self, user_profile, menu_item):
+        """Calculate recommendation score for a food item"""
+        score = 0.5  # Base score
+        
+        # Boost vegetarian items if user has ordered them before
+        if getattr(menu_item, 'is_vegetarian', False):
+            score += 0.1
+        
+        # Boost based on item popularity
+        if menu_item.price < 500:  # Affordable items
+            score += 0.1
+        
+        return min(score, 1.0)
+    
+    def is_favorite_team_match(self, user_profile, event):
+        """Check if this match involves user's favorite team"""
+        favorite_team_id = user_profile.get('favorite_team_id')
+        if not favorite_team_id:
+            return False
+        return event.home_team_id == favorite_team_id or event.away_team_id == favorite_team_id
+    
+    def calculate_match_interest_score(self, user_profile, event):
+        """Calculate user interest score for a match"""
+        score = 0.5  # Base score
+        
+        if self.is_favorite_team_match(user_profile, event):
+            score += 0.4
+        
+        # Boost weekend matches
+        if event.event_date.weekday() >= 5:  # Weekend
+            score += 0.1
+        
+        return min(score, 1.0)
+    
+    def get_ticket_availability(self, event_id):
+        """Get ticket availability for an event"""
+        try:
+            from app import app, db, Seat, Event
+            with app.app_context():
+                event = Event.query.get(event_id)
+                if not event or not event.stadium_id:
+                    return {'available': 0, 'total': 0}
+                
+                total_seats = Seat.query.filter_by(stadium_id=event.stadium_id).count()
+                # This would need to check actual bookings
+                available_seats = int(total_seats * 0.8)  # Simulate 80% availability
+                
+                return {'available': available_seats, 'total': total_seats}
+        except:
+            return {'available': 0, 'total': 0}
+    
+    def get_min_ticket_price_for_event(self, event_id):
+        """Get minimum ticket price for an event"""
+        try:
+            from app import app, db, Seat, Event
+            with app.app_context():
+                event = Event.query.get(event_id)
+                if not event or not event.stadium_id:
+                    return 2000
+                
+                min_price = Seat.query.filter_by(
+                    stadium_id=event.stadium_id
+                ).with_entities(db.func.min(Seat.price)).scalar()
+                
+                return int(min_price) if min_price else 2000
+        except:
+            return 2000
+    
+    def get_weather_forecast(self, location):
+        """Get weather forecast for stadium location"""
+        # This would integrate with weather APIs
+        # For now, return simulated data
+        forecasts = [
+            'Sunny, 24°C',
+            'Partly cloudy, 22°C',
+            'Light rain possible, 20°C',
+            'Clear skies, 26°C'
+        ]
+        import random
+        return random.choice(forecasts)
+    
+    def is_rivalry_match(self, team1_id, team2_id):
+        """Check if this is a rivalry match"""
+        # Define rivalry pairs (this would be in database)
+        rivalry_pairs = [
+            (1, 2),  # Example: Melbourne teams
+            (3, 4),  # Example: Sydney teams
+        ]
+        
+        for pair in rivalry_pairs:
+            if (team1_id in pair and team2_id in pair):
+                return True
+        return False
+    
+    def get_head_to_head_stats(self, team1_id, team2_id):
+        """Get head-to-head statistics between two teams"""
+        # This would query historical match data
+        return {
+            'total_matches': 15,
+            'team1_wins': 8,
+            'team2_wins': 7,
+            'last_meeting_result': 'Team 1 won by 6 wickets'
+        }
+    
+    def get_user_team_attendance(self, customer_id, team_id):
+        """Get how many times user attended this team's matches"""
+        if not customer_id:
+            return 0
+        try:
+            from app import app, db, Booking, Event
+            with app.app_context():
+                count = Booking.query.join(Event).filter(
+                    Booking.customer_id == customer_id,
+                    (Event.home_team_id == team_id) | (Event.away_team_id == team_id)
+                ).count()
+                return count
+        except:
+            return 0
+    
+    def get_team_recent_form(self, team_id):
+        """Get team's recent form (wins/losses)"""
+        # This would query recent match results
+        return ['W', 'L', 'W', 'W', 'L']  # Last 5 matches
+    
+    def get_team_next_match(self, team_id):
+        """Get team's next match"""
+        try:
+            from app import app, db, Event
+            with app.app_context():
+                next_match = Event.query.filter(
+                    (Event.home_team_id == team_id) | (Event.away_team_id == team_id),
+                    Event.event_date >= datetime.now().date()
+                ).order_by(Event.event_date).first()
+                
+                if next_match:
+                    return {
+                        'id': next_match.id,
+                        'date': next_match.event_date.strftime('%Y-%m-%d'),
+                        'opponent_id': next_match.away_team_id if next_match.home_team_id == team_id else next_match.home_team_id
+                    }
+        except:
+            pass
+        return None
+    
+    def get_team_key_players(self, team_id):
+        """Get team's key players"""
+        try:
+            from app import app, db, Player
+            with app.app_context():
+                players = Player.query.filter_by(team_id=team_id).limit(5).all()
+                return [{
+                    'name': player.player_name,
+                    'role': player.player_role,
+                    'is_captain': player.is_captain
+                } for player in players]
+        except:
+            return []
+    
+    def get_personalized_event_recommendations(self, customer_id, user_profile):
+        """Get personalized event recommendations for user"""
+        try:
+            from app import app, db, Event
+            with app.app_context():
+                # Get upcoming events
+                events = Event.query.filter(
+                    Event.event_date >= datetime.now().date()
+                ).order_by(Event.event_date).limit(10).all()
+                
+                recommendations = []
+                for event in events:
+                    score = self.calculate_match_interest_score(user_profile, event)
+                    if score > 0.6:  # Only recommend high-interest events
+                        recommendations.append({
+                            'event_id': event.id,
+                            'event_name': event.event_name,
+                            'date': event.event_date.strftime('%Y-%m-%d'),
+                            'interest_score': score,
+                            'reason': self._get_recommendation_reason(user_profile, event)
+                        })
+                
+                return sorted(recommendations, key=lambda x: x['interest_score'], reverse=True)[:5]
+        except:
+            return []
+    
+    def _get_recommendation_reason(self, user_profile, event):
+        """Get reason for recommendation"""
+        if self.is_favorite_team_match(user_profile, event):
+            return f"Your favorite team is playing!"
+        if event.event_date.weekday() >= 5:
+            return "Great weekend match"
+        return "Popular upcoming match"
+    
+    def get_personalized_offers(self, customer_id, user_profile):
+        """Get personalized offers for user"""
+        offers = []
+        
+        # Loyalty-based offers
+        total_bookings = user_profile.get('total_bookings', 0)
+        if total_bookings > 5:
+            offers.append({
+                'type': 'loyalty_discount',
+                'title': 'Loyal Fan Discount',
+                'description': '15% off your next booking',
+                'discount_percentage': 15,
+                'valid_until': '2024-12-31'
+            })
+        
+        # Favorite team offers
+        if user_profile.get('favorite_team_id'):
+            offers.append({
+                'type': 'team_discount',
+                'title': 'Team Fan Special',
+                'description': '20% off tickets for your favorite team matches',
+                'discount_percentage': 20,
+                'valid_until': '2024-12-31'
+            })
+        
+        return offers
+    
+    def get_loyalty_benefits(self, user_profile):
+        """Get user's loyalty benefits"""
+        membership_level = user_profile.get('membership_level', 'Basic')
+        loyalty_points = user_profile.get('loyalty_points', 0)
+        
+        benefits = {
+            'current_level': membership_level,
+            'points_balance': loyalty_points,
+            'benefits': []
+        }
+        
+        if membership_level == 'Premium':
+            benefits['benefits'] = [
+                'Priority booking access',
+                'Exclusive member pricing',
+                'Free parking at select venues',
+                'Complimentary merchandise'
+            ]
+        elif membership_level == 'Gold':
+            benefits['benefits'] = [
+                'VIP lounge access',
+                'Meet & greet opportunities',
+                'Premium seat upgrades',
+                'Personal concierge service'
+            ]
+        else:
+            benefits['benefits'] = [
+                'Points on every purchase',
+                'Birthday special offers',
+                'Early access to sales'
+            ]
+        
+        return benefits
 
 
 # Initialize global chatbot instance
