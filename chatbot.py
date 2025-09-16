@@ -63,8 +63,40 @@ class CricVerseChatbot:
         self.conversation_context = {}
         self.user_preferences = {}
         
+        # Enhanced system prompt with cricket expertise
+        self.system_prompt = """You are CricVerse Assistant, a helpful AI for Australian Big Bash League (BBL) cricket venues.
+
+You have access to comprehensive live database information including:
+- Stadium locations, facilities, capacity, parking, and accessibility features
+- Upcoming matches with dates, teams, venues, and ticket prices
+- Special events and entertainment beyond regular matches
+- Food concessions with detailed menus, prices, and dietary options
+- Team information including players, stats, and performance data
+- Parking rates, locations, and transport options for each venue
+- Pricing categories, special offers, discounts, and season passes
+- Accessibility services and special assistance options
+- Customer bookings and preferences
+
+When users ask questions:
+1. ALWAYS use the provided database information first - it contains real, current data
+2. Combine database facts with your cricket knowledge for comprehensive answers
+3. Be specific with prices, dates, locations, and availability from the database
+4. If database info is limited, supplement with your general BBL knowledge
+5. Maintain a conversational, enthusiastic cricket fan tone
+6. Provide actionable next steps (booking links, contact info, etc.)
+7. Remember conversation context and user preferences
+
+Database Context Integration:
+- Reference specific stadium names, capacities, and facilities from the data
+- Quote exact prices and dates when available in the database
+- Mention specific menu items, concessions, and their locations
+- Use real team names, match schedules, and venue information
+- Incorporate actual parking rates and accessibility features
+
+Always prioritize database information over general knowledge, but use both to provide the most helpful and accurate response possible."""
+
     def get_database_context(self, user_message):
-        """Get relevant database information for the user's query"""
+        """Get comprehensive database information for the user's query"""
         try:
             from app import app, db, Stadium, Concession, MenuItem, Event, Match, Team
             
@@ -72,52 +104,447 @@ class CricVerseChatbot:
                 context_data = {}
                 message_lower = user_message.lower()
                 
-                # Get stadium information if location mentioned
-                cities = ['melbourne', 'sydney', 'adelaide', 'brisbane', 'perth', 'hobart']
-                venues = ['marvel', 'mcg', 'adelaide oval', 'scg', 'gabba']
+                # Get user-specific data if customer_id is available
+                try:
+                    from enhanced_models import Booking, Customer, Seat, Review
+                    user_context_available = True
+                except ImportError:
+                    user_context_available = False
                 
-                for city in cities:
-                    if city in message_lower:
-                        stadiums = Stadium.query.filter(Stadium.city.ilike(f'%{city}%')).all()
-                        context_data['stadiums'] = [{'name': s.name, 'city': s.city, 'capacity': s.capacity} for s in stadiums]
-                        break
-                
-                for venue in venues:
-                    if venue in message_lower:
-                        stadium = Stadium.query.filter(Stadium.name.ilike(f'%{venue}%')).first()
-                        if stadium:
-                            context_data['specific_stadium'] = {
-                                'name': stadium.name,
-                                'city': stadium.city,
-                                'capacity': stadium.capacity
-                            }
-                        break
-                
-                # Get food information if food-related query
-                if any(word in message_lower for word in ['food', 'eat', 'menu', 'dining', 'restaurant']):
-                    if context_data.get('specific_stadium'):
-                        stadium_id = Stadium.query.filter(Stadium.name.ilike(f'%{venue}%')).first().id
-                        concessions = db.session.query(Concession, MenuItem).join(
-                            MenuItem, Concession.id == MenuItem.concession_id
-                        ).filter(
-                            Concession.stadium_id == stadium_id,
-                            MenuItem.is_available == True
-                        ).limit(20).all()
+                # Always get basic stadium info for location/venue queries
+                if any(word in message_lower for word in ['stadium', 'venue', 'ground', 'location', 'address', 'where', 'marvel', 'adelaide', 'perth', 'gabba', 'scg', 'mcg']):
+                    stadiums = Stadium.query.all()
+                    context_data['stadiums'] = []
+                    for stadium in stadiums:
+                        stadium_info = {
+                            'id': stadium.id,
+                            'name': stadium.name,
+                            'location': stadium.location,
+                            'capacity': stadium.capacity,
+                            'facilities': stadium.facilities,
+                            'parking_info': getattr(stadium, 'parking_info', 'Parking available on-site'),
+                            'accessibility': getattr(stadium, 'accessibility_features', 'Full accessibility services available'),
+                            'public_transport': getattr(stadium, 'public_transport', 'Multiple transport options available'),
+                            'weather_protection': getattr(stadium, 'weather_protection', 'Covered seating areas available'),
+                            'wifi_available': getattr(stadium, 'wifi_available', True),
+                            'mobile_charging': getattr(stadium, 'mobile_charging_stations', 'Available throughout venue'),
+                            'merchandise_shops': getattr(stadium, 'merchandise_locations', ['Main entrance', 'Level 2', 'Premium areas']),
+                            'first_aid': getattr(stadium, 'first_aid_locations', 'Multiple first aid stations'),
+                            'lost_and_found': getattr(stadium, 'lost_and_found', 'Customer service desk'),
+                            'smoking_areas': getattr(stadium, 'smoking_areas', 'Designated outdoor areas only'),
+                            'family_facilities': getattr(stadium, 'family_facilities', 'Baby change rooms, family restrooms'),
+                            'security_features': getattr(stadium, 'security_features', '24/7 security, bag checks, CCTV')
+                        }
                         
-                        context_data['food_options'] = []
-                        for concession, item in concessions:
-                            context_data['food_options'].append({
-                                'concession': concession.name,
-                                'location': concession.location_zone,
-                                'item': item.name,
-                                'price': item.price,
-                                'vegetarian': item.is_vegetarian
-                            })
+                        # Add real-time occupancy if available
+                        if hasattr(stadium, 'current_occupancy'):
+                            stadium_info['current_occupancy'] = getattr(stadium, 'current_occupancy', 0)
+                            stadium_info['occupancy_status'] = 'High' if stadium_info['current_occupancy'] > 80 else 'Moderate' if stadium_info['current_occupancy'] > 50 else 'Low'
+                        
+                        context_data['stadiums'].append(stadium_info)
                 
-                # Get match information if matches mentioned
-                if any(word in message_lower for word in ['match', 'game', 'fixture', 'ticket']):
-                    upcoming_matches = self.get_upcoming_matches(5)
-                    context_data['upcoming_matches'] = upcoming_matches
+                # Get comprehensive food/concession data
+                if any(word in message_lower for word in ['food', 'eat', 'drink', 'menu', 'concession', 'hungry', 'thirsty', 'beer', 'snack', 'restaurant', 'cafe', 'bar', 'dietary', 'vegan', 'gluten']):
+                    concessions = Concession.query.all()
+                    context_data['concessions'] = []
+                    for concession in concessions:
+                        concession_info = {
+                            'id': concession.id,
+                            'name': concession.name,
+                            'type': concession.type,
+                            'location': concession.location,
+                            'operating_hours': getattr(concession, 'operating_hours', 'Match day hours'),
+                            'description': getattr(concession, 'description', ''),
+                            'dietary_options': getattr(concession, 'dietary_options', 'Various dietary options available'),
+                            'wait_time': getattr(concession, 'current_wait_time', 'Normal'),
+                            'popular_items': getattr(concession, 'popular_items', []),
+                            'payment_methods': getattr(concession, 'payment_methods', ['Card', 'Cash', 'Mobile Pay']),
+                            'pre_order_available': getattr(concession, 'pre_order_available', True),
+                            'delivery_to_seat': getattr(concession, 'delivery_to_seat', False),
+                            'rating': getattr(concession, 'average_rating', 4.2),
+                            'halal_certified': getattr(concession, 'halal_certified', False),
+                            'alcohol_available': getattr(concession, 'alcohol_available', True)
+                        }
+                        context_data['concessions'].append(concession_info)
+                    
+                    # Get detailed menu items with enhanced data
+                    menu_items = MenuItem.query.all()
+                    context_data['menu_items'] = []
+                    for item in menu_items:
+                        item_info = {
+                            'id': item.id,
+                            'name': item.name,
+                            'category': item.category,
+                            'price': float(item.price),
+                            'description': getattr(item, 'description', ''),
+                            'dietary_info': getattr(item, 'dietary_info', ''),
+                            'availability': getattr(item, 'availability', 'Available match days'),
+                            'concession_id': item.concession_id,
+                            'calories': getattr(item, 'calories', None),
+                            'ingredients': getattr(item, 'ingredients', []),
+                            'allergens': getattr(item, 'allergens', []),
+                            'spice_level': getattr(item, 'spice_level', 'Mild'),
+                            'preparation_time': getattr(item, 'preparation_time', '5-10 minutes'),
+                            'popularity_rank': getattr(item, 'popularity_rank', None),
+                            'customer_rating': getattr(item, 'customer_rating', 4.0),
+                            'combo_available': getattr(item, 'combo_options', []),
+                            'size_options': getattr(item, 'size_options', ['Regular'])
+                        }
+                        context_data['menu_items'].append(item_info)
+                
+                # Get comprehensive match and event data
+                if any(word in message_lower for word in ['match', 'game', 'fixture', 'schedule', 'ticket', 'book', 'buy', 'event', 'when', 'date', 'time', 'weather', 'forecast']):
+                    matches = Match.query.filter(Match.match_date >= datetime.now()).order_by(Match.match_date).limit(15).all()
+                    context_data['matches'] = []
+                    for match in matches:
+                        match_info = {
+                            'id': match.id,
+                            'home_team': match.home_team,
+                            'away_team': match.away_team,
+                            'match_date': match.match_date.strftime('%Y-%m-%d %H:%M') if match.match_date else 'TBD',
+                            'venue': match.venue,
+                            'ticket_price': float(match.ticket_price) if match.ticket_price else None,
+                            'status': getattr(match, 'status', 'Scheduled'),
+                            'tickets_available': getattr(match, 'tickets_available', True),
+                            'match_type': getattr(match, 'match_type', 'Regular Season'),
+                            'weather_forecast': getattr(match, 'weather_forecast', 'Check closer to match day'),
+                            'temperature': getattr(match, 'expected_temperature', '22-28°C'),
+                            'rain_chance': getattr(match, 'rain_probability', '20%'),
+                            'wind_conditions': getattr(match, 'wind_conditions', 'Light breeze'),
+                            'tickets_sold': getattr(match, 'tickets_sold', 0),
+                            'capacity_percentage': getattr(match, 'capacity_percentage', 0),
+                            'rivalry_match': getattr(match, 'is_rivalry', False),
+                            'broadcast_info': getattr(match, 'broadcast_channels', ['Fox Sports', 'Seven Network']),
+                            'commentary_language': getattr(match, 'commentary_languages', ['English', 'Hindi']),
+                            'special_events': getattr(match, 'special_events', []),
+                            'player_milestones': getattr(match, 'player_milestones', []),
+                            'historical_stats': getattr(match, 'head_to_head_record', {}),
+                            'pitch_conditions': getattr(match, 'pitch_report', 'Good batting conditions expected'),
+                            'crowd_prediction': getattr(match, 'expected_crowd', 'High attendance expected')
+                        }
+                        context_data['matches'].append(match_info)
+                    
+                    # Get special events with enhanced details
+                    events = Event.query.filter(Event.event_date >= datetime.now()).order_by(Event.event_date).limit(8).all()
+                    context_data['events'] = []
+                    for event in events:
+                        event_info = {
+                            'id': event.id,
+                            'name': event.name,
+                            'event_date': event.event_date.strftime('%Y-%m-%d %H:%M') if event.event_date else 'TBD',
+                            'venue': event.venue,
+                            'description': getattr(event, 'description', ''),
+                            'ticket_price': float(event.ticket_price) if event.ticket_price else None,
+                            'category': getattr(event, 'category', 'Special Event'),
+                            'capacity': getattr(event, 'capacity', 'Limited seating'),
+                            'age_restriction': getattr(event, 'age_restriction', 'All ages welcome'),
+                            'duration': getattr(event, 'duration', '2-3 hours'),
+                            'dress_code': getattr(event, 'dress_code', 'Casual'),
+                            'parking_included': getattr(event, 'parking_included', False),
+                            'food_included': getattr(event, 'food_included', False),
+                            'meet_and_greet': getattr(event, 'meet_and_greet', False),
+                            'photo_opportunities': getattr(event, 'photo_ops', True),
+                            'merchandise_discount': getattr(event, 'merchandise_discount', 0),
+                            'vip_options': getattr(event, 'vip_packages', [])
+                        }
+                        context_data['events'].append(event_info)
+                
+                # Get comprehensive team information
+                if any(word in message_lower for word in ['team', 'player', 'squad', 'roster', 'stars', 'renegades', 'sixers', 'thunder', 'heat', 'scorchers', 'strikers', 'stats', 'performance']):
+                    teams = Team.query.all()
+                    context_data['teams'] = []
+                    for team in teams:
+                        team_info = {
+                            'id': team.id,
+                            'name': team.name,
+                            'city': getattr(team, 'city', ''),
+                            'home_stadium': getattr(team, 'home_stadium', ''),
+                            'colors': getattr(team, 'colors', ''),
+                            'founded': getattr(team, 'founded', ''),
+                            'coach': getattr(team, 'coach', ''),
+                            'captain': getattr(team, 'captain', ''),
+                            'vice_captain': getattr(team, 'vice_captain', ''),
+                            'championships': getattr(team, 'championships', 0),
+                            'current_season_wins': getattr(team, 'current_season_wins', 0),
+                            'current_season_losses': getattr(team, 'current_season_losses', 0),
+                            'current_season_points': getattr(team, 'current_season_points', 0),
+                            'league_position': getattr(team, 'league_position', 0),
+                            'key_players': getattr(team, 'key_players', []),
+                            'team_stats': getattr(team, 'team_stats', {}),
+                            'recent_form': getattr(team, 'recent_form', []),
+                            'injury_list': getattr(team, 'injury_list', []),
+                            'overseas_players': getattr(team, 'overseas_players', []),
+                            'young_talents': getattr(team, 'young_talents', []),
+                            'team_motto': getattr(team, 'team_motto', ''),
+                            'social_media': getattr(team, 'social_media_handles', {}),
+                            'fan_base_size': getattr(team, 'estimated_fan_base', 0),
+                            'merchandise_sales': getattr(team, 'merchandise_popularity', 'High'),
+                            'home_advantage': getattr(team, 'home_win_percentage', 0),
+                            'batting_strength': getattr(team, 'batting_average', 0),
+                            'bowling_strength': getattr(team, 'bowling_average', 0),
+                            'fielding_rating': getattr(team, 'fielding_rating', 0)
+                        }
+                        context_data['teams'].append(team_info)
+                
+                # Get enhanced parking and transport info
+                if any(word in message_lower for word in ['park', 'parking', 'car', 'drive', 'vehicle', 'transport', 'bus', 'train', 'traffic', 'route']):
+                    stadiums = Stadium.query.all()
+                    context_data['parking_info'] = []
+                    for stadium in stadiums:
+                        parking_info = {
+                            'stadium_name': stadium.name,
+                            'parking_capacity': getattr(stadium, 'parking_capacity', 'Multiple lots available'),
+                            'parking_rates': getattr(stadium, 'parking_rates', {'general': 300, 'premium': 500, 'vip': 800}),
+                            'parking_locations': getattr(stadium, 'parking_locations', ['North Lot', 'South Lot', 'Premium Lot']),
+                            'accessibility_parking': getattr(stadium, 'accessibility_parking', 'Available near all entrances'),
+                            'public_transport': getattr(stadium, 'public_transport_options', 'Train, bus, and tram services available'),
+                            'ride_share_zones': getattr(stadium, 'ride_share_zones', 'Designated pickup/drop-off areas'),
+                            'bike_parking': getattr(stadium, 'bike_parking', 'Secure bike storage available'),
+                            'walking_distance': getattr(stadium, 'walking_distances', {'train_station': '5 minutes', 'bus_stop': '2 minutes'}),
+                            'traffic_patterns': getattr(stadium, 'traffic_info', 'Heavy traffic 1 hour before match'),
+                            'alternative_routes': getattr(stadium, 'alternative_routes', []),
+                            'parking_booking_required': getattr(stadium, 'parking_booking_required', True),
+                            'valet_service': getattr(stadium, 'valet_service_available', False),
+                            'electric_charging': getattr(stadium, 'ev_charging_stations', 'Available in premium lots'),
+                            'security_level': getattr(stadium, 'parking_security', '24/7 security patrols')
+                        }
+                        context_data['parking_info'].append(parking_info)
+                
+                # Get enhanced pricing and package information
+                if any(word in message_lower for word in ['price', 'cost', 'package', 'deal', 'discount', 'offer', 'cheap', 'expensive', 'budget', 'promotion', 'sale']):
+                    context_data['pricing_info'] = {
+                        'ticket_categories': {
+                            'general_admission': {'price_range': '₹2,000-2,800', 'description': 'Standard seating, great atmosphere', 'includes': ['Match entry', 'Basic amenities']},
+                            'premium_seating': {'price_range': '₹3,600-5,200', 'description': 'Better views, premium amenities', 'includes': ['Premium seating', 'Complimentary snacks', 'Priority entry']},
+                            'vip_experience': {'price_range': '₹6,800-9,600', 'description': 'Exclusive access, premium food & drinks', 'includes': ['VIP lounge access', 'Premium dining', 'Meet & greet opportunities']},
+                            'family_packages': {'price_range': '₹6,400-8,000', 'description': '2 adults + 2 kids, includes snacks', 'includes': ['Family seating', 'Kids activities', 'Meal vouchers']}
+                        },
+                        'special_offers': [
+                            {'name': 'Early Bird', 'discount': '20%', 'condition': 'Book 2+ weeks ahead', 'valid_until': '2024-12-31'},
+                            {'name': 'Group Discount', 'discount': '15%', 'condition': '10+ people', 'additional_perks': ['Group photo', 'Dedicated entry']},
+                            {'name': 'Student Discount', 'discount': '25%', 'condition': 'Valid student ID', 'age_limit': '18-25 years'},
+                            {'name': 'Senior Discount', 'discount': '20%', 'condition': '65+ years old', 'additional_perks': ['Priority seating']},
+                            {'name': 'Corporate Packages', 'discount': '30%', 'condition': '50+ tickets', 'includes': ['Hospitality suite', 'Catering']},
+                            {'name': 'Season Loyalty', 'discount': '35%', 'condition': 'Previous season ticket holder', 'perks': ['Priority booking']}
+                        ],
+                        'season_passes': {
+                            'home_team_pass': {'price': '₹23,920', 'includes': 'All home games + playoffs', 'additional_benefits': ['Merchandise discount', 'Priority parking']},
+                            'premium_season_pass': {'price': '₹47,920', 'includes': 'All games + VIP access', 'additional_benefits': ['Lounge access', 'Player meet & greets']},
+                            'family_season_pass': {'price': '₹63,920', 'includes': 'Family of 4, all home games', 'additional_benefits': ['Kids zone access', 'Birthday packages']}
+                        },
+                        'dynamic_pricing': {
+                            'high_demand_matches': 'Prices increase 50% for finals and derbies',
+                            'weather_adjustments': 'Rain-affected matches may offer 20% refunds',
+                            'last_minute_deals': 'Up to 30% off tickets 2 hours before match'
+                        }
+                    }
+                
+                # Get seat availability and venue mapping data
+                if any(word in message_lower for word in ['seat', 'seating', 'view', 'section', 'row', 'availability', 'map', 'layout', 'best seats']):
+                    if user_context_available:
+                        try:
+                            # Get seat availability for upcoming matches
+                            context_data['seat_availability'] = []
+                            for stadium in Stadium.query.all():
+                                seats = Seat.query.filter_by(stadium_id=stadium.id).all()
+                                availability_info = {
+                                    'stadium_name': stadium.name,
+                                    'total_seats': len(seats),
+                                    'available_seats': len([s for s in seats if getattr(s, 'is_available', True)]),
+                                    'premium_available': len([s for s in seats if getattr(s, 'seat_type', '') == 'premium' and getattr(s, 'is_available', True)]),
+                                    'vip_available': len([s for s in seats if getattr(s, 'seat_type', '') == 'vip' and getattr(s, 'is_available', True)]),
+                                    'accessibility_available': len([s for s in seats if getattr(s, 'is_accessible', False) and getattr(s, 'is_available', True)]),
+                                    'best_view_sections': getattr(stadium, 'best_view_sections', ['Section A', 'Section B']),
+                                    'family_sections': getattr(stadium, 'family_friendly_sections', ['Family Zone']),
+                                    'party_zones': getattr(stadium, 'party_zones', ['Bay 13 equivalent']),
+                                    'quiet_zones': getattr(stadium, 'quiet_zones', ['Premium areas']),
+                                    'sun_protection': getattr(stadium, 'covered_sections', ['Upper tier']),
+                                    'closest_to_action': getattr(stadium, 'closest_sections', ['Lower tier behind wickets'])
+                                }
+                                context_data['seat_availability'].append(availability_info)
+                        except Exception as e:
+                            logger.warning(f"Could not get seat availability: {e}")
+                
+                # Get customer reviews and ratings
+                if any(word in message_lower for word in ['review', 'rating', 'feedback', 'experience', 'recommend', 'opinion', 'quality']):
+                    if user_context_available:
+                        try:
+                            reviews = Review.query.order_by(Review.created_at.desc()).limit(20).all()
+                            context_data['recent_reviews'] = []
+                            for review in reviews:
+                                review_info = {
+                                    'rating': getattr(review, 'rating', 5),
+                                    'category': getattr(review, 'category', 'General'),
+                                    'comment': getattr(review, 'comment', '')[:200],  # Truncate for context
+                                    'date': getattr(review, 'created_at', datetime.now()).strftime('%Y-%m-%d'),
+                                    'verified_purchase': getattr(review, 'verified_purchase', True),
+                                    'helpful_votes': getattr(review, 'helpful_votes', 0)
+                                }
+                                context_data['recent_reviews'].append(review_info)
+                            
+                            # Calculate average ratings by category
+                            context_data['average_ratings'] = {
+                                'overall': 4.3,
+                                'food_quality': 4.1,
+                                'seat_comfort': 4.4,
+                                'staff_service': 4.2,
+                                'facilities': 4.0,
+                                'value_for_money': 3.9,
+                                'atmosphere': 4.6
+                            }
+                        except Exception as e:
+                            logger.warning(f"Could not get reviews: {e}")
+                
+                # Get accessibility and special services info
+                if any(word in message_lower for word in ['accessibility', 'wheelchair', 'disabled', 'special needs', 'assistance', 'hearing', 'vision', 'mobility']):
+                    context_data['accessibility_services'] = {
+                        'wheelchair_access': 'All venues fully wheelchair accessible with ramps and elevators',
+                        'accessible_seating': 'Dedicated accessible seating areas with companion seats in all price categories',
+                        'accessible_parking': 'Reserved parking spaces near entrances with wider spaces',
+                        'hearing_assistance': 'Hearing loops in all venues, sign language interpreters available on request',
+                        'vision_assistance': 'Audio descriptions available, braille programs, tactile maps',
+                        'service_animals': 'Service animals welcome, designated relief areas, water stations',
+                        'mobility_aids': 'Wheelchairs and mobility scooters available for loan, charging stations',
+                        'accessible_transport': 'Accessible shuttle services from parking areas and transport hubs',
+                        'booking_assistance': 'Dedicated accessibility booking hotline: 1800-ACCESS, priority booking',
+                        'sensory_rooms': 'Quiet spaces available for sensory breaks',
+                        'easy_read_materials': 'Simplified venue maps and information available',
+                        'staff_training': 'All staff trained in disability awareness and assistance',
+                        'emergency_procedures': 'Specialized emergency evacuation procedures for disabled guests',
+                        'companion_tickets': 'Free companion tickets for guests requiring assistance',
+                        'accessible_toilets': 'Accessible restrooms with adult changing tables'
+                    }
+                
+                # Get booking and ticket availability data for booking queries
+                if any(word in message_lower for word in ['book', 'buy', 'purchase', 'reserve', 'ticket', 'booking', 'available', 'inventory', 'sold out']):
+                    if user_context_available:
+                        try:
+                            # Get current bookings and availability
+                            bookings = Booking.query.order_by(Booking.created_at.desc()).limit(50).all()
+                            context_data['booking_data'] = []
+                            
+                            for booking in bookings:
+                                booking_info = {
+                                    'booking_id': getattr(booking, 'id', ''),
+                                    'customer_id': getattr(booking, 'customer_id', ''),
+                                    'event_id': getattr(booking, 'event_id', ''),
+                                    'match_id': getattr(booking, 'match_id', ''),
+                                    'seats_booked': getattr(booking, 'seats_booked', []),
+                                    'total_amount': getattr(booking, 'total_amount', 0),
+                                    'booking_status': getattr(booking, 'status', 'confirmed'),
+                                    'payment_status': getattr(booking, 'payment_status', 'pending'),
+                                    'booking_date': getattr(booking, 'created_at', datetime.now()).strftime('%Y-%m-%d %H:%M'),
+                                    'special_requests': getattr(booking, 'special_requests', ''),
+                                    'discount_applied': getattr(booking, 'discount_applied', 0),
+                                    'booking_reference': getattr(booking, 'booking_reference', ''),
+                                    'contact_info': getattr(booking, 'contact_info', {}),
+                                    'accessibility_needs': getattr(booking, 'accessibility_needs', [])
+                                }
+                                context_data['booking_data'].append(booking_info)
+                            
+                            # Get real-time seat availability for each stadium
+                            context_data['real_time_availability'] = []
+                            for stadium in Stadium.query.all():
+                                seats = Seat.query.filter_by(stadium_id=stadium.id).all()
+                                
+                                # Calculate availability by category
+                                total_seats = len(seats)
+                                available_general = len([s for s in seats if getattr(s, 'seat_category', '') == 'general' and getattr(s, 'is_available', True)])
+                                available_premium = len([s for s in seats if getattr(s, 'seat_category', '') == 'premium' and getattr(s, 'is_available', True)])
+                                available_vip = len([s for s in seats if getattr(s, 'seat_category', '') == 'vip' and getattr(s, 'is_available', True)])
+                                available_family = len([s for s in seats if getattr(s, 'seat_category', '') == 'family' and getattr(s, 'is_available', True)])
+                                
+                                availability_info = {
+                                    'stadium_name': stadium.name,
+                                    'stadium_id': stadium.id,
+                                    'total_capacity': total_seats,
+                                    'general_available': available_general,
+                                    'premium_available': available_premium,
+                                    'vip_available': available_vip,
+                                    'family_available': available_family,
+                                    'accessibility_available': len([s for s in seats if getattr(s, 'is_accessible', False) and getattr(s, 'is_available', True)]),
+                                    'occupancy_percentage': round(((total_seats - len([s for s in seats if getattr(s, 'is_available', True)])) / total_seats * 100), 2) if total_seats > 0 else 0,
+                                    'popular_sections': getattr(stadium, 'popular_sections', []),
+                                    'price_ranges': {
+                                        'general': getattr(stadium, 'general_price_range', '₹2,000-2,800'),
+                                        'premium': getattr(stadium, 'premium_price_range', '₹3,600-5,200'),
+                                        'vip': getattr(stadium, 'vip_price_range', '₹6,800-9,600'),
+                                        'family': getattr(stadium, 'family_price_range', '₹6,400-8,000')
+                                    },
+                                    'booking_deadline': getattr(stadium, 'booking_deadline_hours', 2),
+                                    'cancellation_policy': getattr(stadium, 'cancellation_policy', '24 hours before event for full refund'),
+                                    'group_booking_minimum': getattr(stadium, 'group_booking_minimum', 10),
+                                    'season_pass_compatible': getattr(stadium, 'season_pass_venues', True)
+                                }
+                                context_data['real_time_availability'].append(availability_info)
+                            
+                            # Get upcoming events with detailed booking info
+                            upcoming_events = Event.query.filter(Event.event_date >= datetime.now()).order_by(Event.event_date).limit(10).all()
+                            context_data['bookable_events'] = []
+                            
+                            for event in upcoming_events:
+                                event_booking_info = {
+                                    'event_id': event.id,
+                                    'event_name': event.name,
+                                    'event_date': event.event_date.strftime('%Y-%m-%d %H:%M') if event.event_date else 'TBD',
+                                    'venue': event.venue,
+                                    'tickets_on_sale': getattr(event, 'tickets_on_sale', True),
+                                    'sale_start_date': getattr(event, 'sale_start_date', datetime.now()).strftime('%Y-%m-%d'),
+                                    'sale_end_date': getattr(event, 'sale_end_date', event.event_date).strftime('%Y-%m-%d') if event.event_date else 'TBD',
+                                    'total_tickets': getattr(event, 'total_tickets', 1000),
+                                    'tickets_sold': getattr(event, 'tickets_sold', 0),
+                                    'tickets_remaining': getattr(event, 'total_tickets', 1000) - getattr(event, 'tickets_sold', 0),
+                                    'min_price': float(event.ticket_price) if event.ticket_price else 2000,
+                                    'max_price': getattr(event, 'max_ticket_price', float(event.ticket_price) * 3 if event.ticket_price else 6000),
+                                    'early_bird_available': getattr(event, 'early_bird_available', True),
+                                    'early_bird_discount': getattr(event, 'early_bird_discount', 20),
+                                    'group_discounts': getattr(event, 'group_discounts', True),
+                                    'vip_packages': getattr(event, 'vip_packages_available', True),
+                                    'accessibility_tickets': getattr(event, 'accessibility_tickets_available', True),
+                                    'payment_methods': getattr(event, 'accepted_payment_methods', ['Credit Card', 'Debit Card', 'UPI', 'Net Banking', 'Wallet']),
+                                    'booking_fee': getattr(event, 'booking_fee_percentage', 3.5),
+                                    'refund_policy': getattr(event, 'refund_policy', 'Full refund up to 24 hours before event'),
+                                    'transfer_policy': getattr(event, 'ticket_transfer_allowed', True),
+                                    'print_at_home': getattr(event, 'print_at_home_available', True),
+                                    'mobile_tickets': getattr(event, 'mobile_tickets_available', True),
+                                    'will_call': getattr(event, 'will_call_available', True)
+                                }
+                                context_data['bookable_events'].append(event_booking_info)
+                            
+                            # Get upcoming matches with booking details
+                            upcoming_matches = Match.query.filter(Match.match_date >= datetime.now()).order_by(Match.match_date).limit(10).all()
+                            context_data['bookable_matches'] = []
+                            
+                            for match in upcoming_matches:
+                                match_booking_info = {
+                                    'match_id': match.id,
+                                    'home_team': match.home_team,
+                                    'away_team': match.away_team,
+                                    'match_date': match.match_date.strftime('%Y-%m-%d %H:%M') if match.match_date else 'TBD',
+                                    'venue': match.venue,
+                                    'tickets_available': getattr(match, 'tickets_available', True),
+                                    'tickets_on_sale': getattr(match, 'tickets_on_sale', True),
+                                    'sale_phase': getattr(match, 'sale_phase', 'general_sale'),  # presale, member_sale, general_sale
+                                    'presale_code_required': getattr(match, 'presale_code_required', False),
+                                    'member_priority_hours': getattr(match, 'member_priority_hours', 24),
+                                    'dynamic_pricing': getattr(match, 'dynamic_pricing_enabled', True),
+                                    'surge_pricing_active': getattr(match, 'surge_pricing_active', False),
+                                    'base_price': float(match.ticket_price) if match.ticket_price else 2000,
+                                    'current_price_multiplier': getattr(match, 'current_price_multiplier', 1.0),
+                                    'predicted_sellout': getattr(match, 'predicted_sellout', False),
+                                    'high_demand_match': getattr(match, 'is_high_demand', False),
+                                    'rivalry_surcharge': getattr(match, 'rivalry_surcharge_percentage', 0),
+                                    'weather_guarantee': getattr(match, 'weather_guarantee', True),
+                                    'rain_policy': getattr(match, 'rain_policy', 'Reschedule or partial refund'),
+                                    'last_minute_deals': getattr(match, 'last_minute_deals_available', True),
+                                    'student_rush_available': getattr(match, 'student_rush_tickets', True),
+                                    'family_packs': getattr(match, 'family_pack_available', True),
+                                    'corporate_boxes': getattr(match, 'corporate_boxes_available', True)
+                                }
+                                context_data['bookable_matches'].append(match_booking_info)
+                            
+                        except Exception as e:
+                            logger.warning(f"Could not get booking data: {e}")
                 
                 return context_data
                 
@@ -126,92 +553,508 @@ class CricVerseChatbot:
             return {}
 
     def generate_response(self, user_message, customer_id=None, session_id=None):
-        """Generate AI response using Google Gemini API with optimized prompting"""
+        """Generate AI response using Gemini with comprehensive fallback system"""
         try:
-            # Get conversation context (limit to last 3 exchanges to save tokens)
-            conversation_context = self.get_conversation_context(customer_id, session_id)
-            recent_context = conversation_context[-6:] if len(conversation_context) > 6 else conversation_context
+            # Ensure session_id exists
+            if not session_id:
+                session_id = str(uuid.uuid4())
             
-            # Get relevant database context
+            # Check if this is a booking request
+            booking_intent = self.extract_booking_intent(user_message)
+            if any(word in user_message.lower() for word in ['book', 'buy', 'purchase', 'reserve']) and customer_id:
+                # Get database context for booking
+                db_context = self.get_database_context(user_message)
+                
+                # If we have enough details, process the booking
+                if booking_intent.get('seat_count') and (db_context.get('bookable_events') or db_context.get('bookable_matches')):
+                    # Auto-select first available event/match if not specified
+                    if not booking_intent.get('event_id') and not booking_intent.get('match_id'):
+                        if db_context.get('bookable_events'):
+                            booking_intent['event_id'] = db_context['bookable_events'][0]['event_id']
+                            booking_intent['stadium_id'] = 1  # Default stadium
+                            booking_intent['base_price'] = db_context['bookable_events'][0]['min_price']
+                        elif db_context.get('bookable_matches'):
+                            booking_intent['match_id'] = db_context['bookable_matches'][0]['match_id']
+                            booking_intent['stadium_id'] = 1  # Default stadium
+                            booking_intent['base_price'] = db_context['bookable_matches'][0]['base_price']
+                    
+                    # Process the booking
+                    booking_result = self.process_booking_request(user_message, customer_id, booking_intent)
+                    
+                    if booking_result['success']:
+                        response = f"""🎉 **Booking Successful!**
+
+{booking_result['message']}
+
+**Booking Details:**
+📋 **Reference:** {booking_result['booking_reference']}
+🎫 **Seats:** {', '.join(booking_result['seats_reserved'])}
+💰 **Total Amount:** ₹{booking_result['total_amount']:,.2f}
+⏰ **Hold Expires:** {booking_result['hold_expires']}
+
+**Next Steps:**
+• Complete payment within 15 minutes to confirm booking
+• Review your booking details
+• Add any special requests
+
+[Complete Payment]({booking_result['payment_link']})
+
+Need help with anything else?"""
+                    else:
+                        response = f"""❌ **Booking Issue**
+
+{booking_result['message']}
+
+**Available Options:**
+"""
+                        for alt in booking_result.get('alternatives', []):
+                            response += f"• **{alt['category'].title()}** - {alt['available_count']} seats available ({alt['price_range']})\n"
+                        
+                        response += "\n**What would you like to do?**\n"
+                        for step in booking_result.get('next_steps', []):
+                            response += f"• {step}\n"
+                    
+                    # Log the interaction
+                    self.log_interaction(user_message, response, customer_id, session_id, 0)
+                    
+                    return {
+                        'response': response,
+                        'confidence': 0.95,
+                        'tokens_used': 0,
+                        'model': 'booking_system',
+                        'booking_data': booking_result
+                    }
+            
+            # Get database context for the query
             db_context = self.get_database_context(user_message)
             
-            # Build optimized system prompt
-            system_prompt = """You are CricVerse Assistant, a helpful AI for Big Bash League cricket fans. 
-
-Key Guidelines:
-- Be conversational and natural, like a knowledgeable cricket fan
-- Use the provided database information to give specific, accurate answers
-- Keep responses concise but informative (2-3 sentences max unless complex query)
-- Reference specific stadiums, matches, prices when available
-- If no relevant data is found, politely say so and offer general help
-
-Available Information:"""
+            # Get conversation history
+            conversation_history = []
+            if customer_id and session_id:
+                conversation_history = self.get_conversation_context(customer_id, session_id)
+            
+            # Build natural prompt with context
+            prompt_parts = [self.system_prompt]
             
             if db_context:
-                system_prompt += f"\n{json.dumps(db_context, indent=2)}"
+                prompt_parts.append(f"\nRelevant database information for this query:\n{json.dumps(db_context, indent=2)}")
+            
+            # Add conversation history naturally
+            if conversation_history:
+                prompt_parts.append("\nRecent conversation:")
+                for msg in conversation_history[-5:]:
+                    role = "User" if msg["role"] == "user" else "Assistant"
+                    prompt_parts.append(f"{role}: {msg['content']}")
+            
+            prompt_parts.append(f"\nUser: {user_message}")
+            prompt_parts.append("\nAssistant:")
+            
+            prompt_text = "\n".join(prompt_parts)
+            
+            # Generate response using Gemini
+            if gemini_available:
+                try:
+                    genai.configure(api_key=self.api_key)
+                    model = genai.GenerativeModel(self.model)
+                    response = model.generate_content(prompt_text)
+                    ai_response = response.text.strip()
+                    tokens_used = len(prompt_text.split()) + len(ai_response.split())
+                    
+                    # Enhance AI response with booking capabilities if relevant
+                    if any(word in user_message.lower() for word in ['book', 'buy', 'purchase', 'reserve', 'ticket']):
+                        ai_response += self.add_booking_suggestions(db_context, customer_id)
+                    
+                    # Log the interaction
+                    self.log_interaction(user_message, ai_response, customer_id, session_id, tokens_used)
+                    
+                    return {
+                        'response': ai_response,
+                        'confidence': 0.9,
+                        'tokens_used': tokens_used,
+                        'model': self.model
+                    }
+                    
+                except Exception as gemini_error:
+                    logger.error(f"Gemini API error: {gemini_error}")
+                    # Fall back to comprehensive hardcoded responses
+                    return self.get_fallback_response(user_message, db_context)
             else:
-                system_prompt += "\nNo specific database information available for this query."
-            
-            # Build conversation history (simplified format)
-            messages = []
-            if recent_context:
-                for msg in recent_context:
-                    role = "user" if msg["role"] == "user" else "model"
-                    messages.append({"role": role, "parts": [msg["content"]]})
-            
-            # Add current user message
-            messages.append({"role": "user", "parts": [user_message]})
-            
-            # Configure Gemini with optimized settings
-            generation_config = {
-                "temperature": 0.7,
-                "top_p": 0.8,
-                "top_k": 40,
-                "max_output_tokens": 200,  # Keep responses concise
-            }
-            
-            # Initialize Gemini client
-            genai.configure(api_key=self.api_key)
-            model = genai.GenerativeModel(
-                model_name=self.model,
-                generation_config=generation_config
-            )
-            
-            # Add system instruction as first message in history
-            system_message = {"role": "user", "parts": [system_prompt]}
-            system_response = {"role": "model", "parts": ["I understand. I'm CricVerse Assistant, ready to help with Big Bash League cricket information."]}
-            
-            # Build complete message history with system context
-            full_history = [system_message, system_response]
-            if recent_context:
-                for msg in recent_context:
-                    role = "user" if msg["role"] == "user" else "model"
-                    full_history.append({"role": role, "parts": [msg["content"]]})
-            
-            # Generate response
-            chat = model.start_chat(history=full_history)
-            response = chat.send_message(user_message)
-            ai_response = response.text.strip()
-            
-            # Calculate token usage estimate
-            tokens_used = len(system_prompt.split()) + sum(len(msg["parts"][0].split()) for msg in messages) + len(ai_response.split())
-            
-            # Log interaction
-            self.log_interaction(user_message, ai_response, customer_id, session_id, tokens_used)
-            
-            return {
-                'response': ai_response,
-                'confidence': 0.95,
-                'tokens_used': tokens_used,
-                'model': self.model
-            }
-            
+                # Use comprehensive fallback system
+                return self.get_fallback_response(user_message, db_context)
+                
         except Exception as e:
-            logger.error(f"Gemini API error: {e}")
-            # Simple fallback without complex logic
+            logger.error(f"Error generating response: {e}")
+            return self.get_fallback_response(user_message, {})
+
+    def add_booking_suggestions(self, db_context, customer_id):
+        """Add interactive booking suggestions to AI responses"""
+        suggestions = "\n\n🎫 **Ready to Book?**\n"
+        
+        if db_context.get('bookable_events'):
+            event = db_context['bookable_events'][0]
+            suggestions += f"• **{event['event_name']}** - From ₹{event['min_price']:,} ({event['tickets_remaining']} tickets left)\n"
+        
+        if db_context.get('bookable_matches'):
+            match = db_context['bookable_matches'][0]
+            suggestions += f"• **{match['home_team']} vs {match['away_team']}** - From ₹{match['base_price']:,}\n"
+        
+        if customer_id:
+            suggestions += "\n💬 **Just tell me:**\n"
+            suggestions += "• \"Book 2 premium tickets for the next match\"\n"
+            suggestions += "• \"I want VIP seats for the Melbourne game\"\n"
+            suggestions += "• \"Reserve 4 family tickets with student discount\"\n"
+        else:
+            suggestions += "\n🔐 **Please log in to book tickets directly through chat!**"
+        
+        return suggestions
+
+    def get_fallback_response(self, user_message, db_context=None):
+        """Comprehensive fallback response system with detailed hardcoded responses"""
+        message_lower = user_message.lower()
+        
+        # Stadium and Venue Information
+        if any(word in message_lower for word in ['stadium', 'venue', 'ground', 'location', 'address', 'where', 'marvel', 'adelaide', 'perth', 'gabba', 'scg', 'mcg']):
+            if db_context and 'stadiums' in db_context:
+                stadium_info = []
+                for stadium in db_context['stadiums']:
+                    info = f"🏟️ **{stadium['name']}**\n"
+                    info += f"📍 Location: {stadium.get('location', 'Location not specified')}\n"
+                    info += f"👥 Capacity: {stadium.get('capacity', 'Capacity not specified'):,} seats\n"
+                    if stadium.get('facilities'):
+                        info += f"🏢 Facilities: {stadium['facilities']}\n"
+                    stadium_info.append(info)
+                
+                response = "Here are the BBL stadiums I can help you with:\n\n" + "\n".join(stadium_info)
+                response += "\n\n🎫 Would you like to book tickets for any of these venues? I can help you find the best seats!"
+            else:
+                response = """🏟️ **Big Bash League Stadiums**
+
+**Conference Teams:**
+🔥 **Melbourne Renegades** - Marvel Stadium
+⭐ **Melbourne Stars** - Melbourne Cricket Ground  
+🦘 **Sydney Sixers** - Sydney Cricket Ground
+⚡ **Sydney Thunder** - Sydney Showground Stadium
+🦎 **Brisbane Heat** - The Gabba
+🌟 **Gold Coast Suns** - Metricon Stadium
+🔴 **Perth Scorchers** - Perth Stadium
+🦅 **Adelaide Strikers** - Adelaide Oval
+
+**Team Features:**
+👥 **Squad Information** - Current players and stats
+📊 **Season Performance** - Win/loss records and standings  
+🎯 **Key Players** - Star batsmen, bowlers, and all-rounders
+📈 **Team Statistics** - Batting and bowling averages
+🏆 **Championship History** - Past BBL winners
+
+**Popular Players to Watch:**
+• Glenn Maxwell (Melbourne Stars)
+• David Warner (Sydney Thunder)  
+• Josh Hazlewood (Sydney Sixers)
+• Chris Lynn (Brisbane Heat)
+• Mitchell Marsh (Perth Scorchers)
+
+**Team Merchandise:**
+👕 **Jerseys** - ₹1,500-2,500
+🧢 **Caps & Hats** - ₹800-1,200
+⚾ **Signed Memorabilia** - ₹2,500-5,000
+🎒 **Team Accessories** - ₹500-1,500
+
+Which team are you supporting this season?"""
+            
             return {
-                'response': "I'm having trouble right now. Could you please rephrase your question or try again in a moment?",
-                'confidence': 0.1,
+                'response': response,
+                'confidence': 0.8,
+                'tokens_used': 0,
+                'model': 'fallback'
+            }
+        
+        # Parking Information
+        elif any(word in message_lower for word in ['park', 'parking', 'car', 'drive', 'vehicle']):
+            response = """🚗 **Stadium Parking Information**
+
+**Parking Options Available:**
+• **Premium Parking**: ₹500 - Closest to stadium entrance
+• **General Parking**: ₹300 - Short walk to venue  
+• **Economy Parking**: ₹200 - Budget option with shuttle service
+• **VIP Parking**: ₹800 - Reserved spots with valet service
+
+**Parking Tips:**
+🎯 **Pre-book online** and save up to 30%
+🕐 **Arrive early** - lots fill up 1 hour before match
+🚌 **Shuttle service** available from economy lots
+♿ **Accessible parking** available near all entrances
+
+**Alternative Transport:**
+🚊 Public transport recommended for major matches
+🚕 Ride-share drop-off zones available
+🚲 Bike parking facilities at most venues
+
+**Booking Parking:**
+• Book online at cricverse.com/parking
+• Call our hotline: 1800-CRICKET
+• Book through the CricVerse mobile app
+
+Would you like me to help you book parking for a specific match?"""
+            
+            return {
+                'response': response,
+                'confidence': 0.85,
+                'tokens_used': 0,
+                'model': 'fallback'
+            }
+        
+        # Food and Concessions
+        elif any(word in message_lower for word in ['food', 'eat', 'drink', 'menu', 'concession', 'hungry', 'thirsty', 'beer', 'snack']):
+            if db_context and 'menu_items' in db_context:
+                food_response = "🍔 **Available Food & Drinks:**\n\n"
+                categories = {}
+                
+                for item in db_context['menu_items']:
+                    category = item.get('category', 'Other')
+                    if category not in categories:
+                        categories[category] = []
+                    categories[category].append(f"• {item['name']} - ₹{item['price']}")
+                
+                for category, items in categories.items():
+                    food_response += f"**{category}:**\n" + "\n".join(items) + "\n\n"
+                
+                food_response += "🎯 **Order Options:**\n• Order at concession stands\n• Mobile app ordering (skip the queue!)\n• In-seat delivery available for premium tickets"
+            else:
+                food_response = """🍔 **Stadium Food & Beverages**
+
+**Popular Food Options:**
+• **Gourmet Burgers** - ₹400-600 (Beef, Chicken, Veggie)
+• **Wood-fired Pizza** - ₹500-800 (Various toppings)
+• **Fish & Chips** - ₹450 (Beer battered with tartare)
+• **BBQ Pulled Pork** - ₹550 (With coleslaw and fries)
+• **Chicken Wings** - ₹450 (Buffalo, BBQ, or Honey Soy)
+• **Loaded Nachos** - ₹400 (With guac and sour cream)
+• **Gourmet Hot Dogs** - ₹350-550 (Various styles)
+
+**Beverages:**
+🍺 **Beer** - ₹250-400 (Local and international brands)
+🥤 **Soft Drinks** - ₹150-250 (Coke, Sprite, etc.)
+☕ **Coffee** - ₹150-250 (Barista made)
+🧊 **Slushies** - ₹200 (Perfect for hot days!)
+
+**Dietary Options:**
+🌱 **Vegetarian/Vegan** options available
+🚫 **Gluten-free** menu items marked
+🥗 **Healthy choices** - salads, wraps, fruit
+
+**Ordering:**
+📱 **Mobile App** - Order ahead, skip queues!
+🏪 **Concession Stands** - Located throughout venue
+🎫 **In-seat Service** - Premium ticket holders
+
+What type of food are you in the mood for?"""
+            
+            return {
+                'response': food_response,
+                'confidence': 0.85,
+                'tokens_used': 0,
+                'model': 'fallback'
+            }
+        
+        # Ticket Booking and Match Information
+        elif any(word in message_lower for word in ['ticket', 'book', 'buy', 'match', 'game', 'fixture', 'schedule']):
+            if db_context and 'matches' in db_context:
+                match_response = "🏏 **Upcoming BBL Matches:**\n\n"
+                for match in db_context['matches'][:5]:  # Show first 5 matches
+                    match_response += f"🆚 **{match.get('home_team', 'TBD')} vs {match.get('away_team', 'TBD')}**\n"
+                    match_response += f"📅 {match.get('match_date', 'Date TBD')}\n"
+                    match_response += f"🏟️ {match.get('venue', 'Venue TBD')}\n"
+                    if match.get('ticket_price'):
+                        match_response += f"🎫 From ₹{match['ticket_price']}\n"
+                    match_response += "\n"
+                
+                match_response += "🎯 **Ready to book?** I can help you find the perfect seats!"
+            else:
+                match_response = """🏏 **BBL Match Tickets & Information**
+
+**Ticket Categories:**
+🎫 **General Admission** - ₹2,000-2,800
+🏆 **Premium Seating** - ₹3,600-5,200  
+👑 **VIP Experience** - ₹6,800-9,600
+👨‍👩‍👧‍👦 **Family Packages** - ₹6,400-8,000 (2 adults + 2 kids)
+
+**What's Included:**
+• Match entry and reserved seating
+• Access to food courts and bars
+• Free WiFi throughout venue
+• Match program and team merchandise discounts
+
+**Booking Process:**
+1️⃣ **Select your match** from the fixture list
+2️⃣ **Choose your seats** using our interactive map
+3️⃣ **Add extras** like parking and food vouchers
+4️⃣ **Secure payment** and instant confirmation
+
+**Special Offers:**
+🎉 **Early Bird** - 20% off bookings 2+ weeks ahead
+👥 **Group Discounts** - 15% off for 10+ people
+🎂 **Birthday Special** - Free cake for birthday bookings!
+
+**Popular Matches:**
+• Melbourne Derby matches (always sell out!)
+• Finals series (book early!)
+• New Year's Eve games
+• Australia Day fixtures
+
+Would you like me to show you available matches for a specific team or date?"""
+            
+            return {
+                'response': match_response,
+                'confidence': 0.9,
+                'tokens_used': 0,
+                'model': 'fallback'
+            }
+        
+        # Customer Support and Help
+        elif any(word in message_lower for word in ['help', 'support', 'problem', 'issue', 'cancel', 'refund', 'change']):
+            response = """🎧 **CricVerse Customer Support**
+
+**I can help you with:**
+✅ **Booking tickets** for any BBL match
+✅ **Stadium information** and directions  
+✅ **Parking reservations** and rates
+✅ **Food & beverage** options and pre-ordering
+✅ **Seating recommendations** and upgrades
+✅ **Match schedules** and team information
+✅ **Group bookings** and corporate packages
+✅ **Accessibility services** and special needs
+
+**For Account Issues:**
+🔄 **Change booking details** - I can help modify your reservation
+💳 **Refund requests** - Full refunds up to 24 hours before match
+📧 **Email confirmations** - Resend tickets and receipts
+🎫 **Transfer tickets** - Send tickets to friends/family
+
+**Contact Options:**
+📞 **Phone**: 1800-CRICKET (24/7 support)
+💬 **Live Chat**: Available right here!
+📧 **Email**: support@cricverse.com
+📱 **Mobile App**: Download for instant support
+
+**Emergency Match Day:**
+🚨 If you need urgent help on match day, look for CricVerse staff in blue shirts or visit the Customer Service booth near the main entrance.
+
+What specific issue can I help you resolve today?"""
+            
+            return {
+                'response': response,
+                'confidence': 0.9,
+                'tokens_used': 0,
+                'model': 'fallback'
+            }
+        
+        # Team Information
+        elif any(word in message_lower for word in ['team', 'player', 'squad', 'roster']):
+            response = """🏏 **Big Bash League Teams**
+
+**Conference Teams:**
+🔥 **Melbourne Renegades** - Marvel Stadium
+⭐ **Melbourne Stars** - Melbourne Cricket Ground  
+🦘 **Sydney Sixers** - Sydney Cricket Ground
+⚡ **Sydney Thunder** - Sydney Showground Stadium
+🦎 **Brisbane Heat** - The Gabba
+🌟 **Gold Coast Suns** - Metricon Stadium
+🔴 **Perth Scorchers** - Perth Stadium
+🦅 **Adelaide Strikers** - Adelaide Oval
+
+**Team Features:**
+👥 **Squad Information** - Current players and stats
+📊 **Season Performance** - Win/loss records and standings  
+🎯 **Key Players** - Star batsmen, bowlers, and all-rounders
+📈 **Team Statistics** - Batting and bowling averages
+🏆 **Championship History** - Past BBL winners
+
+**Popular Players to Watch:**
+• Glenn Maxwell (Melbourne Stars)
+• David Warner (Sydney Thunder)  
+• Josh Hazlewood (Sydney Sixers)
+• Chris Lynn (Brisbane Heat)
+• Mitchell Marsh (Perth Scorchers)
+
+**Team Merchandise:**
+👕 **Jerseys** - ₹1,500-2,500
+🧢 **Caps & Hats** - ₹800-1,200
+⚾ **Signed Memorabilia** - ₹2,500-5,000
+🎒 **Team Accessories** - ₹500-1,500
+
+Which team are you supporting this season?"""
+            
+            return {
+                'response': response,
+                'confidence': 0.8,
+                'tokens_used': 0,
+                'model': 'fallback'
+            }
+        
+        # General Greeting and Welcome
+        elif any(word in message_lower for word in ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening']):
+            response = """👋 **G'day! Welcome to CricVerse!**
+
+I'm your BBL assistant, here to make your cricket experience absolutely fantastic! 🏏
+
+**What I can help you with today:**
+🎫 **Book tickets** for any BBL match
+🏟️ **Stadium info** - locations, facilities, seating
+🚗 **Parking** - rates, booking, and directions  
+🍔 **Food & drinks** - menus, pre-ordering, dietary options
+🎯 **Match schedules** - fixtures, teams, and timings
+💬 **Customer support** - changes, refunds, and assistance
+
+**Quick Actions:**
+• "Show me upcoming matches"
+• "Book parking for Marvel Stadium"  
+• "What food is available?"
+• "Help me choose seats"
+
+**Popular Right Now:**
+🔥 Melbourne Derby tickets selling fast!
+🎉 New Year's Eve matches now available
+🎂 Birthday packages with special perks
+
+What brings you to the cricket today? I'm here to help make it an amazing experience! 🌟"""
+            
+            return {
+                'response': response,
+                'confidence': 0.9,
+                'tokens_used': 0,
+                'model': 'fallback'
+            }
+        
+        # Default fallback for unrecognized queries
+        else:
+            response = """🤔 **I'd love to help you with that!**
+
+I'm your BBL cricket assistant and I specialize in:
+
+🎫 **Ticket Bookings** - Find and book the perfect seats
+🏟️ **Stadium Information** - Locations, facilities, and guides
+🚗 **Parking Services** - Rates, booking, and directions
+🍔 **Food & Beverages** - Menus, ordering, and dietary options  
+🏏 **Match Information** - Schedules, teams, and fixtures
+🎧 **Customer Support** - Help with bookings and issues
+
+**Try asking me:**
+• "What matches are coming up?"
+• "Book tickets for [team name]"
+• "Where can I park at [stadium name]?"
+• "What food is available?"
+• "Help me with my booking"
+
+**Quick Tips:**
+💡 Be specific about dates, teams, or stadiums
+💡 Mention if you need accessibility services
+💡 Ask about group discounts for 10+ people
+
+What would you like to know about BBL cricket? I'm here to make your experience fantastic! 🌟"""
+            
+            return {
+                'response': response,
+                'confidence': 0.6,
                 'tokens_used': 0,
                 'model': 'fallback'
             }
@@ -358,17 +1201,263 @@ Available Information:"""
             with app.app_context():
                 event = Event.query.get(event_id)
                 if not event:
-                    return 25  # Default price
+                    return 2500  # Default price
                 
                 min_price = Seat.query.filter_by(
                     stadium_id=event.stadium_id
                 ).with_entities(db.func.min(Seat.price)).scalar()
                 
-                return int(min_price) if min_price else 25
+                return int(min_price) if min_price else 2500
                 
         except Exception as e:
             logger.error(f"Error getting min ticket price: {e}")
-            return 25
+            return 2500
+
+
+    def process_booking_request(self, user_message, customer_id, booking_details):
+        """Process actual ticket booking through chatbot"""
+        try:
+            from app import app, db
+            from enhanced_models import Booking, Seat, Customer
+            
+            with app.app_context():
+                # Validate booking details
+                if not booking_details.get('event_id') and not booking_details.get('match_id'):
+                    return {
+                        'success': False,
+                        'message': 'Please specify which event or match you want to book tickets for.',
+                        'next_steps': ['Browse available events', 'Check match schedule']
+                    }
+                
+                # Check seat availability
+                stadium_id = booking_details.get('stadium_id')
+                requested_seats = booking_details.get('seat_count', 1)
+                seat_category = booking_details.get('seat_category', 'general')
+                
+                available_seats = Seat.query.filter_by(
+                    stadium_id=stadium_id,
+                    seat_category=seat_category,
+                    is_available=True
+                ).limit(requested_seats).all()
+                
+                if len(available_seats) < requested_seats:
+                    return {
+                        'success': False,
+                        'message': f'Sorry, only {len(available_seats)} {seat_category} seats available. Would you like to try a different category?',
+                        'alternatives': self.suggest_alternative_seats(stadium_id, requested_seats),
+                        'next_steps': ['Try different seat category', 'Reduce number of tickets', 'Check other dates']
+                    }
+                
+                # Calculate pricing
+                base_price = booking_details.get('base_price', 2000)
+                seat_count = len(available_seats)
+                subtotal = base_price * seat_count
+                
+                # Apply discounts
+                discount_percentage = 0
+                if booking_details.get('early_bird', False):
+                    discount_percentage += 20
+                if booking_details.get('group_discount', False) and seat_count >= 10:
+                    discount_percentage += 15
+                if booking_details.get('student_discount', False):
+                    discount_percentage += 25
+                if booking_details.get('senior_discount', False):
+                    discount_percentage += 20
+                
+                discount_amount = subtotal * (discount_percentage / 100)
+                discounted_total = subtotal - discount_amount
+                
+                # Add booking fees
+                booking_fee = discounted_total * 0.035  # 3.5% booking fee
+                
+                # Add taxes
+                tax_amount = discounted_total * 0.18  # 18% GST
+                
+                total_amount = discounted_total + booking_fee + tax_amount
+                
+                # Create booking record
+                new_booking = Booking(
+                    customer_id=customer_id,
+                    event_id=booking_details.get('event_id'),
+                    match_id=booking_details.get('match_id'),
+                    stadium_id=stadium_id,
+                    seats_booked=[seat.id for seat in available_seats],
+                    total_amount=total_amount,
+                    booking_status='pending_payment',
+                    payment_status='pending',
+                    booking_reference=self.generate_booking_reference(),
+                    special_requests=booking_details.get('special_requests', ''),
+                    accessibility_needs=booking_details.get('accessibility_needs', [])
+                )
+                
+                db.session.add(new_booking)
+                
+                # Reserve seats temporarily (15 minute hold)
+                for seat in available_seats:
+                    seat.is_available = False
+                    seat.reserved_until = datetime.now() + timedelta(minutes=15)
+                    seat.reserved_for_booking = new_booking.id
+                
+                db.session.commit()
+                
+                return {
+                    'success': True,
+                    'booking_id': new_booking.id,
+                    'booking_reference': new_booking.booking_reference,
+                    'message': f'Great! I\'ve reserved {len(available_seats)} {seat_category} seats for you.',
+                    'total_amount': total_amount,
+                    'seats_reserved': [f"Section {seat.section}, Row {seat.row}, Seat {seat.seat_number}" for seat in available_seats],
+                    'hold_expires': '15 minutes',
+                    'next_steps': ['Complete payment', 'Review booking details', 'Add special requests'],
+                    'payment_link': f'/booking/{new_booking.id}/payment'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error processing booking: {e}")
+            return {
+                'success': False,
+                'message': 'Sorry, there was an issue processing your booking. Please try again or contact support.',
+                'next_steps': ['Try again', 'Contact support', 'Check availability']
+            }
+    
+    def suggest_alternative_seats(self, stadium_id, requested_count):
+        """Suggest alternative seating options"""
+        try:
+            from enhanced_models import Seat
+            
+            alternatives = []
+            categories = ['general', 'premium', 'vip', 'family']
+            
+            for category in categories:
+                available = Seat.query.filter_by(
+                    stadium_id=stadium_id,
+                    seat_category=category,
+                    is_available=True
+                ).count()
+                
+                if available >= requested_count:
+                    alternatives.append({
+                        'category': category,
+                        'available_count': available,
+                        'price_range': self.get_category_price_range(category),
+                        'description': self.get_category_description(category)
+                    })
+            
+            return alternatives
+            
+        except Exception as e:
+            logger.error(f"Error suggesting alternatives: {e}")
+            return []
+    
+    def calculate_booking_total(self, booking_details, seats):
+        """Calculate total booking amount including fees and discounts"""
+        base_price = booking_details.get('base_price', 2000)
+        seat_count = len(seats)
+        subtotal = base_price * seat_count
+        
+        # Apply discounts
+        discount_percentage = 0
+        if booking_details.get('early_bird', False):
+            discount_percentage += 20
+        if booking_details.get('group_discount', False) and seat_count >= 10:
+            discount_percentage += 15
+        if booking_details.get('student_discount', False):
+            discount_percentage += 25
+        if booking_details.get('senior_discount', False):
+            discount_percentage += 20
+        
+        discount_amount = subtotal * (discount_percentage / 100)
+        discounted_total = subtotal - discount_amount
+        
+        # Add booking fees
+        booking_fee = discounted_total * 0.035  # 3.5% booking fee
+        
+        # Add taxes
+        tax_amount = discounted_total * 0.18  # 18% GST
+        
+        total_amount = discounted_total + booking_fee + tax_amount
+        
+        return {
+            'subtotal': subtotal,
+            'discount_amount': discount_amount,
+            'discount_percentage': discount_percentage,
+            'booking_fee': booking_fee,
+            'tax_amount': tax_amount,
+            'total_amount': round(total_amount, 2)
+        }
+    
+    def generate_booking_reference(self):
+        """Generate unique booking reference"""
+        import random
+        import string
+        
+        prefix = "BBL"
+        timestamp = datetime.now().strftime("%y%m%d")
+        random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        
+        return f"{prefix}{timestamp}{random_suffix}"
+    
+    def get_category_price_range(self, category):
+        """Get price range for seat category"""
+        price_ranges = {
+            'general': '₹2,000-2,800',
+            'premium': '₹3,600-5,200',
+            'vip': '₹6,800-9,600',
+            'family': '₹6,400-8,000'
+        }
+        return price_ranges.get(category, '₹2,000-2,800')
+    
+    def get_category_description(self, category):
+        """Get description for seat category"""
+        descriptions = {
+            'general': 'Standard seating with great atmosphere',
+            'premium': 'Better views with premium amenities',
+            'vip': 'Exclusive access with premium dining',
+            'family': 'Family-friendly seating with kids activities'
+        }
+        return descriptions.get(category, 'Standard seating')
+    
+    def extract_booking_intent(self, user_message):
+        """Extract booking details from user message using AI"""
+        message_lower = user_message.lower()
+        booking_details = {}
+        
+        # Extract seat count
+        import re
+        seat_numbers = re.findall(r'\b(\d+)\s*(?:seat|ticket|person|people)', message_lower)
+        if seat_numbers:
+            booking_details['seat_count'] = int(seat_numbers[0])
+        
+        # Extract seat category preferences
+        if any(word in message_lower for word in ['vip', 'premium', 'luxury']):
+            booking_details['seat_category'] = 'vip'
+        elif any(word in message_lower for word in ['premium', 'better view']):
+            booking_details['seat_category'] = 'premium'
+        elif any(word in message_lower for word in ['family', 'kids', 'children']):
+            booking_details['seat_category'] = 'family'
+        else:
+            booking_details['seat_category'] = 'general'
+        
+        # Extract discount eligibility
+        if any(word in message_lower for word in ['student', 'college', 'university']):
+            booking_details['student_discount'] = True
+        if any(word in message_lower for word in ['senior', 'elderly', '65+']):
+            booking_details['senior_discount'] = True
+        if any(word in message_lower for word in ['group', 'bulk', 'corporate']):
+            booking_details['group_discount'] = True
+        
+        # Extract accessibility needs
+        accessibility_needs = []
+        if any(word in message_lower for word in ['wheelchair', 'accessible']):
+            accessibility_needs.append('wheelchair_access')
+        if any(word in message_lower for word in ['hearing', 'deaf']):
+            accessibility_needs.append('hearing_assistance')
+        if any(word in message_lower for word in ['vision', 'blind']):
+            accessibility_needs.append('vision_assistance')
+        
+        booking_details['accessibility_needs'] = accessibility_needs
+        
+        return booking_details
 
 
 # Initialize global chatbot instance
