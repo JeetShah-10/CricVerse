@@ -9,8 +9,8 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 
-# Import the existing db instance
-from app import db
+# Enhanced models will use db instance passed from app.py
+db = None
 
 
 # Enhanced Customer model with additional fields for new features
@@ -311,16 +311,56 @@ class WebSocketConnection(db.Model):
     customer = db.relationship('Customer', backref='websocket_connections')
 
 
-def create_enhanced_tables():
-    """Create all enhanced tables"""
+def create_enhanced_tables(app_db=None):
+    """Create all enhanced tables with better error handling"""
+    global db
+    
     try:
-        from app import app, db
-        with app.app_context():
-            db.create_all()
-            print("✅ Enhanced database tables created successfully!")
-            return True
+        # Use passed db instance or global db
+        if app_db:
+            db = app_db
+        
+        if not db:
+            print("❌ No database instance available")
+            return False
+            
+        return _create_tables_internal(db)
+            
     except Exception as e:
         print(f"❌ Failed to create enhanced tables: {e}")
+        # Don't crash the application, just log the error
+        return False
+
+
+def _create_tables_internal(database):
+    """Internal function to create tables"""
+    try:
+        # Use the passed database instance
+        from sqlalchemy import inspect
+        
+        # Only create tables that don't exist
+        inspector = inspect(database.engine)
+        existing_tables = inspector.get_table_names()
+        
+        tables_to_create = [
+            'customer_profile', 'payment_transaction', 'qr_code',
+            'notification', 'match_update', 'chat_conversation', 
+            'chat_message', 'booking_analytics', 'system_log', 'websocket_connection'
+        ]
+        
+        new_tables = [table for table in tables_to_create if table not in existing_tables]
+        
+        if new_tables:
+            print(f"📝 Creating new tables: {', '.join(new_tables)}")
+            database.create_all()
+            print("✅ Enhanced database tables created successfully!")
+            return True
+        else:
+            print("📝 All enhanced tables already exist")
+            return True
+            
+    except Exception as e:
+        print(f"❌ Error in table creation: {e}")
         return False
 
 

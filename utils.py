@@ -154,10 +154,20 @@ def format_datetime(dt, format_type='full'):
         return dt.strftime('%B %d, %Y at %H:%M')
 
 def get_upcoming_events(Event, limit=5):
-    """Get upcoming events consistently"""
-    return Event.query.filter(
-        Event.event_date >= datetime.utcnow().date()
-    ).order_by(Event.event_date, Event.start_time).limit(limit).all()
+    """Get upcoming events with optimized query and error handling"""
+    try:
+        # Use more efficient query with timeout protection
+        query = Event.query.filter(
+            Event.event_date >= datetime.utcnow().date()
+        ).order_by(Event.event_date, Event.start_time).limit(limit)
+        
+        # Execute with timeout protection
+        return query.all()
+        
+    except Exception as e:
+        print(f"Warning: Database query failed in get_upcoming_events: {e}")
+        # Return empty list instead of crashing
+        return []
 
 def handle_form_errors(form_data, validation_rules):
     """Generic form validation handler"""

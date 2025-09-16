@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""
+Quick Performance Test for CricVerse Home Page
+Tests loading times and basic functionality
+"""
+
+import time
+import requests
+from datetime import datetime
+
+def test_home_page_performance():
+    """Test home page loading performance"""
+    print("🚀 Testing CricVerse Home Page Performance")
+    print(f"⏰ Started: {datetime.now().strftime('%H:%M:%S')}")
+    
+    base_url = "http://localhost:5000"
+    
+    # Test 1: Basic connectivity
+    print("\n1️⃣ Testing basic connectivity...")
+    try:
+        start_time = time.time()
+        response = requests.get(f"{base_url}/", timeout=10)
+        load_time = time.time() - start_time
+        
+        if response.status_code == 200:
+            print(f"✅ Home page loaded successfully")
+            print(f"⚡ Load time: {load_time:.2f} seconds")
+            print(f"📊 Response size: {len(response.content)} bytes")
+            
+            # Check for key content
+            content = response.text.lower()
+            if "big bash" in content:
+                print("✅ BBL content found")
+            if "cricverse" in content:
+                print("✅ CricVerse branding found")
+            if "error" in content and "database" in content:
+                print("⚠️  Database fallback mode detected (expected)")
+        else:
+            print(f"❌ HTTP Error: {response.status_code}")
+            return False
+            
+    except requests.RequestException as e:
+        print(f"❌ Connection failed: {e}")
+        return False
+    
+    # Test 2: Static resources
+    print("\n2️⃣ Testing static resources...")
+    static_resources = [
+        "/static/css/unified.css",
+        "/static/css/bbl-enhanced.css", 
+        "/static/js/main.js"
+    ]
+    
+    for resource in static_resources:
+        try:
+            start_time = time.time()
+            response = requests.head(f"{base_url}{resource}", timeout=5)
+            load_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                print(f"✅ {resource} - {load_time:.2f}s")
+            else:
+                print(f"⚠️  {resource} - {response.status_code}")
+        except:
+            print(f"❌ {resource} - Failed to load")
+    
+    # Test 3: Multiple requests (stress test)
+    print("\n3️⃣ Testing with multiple requests...")
+    total_time = 0
+    successful_requests = 0
+    
+    for i in range(5):
+        try:
+            start_time = time.time()
+            response = requests.get(f"{base_url}/", timeout=5)
+            load_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                total_time += load_time
+                successful_requests += 1
+                print(f"   Request {i+1}: {load_time:.2f}s")
+            else:
+                print(f"   Request {i+1}: Failed ({response.status_code})")
+        except:
+            print(f"   Request {i+1}: Timeout/Error")
+    
+    if successful_requests > 0:
+        avg_time = total_time / successful_requests
+        print(f"📈 Average load time: {avg_time:.2f}s")
+        print(f"✅ Success rate: {successful_requests}/5 ({successful_requests*20}%)")
+        
+        # Performance evaluation
+        if avg_time < 1.0:
+            print("🟢 EXCELLENT performance")
+        elif avg_time < 2.0:
+            print("🟡 GOOD performance")
+        elif avg_time < 5.0:
+            print("🟠 ACCEPTABLE performance")
+        else:
+            print("🔴 SLOW performance - optimization needed")
+    
+    print(f"\n✅ Test completed: {datetime.now().strftime('%H:%M:%S')}")
+    return True
+
+if __name__ == "__main__":
+    test_home_page_performance()

@@ -2,14 +2,355 @@
 {% block title %}Big Bash League - CricVerse{% endblock %}
 {% block head %}
     {{ super() }}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-enhanced.css') }}">
+    <!-- Preload critical CSS for faster loading -->
+    <link rel="preload" href="{{ url_for('static', filename='css/unified.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="{{ url_for('static', filename='css/bbl-enhanced.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="{{ url_for('static', filename='css/home-enhanced.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    
+    <!-- Fallback for browsers without preload support -->
+    <noscript>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-enhanced.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/home-enhanced.css') }}">
+    </noscript>
+    
+    <!-- Enhanced Home Page Styles -->
+    <style>
+        /* Enhanced Background Effects */
+        .page-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            overflow: hidden;
+        }
+        
+        .floating-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 8s infinite linear;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+        }
+        
+        /* Angled Section Dividers */
+        .section-divider {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .section-divider::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(45deg, #ff6b35, #f7931e, #ffd23f);
+            transform: skewY(-1deg);
+            z-index: 1;
+        }
+        
+        .section-divider::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(-45deg, #ff6b35, #f7931e, #ffd23f);
+            transform: skewY(1deg);
+            z-index: 1;
+        }
+    </style>
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 {% endblock %}
 {% block content %}
+<!-- Enhanced Background Elements -->
+<div class="page-background">
+    <div class="floating-particles" id="particles-container"></div>
+</div>
+
+<!-- Database Connection Status Check -->
+{% if error_message %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    {{ error_message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <script>
-// Video optimization and fallback handling
+// Enhanced Interactive JavaScript for Home Page
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all interactive features
+    initializeBackgroundParticles();
+    initializeActionHub();
+    initializeTeamsCarousel();
+    initializeVideoOptimization();
+    optimizeTeamLogos();
+});
+
+// Optimize team logos for better loading and quality
+function optimizeTeamLogos() {
+    const teamLogos = document.querySelectorAll('.team-logo-carousel, .team-logo-table, .team-badge img');
+    
+    teamLogos.forEach(img => {
+        // Add loading placeholder
+        img.style.background = 'rgba(255, 255, 255, 0.1)';
+        img.style.minWidth = img.style.width || '80px';
+        img.style.minHeight = img.style.height || '80px';
+        
+        // Handle image load events
+        img.addEventListener('load', function() {
+            this.style.opacity = '0';
+            setTimeout(() => {
+                this.style.transition = 'opacity 0.3s ease';
+                this.style.opacity = '1';
+            }, 100);
+        });
+        
+        img.addEventListener('error', function() {
+            console.warn('Failed to load team logo:', this.src);
+            this.style.background = 'rgba(255, 107, 53, 0.2)';
+            this.style.display = 'flex';
+            this.style.alignItems = 'center';
+            this.style.justifyContent = 'center';
+            this.style.color = '#fff';
+            this.style.fontSize = '12px';
+            this.style.fontWeight = 'bold';
+            this.textContent = 'LOGO';
+        });
+        
+        // Force reload if image is cached but not displayed properly
+        if (img.complete && img.naturalHeight === 0) {
+            img.src = img.src + '?t=' + Date.now();
+        }
+    });
+}
+
+// Background Particles Animation
+function initializeBackgroundParticles() {
+    const particlesContainer = document.getElementById('particles-container');
+    if (!particlesContainer) return;
+    
+    function createParticle() {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        // Random size and position
+        const size = Math.random() * 4 + 2;
+        particle.style.width = size + 'px';
+        particle.style.height = size + 'px';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDuration = (Math.random() * 6 + 8) + 's';
+        particle.style.animationDelay = Math.random() * 5 + 's';
+        
+        particlesContainer.appendChild(particle);
+        
+        // Remove particle after animation
+        setTimeout(() => {
+            if (particle.parentNode) {
+                particle.parentNode.removeChild(particle);
+            }
+        }, 13000);
+    }
+    
+    // Create initial particles
+    for (let i = 0; i < 15; i++) {
+        setTimeout(createParticle, i * 200);
+    }
+    
+    // Continuously create particles
+    setInterval(createParticle, 800);
+}
+
+// Action Hub Tab Functionality
+function initializeActionHub() {
+    const tabs = document.querySelectorAll('.hub-tab');
+    const panels = document.querySelectorAll('.tab-panel');
+    const performerTabs = document.querySelectorAll('.performer-tab');
+    const performerPanels = document.querySelectorAll('.performer-panel');
+    
+    // Main tab switching
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
+            
+            // Remove active class from all tabs and panels
+            tabs.forEach(t => t.classList.remove('active'));
+            panels.forEach(p => p.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding panel
+            this.classList.add('active');
+            document.getElementById(targetTab + '-panel').classList.add('active');
+            
+            // Add animation class
+            const activePanel = document.getElementById(targetTab + '-panel');
+            activePanel.style.animation = 'fadeInUp 0.5s ease-out';
+        });
+    });
+    
+    // Performer sub-tab switching
+    performerTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetSubtab = this.getAttribute('data-subtab');
+            
+            // Remove active class from all performer tabs and panels
+            performerTabs.forEach(t => t.classList.remove('active'));
+            performerPanels.forEach(p => p.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding panel
+            this.classList.add('active');
+            document.getElementById(targetSubtab + '-performers').classList.add('active');
+        });
+    });
+    
+    // Standings table row hover effects
+    const standingsRows = document.querySelectorAll('.enhanced-standings-table tbody tr');
+    standingsRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.02)';
+            this.style.boxShadow = '0 8px 25px rgba(255, 107, 53, 0.3)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+            this.style.boxShadow = 'none';
+        });
+    });
+}
+
+// Teams Carousel Functionality
+function initializeTeamsCarousel() {
+    const carousel = document.getElementById('teamsCarousel');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const indicators = document.querySelectorAll('.indicator');
+    const cards = document.querySelectorAll('.team-carousel-card');
+    
+    if (!carousel) return;
+    
+    let currentSlide = 0;
+    const totalSlides = 3; // Show 3 slides worth of teams
+    const cardsPerSlide = Math.ceil(cards.length / totalSlides);
+    
+    function updateCarousel() {
+        const translateX = -currentSlide * (100 / totalSlides);
+        carousel.style.transform = `translateX(${translateX}%)`;
+        
+        // Update indicators
+        indicators.forEach((indicator, index) => {
+            indicator.classList.toggle('active', index === currentSlide);
+        });
+    }
+    
+    function nextSlide() {
+        currentSlide = (currentSlide + 1) % totalSlides;
+        updateCarousel();
+    }
+    
+    function prevSlide() {
+        currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+        updateCarousel();
+    }
+    
+    // Event listeners
+    if (nextBtn) nextBtn.addEventListener('click', nextSlide);
+    if (prevBtn) prevBtn.addEventListener('click', prevSlide);
+    
+    // Indicator clicks
+    indicators.forEach((indicator, index) => {
+        indicator.addEventListener('click', () => {
+            currentSlide = index;
+            updateCarousel();
+        });
+    });
+    
+    // Auto-advance carousel
+    setInterval(nextSlide, 5000);
+    
+    // Enhanced hover effects for team cards
+    cards.forEach(card => {
+        const logo = card.querySelector('.team-logo-carousel');
+        
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.08) translateY(-10px)';
+            
+            // Show player reveal
+            const playerReveal = this.querySelector('.player-reveal');
+            if (playerReveal) {
+                playerReveal.style.opacity = '1';
+            }
+            
+            // Enhance glow effect
+            const glow = this.querySelector('.logo-glow');
+            if (glow) {
+                glow.style.opacity = '0.8';
+                glow.style.transform = 'scale(1.2)';
+            }
+            
+            // Enhance logo on hover
+            if (logo) {
+                logo.style.transform = 'scale(1.1)';
+                logo.style.filter = 'brightness(1.3) contrast(1.3)';
+                logo.style.boxShadow = '0 8px 25px rgba(255, 107, 53, 0.3)';
+            }
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1) translateY(0)';
+            
+            // Hide player reveal
+            const playerReveal = this.querySelector('.player-reveal');
+            if (playerReveal) {
+                playerReveal.style.opacity = '0';
+            }
+            
+            // Reset glow effect
+            const glow = this.querySelector('.logo-glow');
+            if (glow) {
+                glow.style.opacity = '0.4';
+                glow.style.transform = 'scale(1)';
+            }
+            
+            // Reset logo
+            if (logo) {
+                logo.style.transform = 'scale(1)';
+                logo.style.filter = 'brightness(1.1) contrast(1.2)';
+                logo.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)';
+            }
+        });
+        
+        // Click handler to navigate to teams page
+        card.addEventListener('click', function() {
+            window.location.href = "{{ url_for('teams') }}";
+        });
+    });
+}
+
+// Video optimization and fallback handling
+function initializeVideoOptimization() {
     const video = document.querySelector('.hero-video-bg video');
     const fallbackImg = document.querySelector('.hero-fallback-img');
     
@@ -37,7 +378,36 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-});
+}
+
+// Add CSS animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+    
+    .live {
+        animation: pulse 2s infinite;
+    }
+`;
+document.head.appendChild(style);
 </script>
 <!-- HERO BANNER -->
 <section class="hero-banner">
@@ -110,292 +480,581 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
   </div>
 </section>
-<!-- LEADERBOARDS SECTION -->
-<section class="leaderboards-section">
+<!-- ENHANCED ACTION HUB SECTION -->
+<section class="action-hub-section section-divider">
   <div class="container">
-    <div class="row g-4">
-      <!-- Team Standings -->
-      <div class="col-lg-4">
-        <div class="leaderboard-panel standings-panel">
-          <div class="panel-header">
-            <i class="bi bi-trophy-fill"></i>
-            <h3>BBL TEAM STANDINGS</h3>
+    <div class="row">
+      <div class="col-12">
+        <div class="action-hub-container">
+          <div class="hub-header">
+            <h2 class="hub-title">BBL Action Hub</h2>
+            <p class="hub-subtitle">Live scores, standings, and top performers all in one place</p>
           </div>
-          <div class="panel-content">
-            <table class="stats-table">
-              <thead>
-                <tr>
-                  <th>Pos</th>
-                  <th>Team</th>
-                  <th>Points</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="position">1</td>
-                  <td class="team-cell">
-                    <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars" class="team-logo-table">
-                    <span class="team-name">Melbourne Stars</span>
-                  </td>
-                  <td class="points">16</td>
-                </tr>
-                <tr>
-                  <td class="position">2</td>
-                  <td class="team-cell">
-                    <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers" class="team-logo-table">
-                    <span class="team-name">Sydney Sixers</span>
-                  </td>
-                  <td class="points">14</td>
-                </tr>
-                <tr>
-                  <td class="position">3</td>
-                  <td class="team-cell">
-                    <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers" class="team-logo-table">
-                    <span class="team-name">Perth Scorchers</span>
-                  </td>
-                  <td class="points">12</td>
-                </tr>
-                <tr>
-                  <td class="position">4</td>
-                  <td class="team-cell">
-                    <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat" class="team-logo-table">
-                    <span class="team-name">Brisbane Heat</span>
-                  </td>
-                  <td class="points">10</td>
-                </tr>
-              </tbody>
-            </table>
+          
+          <!-- Tab Navigation -->
+          <div class="hub-tabs">
+            <button class="hub-tab active" data-tab="fixtures">
+              <i class="bi bi-calendar-event"></i>
+              <span>Fixtures</span>
+            </button>
+            <button class="hub-tab" data-tab="standings">
+              <i class="bi bi-trophy-fill"></i>
+              <span>Points Table</span>
+            </button>
+            <button class="hub-tab" data-tab="performers">
+              <i class="bi bi-star-fill"></i>
+              <span>Top Performers</span>
+            </button>
           </div>
-        </div>
-      </div>
-      
-      <!-- Most Runs -->
-      <div class="col-lg-4">
-        <div class="leaderboard-panel runs-panel">
-          <div class="panel-header">
-            <i class="bi bi-lightning-charge-fill bat-icon"></i>
-            <h3>MOST RUNS</h3>
-          </div>
-          <div class="panel-content">
-            <table class="stats-table">
-              <thead>
-                <tr>
-                  <th>Player</th>
-                  <th>Team</th>
-                  <th>Runs</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="player-cell">
-                    <div class="player-avatar">MS</div>
-                    <span class="player-name">Marcus Stoinis</span>
-                  </td>
-                  <td class="team-badge stars-badge">STA</td>
-                  <td class="stat-value">485</td>
-                </tr>
-                <tr>
-                  <td class="player-cell">
-                    <div class="player-avatar">JI</div>
-                    <span class="player-name">Josh Inglis</span>
-                  </td>
-                  <td class="team-badge">SCO</td>
-                  <td class="stat-value">423</td>
-                </tr>
-                <tr>
-                  <td class="player-cell">
-                    <div class="player-avatar">AH</div>
-                    <span class="player-name">Alex Hales</span>
-                  </td>
-                  <td class="team-badge">SIX</td>
-                  <td class="stat-value">395</td>
-                </tr>
-                <tr>
-                  <td class="player-cell">
-                    <div class="player-avatar">CL</div>
-                    <span class="player-name">Chris Lynn</span>
-                  </td>
-                  <td class="team-badge">HEA</td>
-                  <td class="stat-value">367</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Most Wickets -->
-      <div class="col-lg-4">
-        <div class="leaderboard-panel wickets-panel">
-          <div class="panel-header">
-            <i class="bi bi-bullseye ball-icon"></i>
-            <h3>MOST WICKETS</h3>
-          </div>
-          <div class="panel-content">
-            <table class="stats-table">
-              <thead>
-                <tr>
-                  <th>Player</th>
-                  <th>Team</th>
-                  <th>Wickets</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="player-cell">
-                    <div class="player-avatar">TB</div>
-                    <span class="player-name">Trent Boult</span>
-                  </td>
-                  <td class="team-badge">HUR</td>
-                  <td class="stat-value">24</td>
-                </tr>
-                <tr>
-                  <td class="player-cell">
-                    <div class="player-avatar">JR</div>
-                    <span class="player-name">Jhye Richardson</span>
-                  </td>
-                  <td class="team-badge">SCO</td>
-                  <td class="stat-value">22</td>
-                </tr>
-                <tr>
-                  <td class="player-cell">
-                    <div class="player-avatar">AZ</div>
-                    <span class="player-name">Adam Zampa</span>
-                  </td>
-                  <td class="team-badge">STA</td>
-                  <td class="stat-value">21</td>
-                </tr>
-                <tr>
-                  <td class="player-cell">
-                    <div class="player-avatar">SA</div>
-                    <span class="player-name">Sean Abbott</span>
-                  </td>
-                  <td class="team-badge">SIX</td>
-                  <td class="stat-value">19</td>
-                </tr>
-              </tbody>
-            </table>
+          
+          <!-- Tab Content -->
+          <div class="hub-content">
+            <!-- Fixtures Tab -->
+            <div class="tab-panel active" id="fixtures-panel">
+              <div class="fixtures-grid">
+                <div class="fixture-card">
+                  <div class="fixture-header">
+                    <span class="match-status live">LIVE</span>
+                    <span class="match-date">Today, 7:15 PM</span>
+                  </div>
+                  <div class="teams-matchup">
+                    <div class="team-side home">
+                      <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars" class="team-logo">
+                      <span class="team-name">Melbourne Stars</span>
+                      <span class="team-score">156/4</span>
+                    </div>
+                    <div class="vs-indicator">
+                      <span>VS</span>
+                      <div class="match-progress">
+                        <span class="over-info">15.3 overs</span>
+                      </div>
+                    </div>
+                    <div class="team-side away">
+                      <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers" class="team-logo">
+                      <span class="team-name">Sydney Sixers</span>
+                      <span class="team-score">132/6</span>
+                    </div>
+                  </div>
+                  <div class="fixture-venue">
+                    <i class="bi bi-geo-alt"></i>
+                    <span>Melbourne Cricket Ground</span>
+                  </div>
+                </div>
+                
+                <div class="fixture-card">
+                  <div class="fixture-header">
+                    <span class="match-status upcoming">Tomorrow</span>
+                    <span class="match-date">Dec 17, 6:30 PM</span>
+                  </div>
+                  <div class="teams-matchup">
+                    <div class="team-side home">
+                      <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers" class="team-logo">
+                      <span class="team-name">Perth Scorchers</span>
+                    </div>
+                    <div class="vs-indicator">
+                      <span>VS</span>
+                    </div>
+                    <div class="team-side away">
+                      <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat" class="team-logo">
+                      <span class="team-name">Brisbane Heat</span>
+                    </div>
+                  </div>
+                  <div class="fixture-venue">
+                    <i class="bi bi-geo-alt"></i>
+                    <span>Optus Stadium, Perth</span>
+                  </div>
+                </div>
+                
+                <div class="fixture-card">
+                  <div class="fixture-header">
+                    <span class="match-status upcoming">Dec 18</span>
+                    <span class="match-date">7:15 PM</span>
+                  </div>
+                  <div class="teams-matchup">
+                    <div class="team-side home">
+                      <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hurricanes" class="team-logo">
+                      <span class="team-name">Hobart Hurricanes</span>
+                    </div>
+                    <div class="vs-indicator">
+                      <span>VS</span>
+                    </div>
+                    <div class="team-side away">
+                      <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Strikers" class="team-logo">
+                      <span class="team-name">Adelaide Strikers</span>
+                    </div>
+                  </div>
+                  <div class="fixture-venue">
+                    <i class="bi bi-geo-alt"></i>
+                    <span>Bellerive Oval, Hobart</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Standings Tab -->
+            <div class="tab-panel" id="standings-panel">
+              <div class="standings-table-container">
+                <table class="enhanced-standings-table">
+                  <thead>
+                    <tr>
+                      <th>Pos</th>
+                      <th>Team</th>
+                      <th>P</th>
+                      <th>W</th>
+                      <th>L</th>
+                      <th>NRR</th>
+                      <th>Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="playoff-position" data-team="stars">
+                      <td class="position">1</td>
+                      <td class="team-cell">
+                        <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars" class="team-logo-table">
+                        <span class="team-name">Melbourne Stars</span>
+                        <span class="playoff-indicator">🏆</span>
+                      </td>
+                      <td>8</td>
+                      <td>6</td>
+                      <td>2</td>
+                      <td>+0.85</td>
+                      <td class="points">16</td>
+                    </tr>
+                    <tr class="playoff-position" data-team="sixers">
+                      <td class="position">2</td>
+                      <td class="team-cell">
+                        <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers" class="team-logo-table">
+                        <span class="team-name">Sydney Sixers</span>
+                        <span class="playoff-indicator">🏆</span>
+                      </td>
+                      <td>8</td>
+                      <td>5</td>
+                      <td>3</td>
+                      <td>+0.42</td>
+                      <td class="points">14</td>
+                    </tr>
+                    <tr class="playoff-position" data-team="scorchers">
+                      <td class="position">3</td>
+                      <td class="team-cell">
+                        <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers" class="team-logo-table">
+                        <span class="team-name">Perth Scorchers</span>
+                        <span class="playoff-indicator">🏆</span>
+                      </td>
+                      <td>7</td>
+                      <td>4</td>
+                      <td>3</td>
+                      <td>+0.18</td>
+                      <td class="points">12</td>
+                    </tr>
+                    <tr class="playoff-position" data-team="heat">
+                      <td class="position">4</td>
+                      <td class="team-cell">
+                        <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat" class="team-logo-table">
+                        <span class="team-name">Brisbane Heat</span>
+                        <span class="playoff-indicator">🏆</span>
+                      </td>
+                      <td>8</td>
+                      <td>4</td>
+                      <td>4</td>
+                      <td>-0.15</td>
+                      <td class="points">10</td>
+                    </tr>
+                    <tr data-team="hurricanes">
+                      <td class="position">5</td>
+                      <td class="team-cell">
+                        <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hurricanes" class="team-logo-table">
+                        <span class="team-name">Hobart Hurricanes</span>
+                      </td>
+                      <td>7</td>
+                      <td>3</td>
+                      <td>4</td>
+                      <td>-0.28</td>
+                      <td class="points">8</td>
+                    </tr>
+                    <tr data-team="strikers">
+                      <td class="position">6</td>
+                      <td class="team-cell">
+                        <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Strikers" class="team-logo-table">
+                        <span class="team-name">Adelaide Strikers</span>
+                      </td>
+                      <td>8</td>
+                      <td>3</td>
+                      <td>5</td>
+                      <td>-0.35</td>
+                      <td class="points">8</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Performers Tab -->
+            <div class="tab-panel" id="performers-panel">
+              <div class="performers-container">
+                <div class="performers-subtabs">
+                  <button class="performer-tab active" data-subtab="runs">Most Runs</button>
+                  <button class="performer-tab" data-subtab="wickets">Most Wickets</button>
+                </div>
+                
+                <div class="performer-content">
+                  <div class="performer-panel active" id="runs-performers">
+                    <div class="player-cards-grid">
+                      <div class="player-card featured">
+                        <div class="player-photo">
+                          <div class="player-avatar">MS</div>
+                          <div class="player-stats-overlay">
+                            <span class="stat-number">485</span>
+                            <span class="stat-label">Runs</span>
+                          </div>
+                        </div>
+                        <div class="player-info">
+                          <h4 class="player-name">Marcus Stoinis</h4>
+                          <div class="team-badge stars-badge">
+                            <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars">
+                            <span>Melbourne Stars</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="player-card">
+                        <div class="player-photo">
+                          <div class="player-avatar">JI</div>
+                          <div class="player-stats-overlay">
+                            <span class="stat-number">423</span>
+                            <span class="stat-label">Runs</span>
+                          </div>
+                        </div>
+                        <div class="player-info">
+                          <h4 class="player-name">Josh Inglis</h4>
+                          <div class="team-badge scorchers-badge">
+                            <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers">
+                            <span>Perth Scorchers</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="player-card">
+                        <div class="player-photo">
+                          <div class="player-avatar">AH</div>
+                          <div class="player-stats-overlay">
+                            <span class="stat-number">395</span>
+                            <span class="stat-label">Runs</span>
+                          </div>
+                        </div>
+                        <div class="player-info">
+                          <h4 class="player-name">Alex Hales</h4>
+                          <div class="team-badge sixers-badge">
+                            <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers">
+                            <span>Sydney Sixers</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="player-card">
+                        <div class="player-photo">
+                          <div class="player-avatar">CL</div>
+                          <div class="player-stats-overlay">
+                            <span class="stat-number">367</span>
+                            <span class="stat-label">Runs</span>
+                          </div>
+                        </div>
+                        <div class="player-info">
+                          <h4 class="player-name">Chris Lynn</h4>
+                          <div class="team-badge heat-badge">
+                            <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat">
+                            <span>Brisbane Heat</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="performer-panel" id="wickets-performers">
+                    <div class="player-cards-grid">
+                      <div class="player-card featured">
+                        <div class="player-photo">
+                          <div class="player-avatar">TB</div>
+                          <div class="player-stats-overlay">
+                            <span class="stat-number">24</span>
+                            <span class="stat-label">Wickets</span>
+                          </div>
+                        </div>
+                        <div class="player-info">
+                          <h4 class="player-name">Trent Boult</h4>
+                          <div class="team-badge hurricanes-badge">
+                            <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hurricanes">
+                            <span>Hobart Hurricanes</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="player-card">
+                        <div class="player-photo">
+                          <div class="player-avatar">JR</div>
+                          <div class="player-stats-overlay">
+                            <span class="stat-number">22</span>
+                            <span class="stat-label">Wickets</span>
+                          </div>
+                        </div>
+                        <div class="player-info">
+                          <h4 class="player-name">Jhye Richardson</h4>
+                          <div class="team-badge scorchers-badge">
+                            <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers">
+                            <span>Perth Scorchers</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="player-card">
+                        <div class="player-photo">
+                          <div class="player-avatar">AZ</div>
+                          <div class="player-stats-overlay">
+                            <span class="stat-number">21</span>
+                            <span class="stat-label">Wickets</span>
+                          </div>
+                        </div>
+                        <div class="player-info">
+                          <h4 class="player-name">Adam Zampa</h4>
+                          <div class="team-badge stars-badge">
+                            <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars">
+                            <span>Melbourne Stars</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="player-card">
+                        <div class="player-photo">
+                          <div class="player-avatar">SA</div>
+                          <div class="player-stats-overlay">
+                            <span class="stat-number">19</span>
+                            <span class="stat-label">Wickets</span>
+                          </div>
+                        </div>
+                        <div class="player-info">
+                          <h4 class="player-name">Sean Abbott</h4>
+                          <div class="team-badge sixers-badge">
+                            <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers">
+                            <span>Sydney Sixers</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 </section>
-<!-- TEAMS SECTION -->
-<section class="teams-section">
+<!-- ENHANCED TEAMS CAROUSEL SECTION -->
+<section class="teams-carousel-section section-divider">
   <div class="container">
-    <div class="row g-3">
-      <div class="col-lg-3 col-md-6 col-6">
-        <a href="{{ url_for('teams') }}" class="team-card-link">
-          <div class="team-card adelaide-strikers">
-            <div class="team-logo">
-              <div class="team-logo-official strikers-logo">
-                <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Adelaide Strikers" class="real-team-logo">
-                <div class="logo-glow"></div>
+    <div class="row">
+      <div class="col-12">
+        <div class="carousel-header">
+          <h2 class="carousel-title">BBL Teams</h2>
+          <p class="carousel-subtitle">Discover your favorite franchise</p>
+        </div>
+        
+        <div class="teams-carousel-container">
+          <div class="carousel-navigation">
+            <button class="carousel-btn prev-btn" id="prevBtn">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="carousel-btn next-btn" id="nextBtn">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+          
+          <div class="teams-carousel-wrapper">
+            <div class="teams-carousel" id="teamsCarousel">
+              <div class="team-carousel-card adelaide-strikers" data-team="strikers">
+                <div class="team-card-content">
+                  <div class="team-logo-container">
+                    <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Adelaide Strikers" class="team-logo-carousel">
+                    <div class="logo-glow strikers-glow"></div>
+                  </div>
+                  <div class="team-info-overlay">
+                    <h3 class="team-full-name">Adelaide Strikers</h3>
+                    <p class="team-subtitle">The Strike Force</p>
+                    <div class="team-stats">
+                      <span class="stat-item">6th Position</span>
+                      <span class="stat-divider">•</span>
+                      <span class="stat-item">8 Points</span>
+                    </div>
+                  </div>
+                  <div class="player-reveal">
+                    <div class="player-silhouette strikers-player"></div>
+                  </div>
+                </div>
+                <div class="team-color-accent strikers-accent"></div>
+              </div>
+              
+              <div class="team-carousel-card brisbane-heat" data-team="heat">
+                <div class="team-card-content">
+                  <div class="team-logo-container">
+                    <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Brisbane Heat" class="team-logo-carousel">
+                    <div class="logo-glow heat-glow"></div>
+                  </div>
+                  <div class="team-info-overlay">
+                    <h3 class="team-full-name">Brisbane Heat</h3>
+                    <p class="team-subtitle">Feel the Heat</p>
+                    <div class="team-stats">
+                      <span class="stat-item">4th Position</span>
+                      <span class="stat-divider">•</span>
+                      <span class="stat-item">10 Points</span>
+                    </div>
+                  </div>
+                  <div class="player-reveal">
+                    <div class="player-silhouette heat-player"></div>
+                  </div>
+                </div>
+                <div class="team-color-accent heat-accent"></div>
+              </div>
+              
+              <div class="team-carousel-card hobart-hurricanes" data-team="hurricanes">
+                <div class="team-card-content">
+                  <div class="team-logo-container">
+                    <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hobart Hurricanes" class="team-logo-carousel">
+                    <div class="logo-glow hurricanes-glow"></div>
+                  </div>
+                  <div class="team-info-overlay">
+                    <h3 class="team-full-name">Hobart Hurricanes</h3>
+                    <p class="team-subtitle">Hurricane Force</p>
+                    <div class="team-stats">
+                      <span class="stat-item">5th Position</span>
+                      <span class="stat-divider">•</span>
+                      <span class="stat-item">8 Points</span>
+                    </div>
+                  </div>
+                  <div class="player-reveal">
+                    <div class="player-silhouette hurricanes-player"></div>
+                  </div>
+                </div>
+                <div class="team-color-accent hurricanes-accent"></div>
+              </div>
+              
+              <div class="team-carousel-card melbourne-renegades" data-team="renegades">
+                <div class="team-card-content">
+                  <div class="team-logo-container">
+                    <img src="{{ url_for('static', filename='img/teams/Melbourne Renegades.png') }}" alt="Melbourne Renegades" class="team-logo-carousel">
+                    <div class="logo-glow renegades-glow"></div>
+                  </div>
+                  <div class="team-info-overlay">
+                    <h3 class="team-full-name">Melbourne Renegades</h3>
+                    <p class="team-subtitle">Rebel Spirit</p>
+                    <div class="team-stats">
+                      <span class="stat-item">7th Position</span>
+                      <span class="stat-divider">•</span>
+                      <span class="stat-item">6 Points</span>
+                    </div>
+                  </div>
+                  <div class="player-reveal">
+                    <div class="player-silhouette renegades-player"></div>
+                  </div>
+                </div>
+                <div class="team-color-accent renegades-accent"></div>
+              </div>
+              
+              <div class="team-carousel-card melbourne-stars" data-team="stars">
+                <div class="team-card-content">
+                  <div class="team-logo-container">
+                    <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Melbourne Stars" class="team-logo-carousel">
+                    <div class="logo-glow stars-glow"></div>
+                  </div>
+                  <div class="team-info-overlay">
+                    <h3 class="team-full-name">Melbourne Stars</h3>
+                    <p class="team-subtitle">Shine Bright</p>
+                    <div class="team-stats">
+                      <span class="stat-item">1st Position</span>
+                      <span class="stat-divider">•</span>
+                      <span class="stat-item">16 Points</span>
+                    </div>
+                  </div>
+                  <div class="player-reveal">
+                    <div class="player-silhouette stars-player"></div>
+                  </div>
+                </div>
+                <div class="team-color-accent stars-accent"></div>
+              </div>
+              
+              <div class="team-carousel-card perth-scorchers" data-team="scorchers">
+                <div class="team-card-content">
+                  <div class="team-logo-container">
+                    <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Perth Scorchers" class="team-logo-carousel">
+                    <div class="logo-glow scorchers-glow"></div>
+                  </div>
+                  <div class="team-info-overlay">
+                    <h3 class="team-full-name">Perth Scorchers</h3>
+                    <p class="team-subtitle">Desert Fire</p>
+                    <div class="team-stats">
+                      <span class="stat-item">3rd Position</span>
+                      <span class="stat-divider">•</span>
+                      <span class="stat-item">12 Points</span>
+                    </div>
+                  </div>
+                  <div class="player-reveal">
+                    <div class="player-silhouette scorchers-player"></div>
+                  </div>
+                </div>
+                <div class="team-color-accent scorchers-accent"></div>
+              </div>
+              
+              <div class="team-carousel-card sydney-sixers" data-team="sixers">
+                <div class="team-card-content">
+                  <div class="team-logo-container">
+                    <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sydney Sixers" class="team-logo-carousel">
+                    <div class="logo-glow sixers-glow"></div>
+                  </div>
+                  <div class="team-info-overlay">
+                    <h3 class="team-full-name">Sydney Sixers</h3>
+                    <p class="team-subtitle">Six Appeal</p>
+                    <div class="team-stats">
+                      <span class="stat-item">2nd Position</span>
+                      <span class="stat-divider">•</span>
+                      <span class="stat-item">14 Points</span>
+                    </div>
+                  </div>
+                  <div class="player-reveal">
+                    <div class="player-silhouette sixers-player"></div>
+                  </div>
+                </div>
+                <div class="team-color-accent sixers-accent"></div>
+              </div>
+              
+              <div class="team-carousel-card sydney-thunder" data-team="thunder">
+                <div class="team-card-content">
+                  <div class="team-logo-container">
+                    <img src="{{ url_for('static', filename='img/teams/Sydney Thunder.png') }}" alt="Sydney Thunder" class="team-logo-carousel">
+                    <div class="logo-glow thunder-glow"></div>
+                  </div>
+                  <div class="team-info-overlay">
+                    <h3 class="team-full-name">Sydney Thunder</h3>
+                    <p class="team-subtitle">Thunder Strike</p>
+                    <div class="team-stats">
+                      <span class="stat-item">8th Position</span>
+                      <span class="stat-divider">•</span>
+                      <span class="stat-item">4 Points</span>
+                    </div>
+                  </div>
+                  <div class="player-reveal">
+                    <div class="player-silhouette thunder-player"></div>
+                  </div>
+                </div>
+                <div class="team-color-accent thunder-accent"></div>
               </div>
             </div>
-            <h4>Adelaide<br>Strikers</h4>
-            <div class="card-shine"></div>
           </div>
-        </a>
-      </div>
-      <div class="col-lg-3 col-md-6 col-6">
-        <a href="{{ url_for('teams') }}" class="team-card-link">
-          <div class="team-card brisbane-heat">
-            <div class="team-logo">
-              <div class="team-logo-official heat-logo">
-                <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Brisbane Heat" class="real-team-logo">
-                <div class="logo-glow"></div>
-              </div>
-            </div>
-            <h4>Brisbane<br>Heat</h4>
-            <div class="card-shine"></div>
+          
+          <div class="carousel-indicators">
+            <span class="indicator active" data-slide="0"></span>
+            <span class="indicator" data-slide="1"></span>
+            <span class="indicator" data-slide="2"></span>
           </div>
-        </a>
-      </div>
-      <div class="col-lg-3 col-md-6 col-6">
-        <a href="{{ url_for('teams') }}" class="team-card-link">
-          <div class="team-card hobart-hurricanes">
-            <div class="team-logo">
-              <div class="team-logo-official hurricanes-logo">
-                <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hobart Hurricanes" class="real-team-logo">
-                <div class="logo-glow"></div>
-              </div>
-            </div>
-            <h4>Hobart<br>Hurricanes</h4>
-            <div class="card-shine"></div>
-          </div>
-        </a>
-      </div>
-      <div class="col-lg-3 col-md-6 col-6">
-        <a href="{{ url_for('teams') }}" class="team-card-link">
-          <div class="team-card melbourne-renegades">
-            <div class="team-logo">
-              <div class="team-logo-official renegades-logo">
-                <img src="{{ url_for('static', filename='img/teams/Melbourne Renegades.png') }}" alt="Melbourne Renegades" class="real-team-logo">
-                <div class="logo-glow"></div>
-              </div>
-            </div>
-            <h4>Melbourne<br>Renegades</h4>
-            <div class="card-shine"></div>
-          </div>
-        </a>
-      </div>
-      <div class="col-lg-3 col-md-6 col-6">
-        <a href="{{ url_for('teams') }}" class="team-card-link">
-          <div class="team-card melbourne-stars">
-            <div class="team-logo">
-              <div class="team-logo-official stars-logo">
-                <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Melbourne Stars" class="real-team-logo">
-                <div class="logo-glow"></div>
-              </div>
-            </div>
-            <h4>Melbourne<br>Stars</h4>
-            <div class="card-shine"></div>
-          </div>
-        </a>
-      </div>
-      <div class="col-lg-3 col-md-6 col-6">
-        <a href="{{ url_for('teams') }}" class="team-card-link">
-          <div class="team-card perth-scorchers">
-            <div class="team-logo">
-              <div class="team-logo-official scorchers-logo">
-                <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Perth Scorchers" class="real-team-logo">
-                <div class="logo-glow"></div>
-              </div>
-            </div>
-            <h4>Perth<br>Scorchers</h4>
-            <div class="card-shine"></div>
-          </div>
-        </a>
-      </div>
-      <div class="col-lg-3 col-md-6 col-6">
-        <a href="{{ url_for('teams') }}" class="team-card-link">
-          <div class="team-card sydney-sixers">
-            <div class="team-logo">
-              <div class="team-logo-official sixers-logo">
-                <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sydney Sixers" class="real-team-logo">
-                <div class="logo-glow"></div>
-              </div>
-            </div>
-            <h4>Sydney<br>Sixers</h4>
-            <div class="card-shine"></div>
-          </div>
-        </a>
-      </div>
-      <div class="col-lg-3 col-md-6 col-6">
-        <a href="{{ url_for('teams') }}" class="team-card-link">
-          <div class="team-card sydney-thunder">
-            <div class="team-logo">
-              <div class="team-logo-official thunder-logo">
-                <img src="{{ url_for('static', filename='img/teams/Sydney Thunder.png') }}" alt="Sydney Thunder" class="real-team-logo">
-                <div class="logo-glow"></div>
-              </div>
-            </div>
-            <h4>Sydney<br>Thunder</h4>
-            <div class="card-shine"></div>
-          </div>
-        </a>
+        </div>
       </div>
     </div>
   </div>

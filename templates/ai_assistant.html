@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CricVerse AI Command Center</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/ai_assistant.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- Enhanced 3D Scene Container for Better Visual Appeal -->
+    <div id="scene-container">
+        <canvas id="canvas3d"></canvas>
+        <div class="cricket-starfield-overlay"></div>
+        <div class="cricket-visual-elements">
+            <div class="floating-cricket-ball"></div>
+            <div class="cricket-orbit-ring"></div>
+            <div class="cricket-particles"></div>
+        </div>
+    </div>
+
+    <!-- Navigation Back Button -->
+    <div class="nav-controls">
+        <a href="{{ url_for('index') }}" class="back-btn" title="Back to Home">
+            <i class="bi bi-house-fill"></i>
+        </a>
+        <a href="{{ url_for('ai_options') }}" class="options-btn" title="Switch Interface">
+            <i class="bi bi-grid-3x3-gap"></i>
+        </a>
+    </div>
+
+    <!-- Main UI Container -->
+    <div id="chat-ui">
+        <!-- Header Panel -->
+        <div class="command-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="cricverse-logo">
+                        <img src="{{ url_for('static', filename='img/cricverse_logo_new.png') }}" alt="CricVerse" class="main-logo">
+                    </div>
+                    <div class="ai-avatar">
+                        <div class="avatar-ring"></div>
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="title-section">
+                        <h1>AI Command Center</h1>
+                        <span class="subtitle">Powered by Advanced AI</span>
+                    </div>
+                </div>
+                <div class="status-indicators">
+                    <div class="status-item" id="connection-status">
+                        <div class="status-dot checking"></div>
+                        <span>Checking...</span>
+                    </div>
+                    <div class="status-item" id="ai-status">
+                        <div class="status-dot checking"></div>
+                        <span>AI Loading...</span>
+                    </div>
+                    <div class="status-item" id="db-status">
+                        <div class="status-dot checking"></div>
+                        <span>Database...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Interface -->
+        <div class="chat-interface">
+            <!-- Messages Container with proper scrolling -->
+            <div id="message-container" class="message-container">
+                <!-- Welcome Message -->
+                <div class="message ai-message welcome-message" data-message-id="welcome">
+                    <div class="message-avatar">
+                        <div class="ai-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="sender-name">CricVerse AI</span>
+                            <span class="message-time">Just now</span>
+                        </div>
+                        <div class="message-text">
+                            <p>🏏 <strong>Welcome to CricVerse AI Command Center!</strong></p>
+                            <p>I'm your advanced cricket assistant with access to comprehensive stadium data, match information, and booking capabilities.</p>
+                            <div class="capability-grid">
+                                <div class="capability-item">
+                                    <i class="bi bi-ticket-perforated"></i>
+                                    <span>Smart Ticket Booking</span>
+                                </div>
+                                <div class="capability-item">
+                                    <i class="bi bi-building"></i>
+                                    <span>Stadium Information</span>
+                                </div>
+                                <div class="capability-item">
+                                    <i class="bi bi-calendar-event"></i>
+                                    <span>Match Schedules</span>
+                                </div>
+                                <div class="capability-item">
+                                    <i class="bi bi-car-front"></i>
+                                    <span>Parking & Navigation</span>
+                                </div>
+                                <div class="capability-item">
+                                    <i class="bi bi-graph-up"></i>
+                                    <span>Live Match Data</span>
+                                </div>
+                                <div class="capability-item">
+                                    <i class="bi bi-people"></i>
+                                    <span>Team Analytics</span>
+                                </div>
+                            </div>
+                            <p class="highlight-text">🎯 <strong>Ready to help with anything cricket-related!</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scroll to Bottom Button -->
+            <div id="scroll-bottom-btn" class="scroll-bottom-btn" style="display: none;">
+                <i class="bi bi-arrow-down"></i>
+            </div>
+
+            <!-- Thinking Animation -->
+            <div id="thinking-indicator" class="thinking-indicator" style="display: none;">
+                <div class="message ai-message thinking">
+                    <div class="message-avatar">
+                        <div class="ai-icon thinking">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                    </div>
+                    <div class="message-content">
+                        <div class="thinking-animation">
+                            <div class="neural-network">
+                                <div class="neuron"></div>
+                                <div class="neuron"></div>
+                                <div class="neuron"></div>
+                                <div class="neuron"></div>
+                                <div class="neuron"></div>
+                            </div>
+                            <span class="thinking-text" id="thinking-text">AI is processing your request...</span>
+                        </div>
+                        <div class="processing-stages">
+                            <div class="stage active" data-stage="analyze">Analyzing query</div>
+                            <div class="stage" data-stage="search">Searching database</div>
+                            <div class="stage" data-stage="generate">Generating response</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Quick Actions Panel -->
+                <!-- Enhanced Quick Actions Panel -->
+            <div class="quick-actions-panel" id="quick-actions">
+                <div class="actions-header">
+                    <span>Quick Actions</span>
+                    <i class="bi bi-lightning-fill"></i>
+                </div>
+                <div class="actions-grid">
+                    <div class="action-chip" onclick="sendQuickMessage('Book tickets for Melbourne Cricket Ground')">
+                        <i class="bi bi-ticket-perforated"></i>
+                        <span>Book MCG Tickets</span>
+                    </div>
+                    <div class="action-chip" onclick="sendQuickMessage('Show me all Australian cricket stadiums')">
+                        <i class="bi bi-building"></i>
+                        <span>Stadium Guide</span>
+                    </div>
+                    <div class="action-chip" onclick="sendQuickMessage('What cricket matches are happening this week?')">
+                        <i class="bi bi-calendar-event"></i>
+                        <span>This Week's Matches</span>
+                    </div>
+                    <div class="action-chip" onclick="sendQuickMessage('Help me reserve parking at Sydney Cricket Ground')">
+                        <i class="bi bi-car-front"></i>
+                        <span>Parking Assistance</span>
+                    </div>
+                    <div class="action-chip" onclick="sendQuickMessage('Show me BBL team standings and statistics')">
+                        <i class="bi bi-trophy"></i>
+                        <span>BBL Team Stats</span>
+                    </div>
+                    <div class="action-chip" onclick="sendQuickMessage('What food and drink options are available at stadiums?')">
+                        <i class="bi bi-cup-hot"></i>
+                        <span>Food & Drinks</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Input Container -->
+        <div id="input-container" class="input-container">
+            <div class="input-wrapper">
+                <div class="input-field">
+                    <div class="input-prefix">
+                        <i class="bi bi-chat-dots"></i>
+                    </div>
+                    <input type="text" id="message-input" placeholder="Ask me anything about cricket, stadiums, or booking tickets..." autocomplete="off" maxlength="500">
+                    <div class="input-actions">
+                        <button id="voice-btn" class="voice-btn" title="Voice Input (Click and speak)">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button id="send-btn" class="send-btn" onclick="sendMessage()" title="Send message">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-footer">
+                    <div class="char-count" id="char-count">0/500</div>
+                    <div class="input-suggestions" id="input-suggestions">
+                        <!-- Dynamic suggestions will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Performance Monitor -->
+    <div id="performance-monitor" class="performance-monitor" style="display: none;">
+        <div class="monitor-header">
+            <span>Performance</span>
+            <button id="close-monitor" class="close-btn">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="monitor-content">
+            <div class="perf-item">
+                <span>FPS:</span>
+                <span id="fps-counter" class="value">--</span>
+            </div>
+            <div class="perf-item">
+                <span>Memory:</span>
+                <span id="memory-counter" class="value">--MB</span>
+            </div>
+            <div class="perf-item">
+                <span>Particles:</span>
+                <span id="particle-counter" class="value">--</span>
+            </div>
+            <div class="perf-item">
+                <span>Quality:</span>
+                <span id="quality-indicator" class="value">Auto</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast" class="error-toast" style="display: none;">
+        <div class="toast-content">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span id="error-message">An error occurred</span>
+        </div>
+        <button class="toast-close" onclick="hideErrorToast()">
+            <i class="bi bi-x"></i>
+        </button>
+    </div>
+
+    <!-- Enhanced Cricket Theme Scripts -->
+    <script>
+        // Cricket Theme Initialization
+        let cricketBall = null;
+        let mouseX = 0, mouseY = 0;
+        
+        // Optimized resource loading for cricket theme
+        const criticalResources = [
+            'https://unpkg.com/three@0.155.0/build/three.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js'
+        ];
+        
+        // Enhanced script loader with cricket theme preloading
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Initialize cricket visual elements
+        function initCricketTheme() {
+            // Create floating cricket ball that follows mouse
+            const cricketBall = document.querySelector('.floating-cricket-ball');
+            if (cricketBall) {
+                document.addEventListener('mousemove', (e) => {
+                    mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                    mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+                    
+                    const rotateX = mouseY * 30;
+                    const rotateY = mouseX * 30;
+                    
+                    cricketBall.style.transform = `translate(${e.clientX - 25}px, ${e.clientY - 25}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+                });
+            }
+            
+            // Initialize cricket-themed particles
+            initCricketParticles();
+        }
+        
+        // Cricket particles system
+        function initCricketParticles() {
+            const particlesContainer = document.querySelector('.cricket-particles');
+            if (particlesContainer) {
+                for (let i = 0; i < 20; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'cricket-particle';
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.top = Math.random() * 100 + '%';
+                    particle.style.animationDelay = Math.random() * 5 + 's';
+                    particlesContainer.appendChild(particle);
+                }
+            }
+        }
+        
+        // Optimized loading sequence
+        async function loadCriticalScripts() {
+            try {
+                console.log('🏏 Launching Enhanced Cricket Assistant...');
+                
+                // Show loading indicator
+                showCricketLoader();
+                
+                await loadScript('https://unpkg.com/three@0.155.0/build/three.min.js');
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js');
+                
+                // Initialize cricket theme
+                initCricketTheme();
+                
+                // Load main application script
+                await loadScript("{{ url_for('static', filename='js/ai_assistant.js') }}?v=3.1");
+                
+                // Hide loading indicator
+                hideCricketLoader();
+                
+                console.log('✅ Enhanced Cricket Assistant Ready!');
+            } catch (error) {
+                console.error('💥 Cricket assistant initialization failed:', error);
+                showFallbackUI();
+            }
+        }
+        
+        // Enhanced loading indicators
+        function showCricketLoader() {
+            const loader = document.createElement('div');
+            loader.id = 'cricket-loader';
+            loader.innerHTML = `
+                <div class="cricket-loader-content">
+                    <div class="cricket-ball-loader"></div>
+                    <div class="loader-text">🏏 Initializing Cricket Assistant...</div>
+                    <div class="loader-progress"><div class="progress-bar"></div></div>
+                </div>
+            `;
+            document.body.appendChild(loader);
+        }
+        
+        function hideCricketLoader() {
+            const loader = document.getElementById('cricket-loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 500);
+            }
+        }
+        
+        function showFallbackUI() {
+            const fallback = document.createElement('div');
+            fallback.style = 'position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #ff4444, #cc1414); color: white; padding: 15px 20px; border-radius: 12px; z-index: 10000; box-shadow: 0 8px 32px rgba(255, 68, 68, 0.3);';
+            fallback.innerHTML = '🏏 Enhanced cricket mode unavailable. Using standard interface.';
+            document.body.appendChild(fallback);
+            setTimeout(() => fallback.remove(), 5000);
+        }
+        
+        // Start the enhanced cricket experience
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadCriticalScripts);
+        } else {
+            loadCriticalScripts();
+        }
+    </script>
+
+    <!-- Debug mode activation -->
+    <script>
+        // Show performance monitor in debug mode
+        if (window.location.search.includes('debug=true')) {
+            document.getElementById('performance-monitor').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

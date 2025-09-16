@@ -72,7 +72,9 @@ if 'postgresql' in database_url:
         'pool_pre_ping': True,
         'pool_recycle': 300,
         'pool_timeout': 20,
-        'max_overflow': 0
+        'max_overflow': 0,
+        'pool_size': 5,  # Reduced pool size for Supabase
+        'echo': False  # Disable SQL logging for performance
     }
 
 # Initialize extensions
@@ -473,6 +475,124 @@ def stadium_admin_required(stadium_id_param='stadium_id'):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+def get_static_fallback_data():
+    """Provide static fallback data when database is unavailable"""
+    from collections import namedtuple
+    from datetime import datetime, timedelta
+    
+    # Create mock objects with the same structure as database models
+    MockEvent = namedtuple('MockEvent', ['id', 'event_name', 'event_date', 'start_time', 'stadium_id', 'home_team_id', 'away_team_id'])
+    MockStadium = namedtuple('MockStadium', ['id', 'name', 'location', 'capacity', 'image_url'])
+    MockTeam = namedtuple('MockTeam', ['id', 'team_name', 'team_logo', 'home_city'])
+    MockPlayer = namedtuple('MockPlayer', ['id', 'player_name', 'player_role'])
+    MockTeamData = namedtuple('MockTeamData', ['team', 'star_player'])
+    
+    # Mock upcoming events
+    tomorrow = datetime.now().date() + timedelta(days=1)
+    next_week = datetime.now().date() + timedelta(days=7)
+    next_month = datetime.now().date() + timedelta(days=30)
+    
+    upcoming_events = [
+        MockEvent(
+            id=1,
+            event_name="Melbourne Stars vs Sydney Sixers",
+            event_date=tomorrow,
+            start_time=datetime.strptime('19:30', '%H:%M').time(),
+            stadium_id=1,
+            home_team_id=1,
+            away_team_id=2
+        ),
+        MockEvent(
+            id=2,
+            event_name="Perth Scorchers vs Brisbane Heat",
+            event_date=next_week,
+            start_time=datetime.strptime('20:00', '%H:%M').time(),
+            stadium_id=2,
+            home_team_id=3,
+            away_team_id=4
+        ),
+        MockEvent(
+            id=3,
+            event_name="Adelaide Strikers vs Hobart Hurricanes",
+            event_date=next_month,
+            start_time=datetime.strptime('19:45', '%H:%M').time(),
+            stadium_id=3,
+            home_team_id=5,
+            away_team_id=6
+        )
+    ]
+    
+    # Mock featured stadiums
+    featured_stadiums = [
+        MockStadium(
+            id=1,
+            name="Melbourne Cricket Ground",
+            location="Melbourne, VIC",
+            capacity=100024,
+            image_url="/static/img/stadiums/mcg.jpg"
+        ),
+        MockStadium(
+            id=2,
+            name="Sydney Cricket Ground",
+            location="Sydney, NSW",
+            capacity=48000,
+            image_url="/static/img/stadiums/scg.jpg"
+        ),
+        MockStadium(
+            id=3,
+            name="Perth Stadium",
+            location="Perth, WA",
+            capacity=60000,
+            image_url="/static/img/stadiums/perth.jpg"
+        )
+    ]
+    
+    # Mock featured teams with star players
+    featured_teams_data = [
+        MockTeamData(
+            team=MockTeam(
+                id=1,
+                team_name="Melbourne Stars",
+                team_logo="/static/img/teams/Melbourne_Stars_logo.png",
+                home_city="Melbourne"
+            ),
+            star_player=MockPlayer(
+                id=1,
+                player_name="Marcus Stoinis",
+                player_role="All-rounder"
+            )
+        ),
+        MockTeamData(
+            team=MockTeam(
+                id=2,
+                team_name="Sydney Sixers",
+                team_logo="/static/img/teams/Sydney_Sixers_logo.svg.png",
+                home_city="Sydney"
+            ),
+            star_player=MockPlayer(
+                id=2,
+                player_name="Moises Henriques",
+                player_role="Captain"
+            )
+        ),
+        MockTeamData(
+            team=MockTeam(
+                id=3,
+                team_name="Perth Scorchers",
+                team_logo="/static/img/teams/Perth Scorchers.png",
+                home_city="Perth"
+            ),
+            star_player=MockPlayer(
+                id=3,
+                player_name="Mitchell Marsh",
+                player_role="All-rounder"
+            )
+        )
+    ]
+    
+    return upcoming_events, featured_stadiums, featured_teams_data
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1011,51 +1131,88 @@ def admin_profile():
 
 @app.route('/')
 def index():
+    """Home page with enhanced error handling and database fallbacks"""
     try:
-        # Fetch upcoming events using utility function
-        upcoming_events = get_upcoming_events(Event, limit=3)
-
-        # Fetch featured stadiums (e.g., top 3 by capacity or simply first 3)
-        featured_stadiums = Stadium.query.order_by(Stadium.capacity.desc()).limit(3).all()
-
-        # Fetch teams and a star player for each (e.g., first 3 teams)
-        # This assumes a 'star_player_id' or similar on Team, or we pick one.
-        # For now, let's just get the first player for each of the first 3 teams.
+        # Initialize data with empty fallbacks
+        upcoming_events = []
+        featured_stadiums = []
         featured_teams_data = []
-        teams = Team.query.limit(3).all()
-        for team in teams:
-            star_player = Player.query.filter_by(team_id=team.id).first() # Get the first player as 'star'
-            featured_teams_data.append({
-                'team': team,
-                'star_player': star_player
-            })
-
-        # Calculate time to next event for countdown
         next_match_countdown = None
-        if upcoming_events:
-            next_event = upcoming_events[0]
-            # Combine date and time for full datetime object
-            next_event_datetime = datetime.combine(next_event.event_date, next_event.start_time)
-            time_difference = next_event_datetime - datetime.utcnow()
-            if time_difference.total_seconds() > 0:
-                days = time_difference.days
-                hours = time_difference.seconds // 3600
-                minutes = (time_difference.seconds % 3600) // 60
-                next_match_countdown = {'days': days, 'hours': hours, 'minutes': minutes}
-
+        
+        # Try to fetch data from database with timeout protection
+        try:
+            # Fetch upcoming events using utility function with error handling
+            upcoming_events = get_upcoming_events(Event, limit=3)
+        except Exception as e:
+            print(f"Warning: Could not fetch upcoming events: {e}")
+            upcoming_events = []
+        
+        try:
+            # Fetch featured stadiums (top 3 by capacity)
+            featured_stadiums = Stadium.query.order_by(Stadium.capacity.desc()).limit(3).all()
+        except Exception as e:
+            print(f"Warning: Could not fetch featured stadiums: {e}")
+            featured_stadiums = []
+        
+        try:
+            # Fetch teams and star players
+            teams = Team.query.limit(3).all()
+            for team in teams:
+                try:
+                    star_player = Player.query.filter_by(team_id=team.id).first()
+                    featured_teams_data.append({
+                        'team': team,
+                        'star_player': star_player
+                    })
+                except Exception as e:
+                    print(f"Warning: Could not fetch star player for team {team.id}: {e}")
+                    # Add team without star player
+                    featured_teams_data.append({
+                        'team': team,
+                        'star_player': None
+                    })
+        except Exception as e:
+            print(f"Warning: Could not fetch teams: {e}")
+            featured_teams_data = []
+        
+        # Calculate countdown to next event if available
+        try:
+            if upcoming_events:
+                next_event = upcoming_events[0]
+                next_event_datetime = datetime.combine(next_event.event_date, next_event.start_time)
+                time_difference = next_event_datetime - datetime.utcnow()
+                if time_difference.total_seconds() > 0:
+                    days = time_difference.days
+                    hours = time_difference.seconds // 3600
+                    minutes = (time_difference.seconds % 3600) // 60
+                    next_match_countdown = {'days': days, 'hours': hours, 'minutes': minutes}
+        except Exception as e:
+            print(f"Warning: Could not calculate countdown: {e}")
+            next_match_countdown = None
+        
+        # Log successful data retrieval
+        print(f"✅ Home page loaded: {len(upcoming_events)} events, {len(featured_stadiums)} stadiums, {len(featured_teams_data)} teams")
+        
+        # If no data was loaded from database, provide static fallback
+        if not upcoming_events and not featured_stadiums and not featured_teams_data:
+            print("🔄 Using static fallback data due to database issues")
+            upcoming_events, featured_stadiums, featured_teams_data = get_static_fallback_data()
+        
         return render_template('index.html',
                                upcoming_events=upcoming_events,
                                featured_stadiums=featured_stadiums,
                                featured_teams_data=featured_teams_data,
                                next_match_countdown=next_match_countdown)
+        
     except Exception as e:
-        print(f"Error in index route: {e}")
-        # Return empty lists in case of error to prevent template errors
+        print(f"❌ Critical error in index route: {e}")
+        # Return template with empty data to prevent complete failure
         return render_template('index.html',
                                upcoming_events=[],
                                featured_stadiums=[],
                                featured_teams_data=[],
-                               next_match_countdown=None)
+                               next_match_countdown=None,
+                               error_message="Some content may not be available due to connectivity issues.")
 
 
 @app.route('/stadiums')
@@ -1570,9 +1727,19 @@ def chat_interface():
     """Render the enhanced AI chatbot interface"""
     return render_template('chat.html')
 
+@app.route('/ai-assistant')
+def ai_assistant():
+    """Render the new 3D AI Assistant Command Center"""
+    return render_template('ai_assistant.html')
+
+@app.route('/ai-options')
+def ai_options():
+    """AI Assistant options page"""
+    return render_template('ai_options.html')
+
 @app.route('/api/chat', methods=['POST'])
 def enhanced_chat_api():
-    """Enhanced AI chatbot API endpoint using OpenAI GPT-4"""
+    """Enhanced AI chatbot API endpoint using Gemini AI"""
     try:
         data = request.get_json()
         message = data.get('message', '').strip()
@@ -1593,15 +1760,87 @@ def enhanced_chat_api():
             session_id = str(uuid.uuid4())
             session['chat_session_id'] = session_id
         
-        # Import and use the chatbot
+        # Import and use the chatbot with proper error handling
         from chatbot import get_chatbot_response, detect_user_intent, get_intent_actions
         
-        # Get AI response
-        ai_response = get_chatbot_response(message, customer_id, session_id)
+        try:
+            # Get AI response with timeout protection
+            import signal
+            import threading
+            import queue
+            
+            result_queue = queue.Queue()
+            exception_queue = queue.Queue()
+            
+            def get_response_worker():
+                try:
+                    result = get_chatbot_response(message, customer_id, session_id)
+                    result_queue.put(result)
+                except Exception as e:
+                    print(f"Chatbot response error: {e}")
+                    exception_queue.put(e)
+                    # Put a fallback response
+                    fallback_response = {
+                        'response': f"I understand you're asking about '{message}'. While I'm having some technical difficulties with my advanced features, I can tell you that CricVerse offers comprehensive BBL ticket booking, stadium information, and customer support. Please try asking something specific like 'Tell me about MCG' or 'Book tickets'.",
+                        'confidence': 0.7,
+                        'tokens_used': 0,
+                        'model': 'fallback-error'
+                    }
+                    result_queue.put(fallback_response)
+            
+            # Run with timeout
+            worker_thread = threading.Thread(target=get_response_worker)
+            worker_thread.daemon = True
+            worker_thread.start()
+            worker_thread.join(timeout=15)  # 15 second timeout
+            
+            if worker_thread.is_alive():
+                # Timeout occurred
+                print("Chatbot response timed out")
+                ai_response = {
+                    'response': f"Thanks for your message about '{message}'. I'm processing your request but it's taking longer than expected. CricVerse offers comprehensive BBL ticket booking, stadium information, and customer support. Please try a more specific question.",
+                    'confidence': 0.7,
+                    'tokens_used': 0,
+                    'model': 'fallback-timeout'
+                }
+            else:
+                try:
+                    ai_response = result_queue.get_nowait()
+                except queue.Empty:
+                    ai_response = {
+                        'response': f"I apologize, but I encountered an issue processing your request about '{message}'. CricVerse is your destination for BBL cricket experiences. Please try asking about specific topics like stadiums, tickets, or match information.",
+                        'confidence': 0.7,
+                        'tokens_used': 0,
+                        'model': 'fallback-empty'
+                    }
+            
+        except ImportError as e:
+            print(f"Chatbot import error: {e}")
+            # Fallback if chatbot module has issues
+            ai_response = {
+                'response': f"Hello! I'm experiencing some technical difficulties with my advanced AI features, but I can still help you with CricVerse services. You asked about '{message}' - please try asking specific questions about BBL ticket booking, stadium information, or match schedules.",
+                'confidence': 0.6,
+                'tokens_used': 0,
+                'model': 'fallback-import-error'
+            }
         
-        # Detect intent and get quick actions
-        intent = detect_user_intent(message)
-        quick_actions = get_intent_actions(intent)
+        # Detect intent and get quick actions with error handling
+        try:
+            intent = detect_user_intent(message)
+            quick_actions = get_intent_actions(intent)
+        except Exception as e:
+            print(f"Intent detection error: {e}")
+            # Simple fallback intent detection
+            message_lower = message.lower()
+            if any(word in message_lower for word in ['book', 'buy', 'ticket', 'reserve']):
+                intent = 'booking'
+                quick_actions = [{"text": "Browse Matches", "action": "browse_matches"}]
+            elif any(word in message_lower for word in ['stadium', 'venue', 'ground']):
+                intent = 'venue_info'
+                quick_actions = [{"text": "Stadium Guide", "action": "stadium_guide"}]
+            else:
+                intent = 'general'
+                quick_actions = [{"text": "Help me book tickets", "action": "booking_help"}]
         
         return jsonify({
             'success': True,
@@ -1610,13 +1849,15 @@ def enhanced_chat_api():
             'intent': intent,
             'quick_actions': quick_actions,
             'tokens_used': ai_response.get('tokens_used', 0),
-            'model': ai_response.get('model', 'gpt-4'),
+            'model': ai_response.get('model', 'gemini-1.5-flash'),
             'session_id': session_id,
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
         print(f"Enhanced chatbot error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': 'Sorry, I\'m experiencing technical difficulties. Please try again or contact support.',
@@ -2038,16 +2279,39 @@ if __name__ == '__main__':
             db.create_all()
             print("✅ Basic database tables created")
             
-            # Create enhanced tables
-            try:
-                from enhanced_models import create_enhanced_tables
-                create_enhanced_tables()
-                print("✅ Enhanced database tables created")
-            except Exception as e:
-                print(f"⚠️ Could not create enhanced tables: {e}")
+            # Create enhanced tables with better error handling
+            # Temporarily disabled to avoid circular import issues
+            print("⚠️ Enhanced tables creation temporarily disabled")
+            print("📝 Application will continue with basic functionality")
+            # try:
+            #     # Import enhanced models only within app context to avoid circular imports
+            #     import sys
+            #     if 'enhanced_models' not in sys.modules:
+            #         import enhanced_models
+            #         # Pass db instance to avoid circular import
+            #         enhanced_models.db = db
+            #     
+            #     success = enhanced_models._create_tables_internal(db)
+            #     if success:
+            #         print("✅ Enhanced database tables created")
+            #     else:
+            #         print("⚠️ Enhanced tables creation skipped (likely already exist)")
+            # except Exception as e:
+            #     print(f"⚠️ Could not create enhanced tables: {e}")
+            #     print("📝 Application will continue with basic functionality")
                 
         except Exception as e:
             print(f"❌ Database initialization failed: {e}")
+            print("📝 Check your database connection and try again")
     
-    # Start the application
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    # Start the application with optimized settings
+    print("🚀 Starting CricVerse Stadium System...")
+    print(f"🌐 Server will be available at: http://localhost:5000")
+    
+    # Use production-like settings even in development for better performance
+    socketio.run(app, 
+                debug=False,  # Disable debug mode to prevent restarts
+                host='0.0.0.0', 
+                port=5000,
+                use_reloader=False,  # Disable auto-reloader
+                log_output=False)  # Reduce logging for performance

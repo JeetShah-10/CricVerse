@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% block title %}AI Assistant Options - CricVerse{% endblock %}
+{% block head %}
+    {{ super() }}
+    <style>
+        body {
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            min-height: 100vh;
+        }
+        
+        .ai-options-container {
+            min-height: calc(100vh - 200px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 50px 20px;
+        }
+        
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 40px;
+            max-width: 1000px;
+            width: 100%;
+        }
+        
+        .option-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .option-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, transparent 0%, rgba(0, 212, 255, 0.1) 50%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .option-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0, 212, 255, 0.3);
+            border-color: rgba(0, 212, 255, 0.5);
+        }
+        
+        .option-card:hover::before {
+            opacity: 1;
+        }
+        
+        .option-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, #00d4ff, #8b5cf6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        }
+        
+        .option-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #00d4ff, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .option-description {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature-list i {
+            color: #00ffff;
+            width: 20px;
+        }
+        
+        .option-btn {
+            background: linear-gradient(135deg, #00d4ff, #8b5cf6);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+            position: relative;
+            z-index: 2;
+        }
+        
+        .option-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(0, 212, 255, 0.5);
+            color: white;
+        }
+        
+        .page-title {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .page-title h1 {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00d4ff, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+        }
+        
+        .page-title p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 18px;
+        }
+        
+        @media (max-width: 768px) {
+            .options-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+            
+            .option-card {
+                padding: 30px 20px;
+            }
+            
+            .page-title h1 {
+                font-size: 36px;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="ai-options-container">
+    <div class="container">
+        <div class="page-title">
+            <h1>Choose Your AI Experience</h1>
+            <p>Select the perfect AI assistant interface for your needs</p>
+        </div>
+        
+        <div class="options-grid">
+            <!-- Classic Chat Option -->
+            <div class="option-card">
+                <div class="option-icon">
+                    <i class="bi bi-chat-dots"></i>
+                </div>
+                <h2 class="option-title">Classic Chat</h2>
+                <p class="option-description">
+                    Traditional chat interface with modern styling and smart features. Perfect for quick queries and straightforward conversations.
+                </p>
+                <ul class="feature-list">
+                    <li><i class="bi bi-check-circle"></i> Clean, familiar chat interface</li>
+                    <li><i class="bi bi-check-circle"></i> Fast loading and responsive</li>
+                    <li><i class="bi bi-check-circle"></i> Message history and suggestions</li>
+                    <li><i class="bi bi-check-circle"></i> Works on all devices</li>
+                </ul>
+                <a href="{{ url_for('chat_interface') }}" class="option-btn">
+                    <i class="bi bi-chat me-2"></i>Start Classic Chat
+                </a>
+            </div>
+            
+            <!-- 3D Command Center Option -->
+            <div class="option-card">
+                <div class="option-icon">
+                    <i class="bi bi-stars"></i>
+                </div>
+                <h2 class="option-title">Command Center</h2>
+                <p class="option-description">
+                    Immersive 3D experience with animated cricket ball, starfield background, and cutting-edge visual effects. The future of AI interaction.
+                </p>
+                <ul class="feature-list">
+                    <li><i class="bi bi-check-circle"></i> Stunning 3D visuals and animations</li>
+                    <li><i class="bi bi-check-circle"></i> Interactive cricket ball that responds to mouse</li>
+                    <li><i class="bi bi-check-circle"></i> Futuristic glassmorphism design</li>
+                    <li><i class="bi bi-check-circle"></i> Advanced AI thinking animations</li>
+                </ul>
+                <a href="{{ url_for('ai_assistant') }}" class="option-btn">
+                    <i class="bi bi-rocket me-2"></i>Launch Command Center
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

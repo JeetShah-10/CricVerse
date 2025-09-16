@@ -63,7 +63,7 @@ function initializeChatbot() {
         showTypingIndicator();
 
         // Send to backend chatbot endpoint
-        fetch('/chatbot', {
+        fetch('/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -73,7 +73,11 @@ function initializeChatbot() {
         .then(response => response.json())
         .then(data => {
             hideTypingIndicator();
-            addMessageToChat(data.response, 'bot');
+            if (data.success) {
+                addMessageToChat(data.response, 'bot');
+            } else {
+                addMessageToChat(data.error || 'Sorry, I\'m having trouble right now. Please try again later!', 'bot');
+            }
         })
         .catch(error => {
             hideTypingIndicator();
@@ -643,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
     showLoadingIndicator(); // Show loading indicator
 
     // Send message to backend
-    fetch('/chatbot', {
+    fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -655,7 +659,11 @@ document.addEventListener('DOMContentLoaded', function() {
       hideLoadingIndicator(); // Hide loading indicator
       const botMessageDiv = document.createElement('div');
       botMessageDiv.classList.add('chat-message', 'bot-message');
-      botMessageDiv.innerHTML = data.response.replace(/\n/g, '<br>'); // Preserve line breaks and formatting
+      if (data.success) {
+        botMessageDiv.innerHTML = data.response.replace(/\n/g, '<br>'); // Preserve line breaks and formatting
+      } else {
+        botMessageDiv.innerHTML = (data.error || 'Sorry, I\'m having trouble right now. Please try again later!').replace(/\n/g, '<br>');
+      }
       chatbotBody.appendChild(botMessageDiv);
       chatbotBody.scrollTop = chatbotBody.scrollHeight; // Scroll to bottom
     })
