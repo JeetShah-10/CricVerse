@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 from functools import wraps
 from flask_socketio import SocketIO
 from chatbot import handle_chat_message
+from paypal_config import paypal_create_order, paypal_capture_order
+import razorpay
+import hmac
+import hashlib
 
 # Import our utility functions
 from utils import (
@@ -101,6 +105,24 @@ else:
     display_url = database_url
     
 print(f"[DATABASE] Database configured: {display_url}")
+
+# Expose payment client IDs to templates
+@app.context_processor
+def inject_payment_public_keys():
+    return {
+        'PAYPAL_CLIENT_ID': os.getenv('PAYPAL_CLIENT_ID')
+    }
+
+# Razorpay client init
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+razorpay_client = None
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    try:
+        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        print("[PAYMENTS] Razorpay client initialized")
+    except Exception as e:
+        print(f"[PAYMENTS] Razorpay init failed: {e}")
 
 # Models
 class Stadium(db.Model):
@@ -1654,6 +1676,334 @@ def concession_menu(concession_id):
                          concession=concession, 
                          menu_items=menu_items)
 
+# =============================
+# BOOKING + PAYPAL INTEGRATION
+# =============================
+
+@app.route('/booking/create-order', methods=['POST'])
+@login_required
+def booking_create_order():
+    """Create a PayPal order after validating inventory and computing total server-side.
+
+    Expected JSON body:
+    {
+      "event_id": 123,
+      "seat_ids": [1,2,3],
+      "parking_id": 10,            # optional
+      "parking_hours": 2           # optional float
+    }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        event_id = data.get('event_id')
+        seat_ids = data.get('seat_ids') or []
+        parking_id = data.get('parking_id')
+        parking_hours = data.get('parking_hours')
+
+        if not event_id:
+            return jsonify({"success": False, "error": "event_id is required"}), 400
+
+        # Validate event
+        event = Event.query.get(event_id)
+        if not event:
+            return jsonify({"success": False, "error": "Invalid event_id"}), 400
+
+        total_amount = 0.0
+        validated_seat_ids = []
+
+        # Validate seats availability and compute total
+        if seat_ids:
+            seats = Seat.query.filter(Seat.id.in_(seat_ids), Seat.stadium_id == event.stadium_id).all()
+            if len(seats) != len(seat_ids):
+                return jsonify({"success": False, "error": "One or more seats not found for this event's stadium"}), 400
+
+            # Seats already booked for this event
+            booked_seat_ids = db.session.query(Ticket.seat_id).filter(
+                Ticket.event_id == event_id,
+                Ticket.ticket_status.in_(['Booked', 'Used'])
+            ).all()
+            booked_seat_ids = {sid for (sid,) in booked_seat_ids}
+
+            for seat in seats:
+                if seat.id in booked_seat_ids:
+                    return jsonify({"success": False, "error": f"Seat {seat.seat_number} is no longer available"}), 409
+                total_amount += float(seat.price or 0)
+                validated_seat_ids.append(seat.id)
+
+        # Optional parking validation and fee
+        if parking_id:
+            parking = Parking.query.get(parking_id)
+            if not parking or parking.stadium_id != event.stadium_id:
+                return jsonify({"success": False, "error": "Invalid parking selection"}), 400
+            hours = float(parking_hours or 0)
+            if hours > 0:
+                total_amount += float(parking.rate_per_hour or 0) * hours
+
+        if total_amount <= 0:
+            return jsonify({"success": False, "error": "Cart is empty"}), 400
+
+        # Create PayPal order via HTTP API
+        order_id, _ = paypal_create_order(f"{total_amount:.2f}")
+
+        # Stash a lightweight pending context in session for capture step
+        session['pending_booking'] = {
+            'event_id': event_id,
+            'seat_ids': validated_seat_ids,
+            'parking_id': parking_id,
+            'parking_hours': float(parking_hours or 0),
+            'amount': float(f"{total_amount:.2f}")
+        }
+
+        return jsonify({"success": True, "orderID": order_id, "amount": f"{total_amount:.2f}"})
+
+    except Exception as e:
+        print(f"Create order error: {e}")
+        return jsonify({"success": False, "error": "Failed to create order"}), 500
+
+
+@app.route('/booking/create-razorpay-order', methods=['POST'])
+@login_required
+def booking_create_razorpay_order():
+    if not razorpay_client:
+        return jsonify({"success": False, "error": "Razorpay not configured"}), 500
+    try:
+        data = request.get_json(silent=True) or {}
+        event_id = data.get('event_id')
+        seat_ids = data.get('seat_ids') or []
+        parking_id = data.get('parking_id')
+        parking_hours = data.get('parking_hours')
+
+        if not event_id:
+            return jsonify({"success": False, "error": "event_id is required"}), 400
+
+        event = Event.query.get(event_id)
+        if not event:
+            return jsonify({"success": False, "error": "Invalid event_id"}), 400
+
+        total_amount = 0.0
+        validated_seat_ids = []
+
+        if seat_ids:
+            seats = Seat.query.filter(Seat.id.in_(seat_ids), Seat.stadium_id == event.stadium_id).all()
+            if len(seats) != len(seat_ids):
+                return jsonify({"success": False, "error": "One or more seats not found for this event's stadium"}), 400
+
+            booked_seat_ids = db.session.query(Ticket.seat_id).filter(
+                Ticket.event_id == event_id,
+                Ticket.ticket_status.in_(['Booked', 'Used'])
+            ).all()
+            booked_seat_ids = {sid for (sid,) in booked_seat_ids}
+
+            for seat in seats:
+                if seat.id in booked_seat_ids:
+                    return jsonify({"success": False, "error": f"Seat {seat.seat_number} is no longer available"}), 409
+                total_amount += float(seat.price or 0)
+                validated_seat_ids.append(seat.id)
+
+        if parking_id:
+            parking = Parking.query.get(parking_id)
+            if not parking or parking.stadium_id != event.stadium_id:
+                return jsonify({"success": False, "error": "Invalid parking selection"}), 400
+            hours = float(parking_hours or 0)
+            if hours > 0:
+                total_amount += float(parking.rate_per_hour or 0) * hours
+
+        if total_amount <= 0:
+            return jsonify({"success": False, "error": "Cart is empty"}), 400
+
+        amount_paise = int(round(total_amount * 100))
+        order = razorpay_client.order.create(dict(amount=amount_paise, currency='INR', receipt=f'rcpt_{current_user.id}_{event_id}'))
+
+        session['pending_booking'] = {
+            'event_id': event_id,
+            'seat_ids': validated_seat_ids,
+            'parking_id': parking_id,
+            'parking_hours': float(parking_hours or 0),
+            'amount': float(f"{total_amount:.2f}")
+        }
+
+        return jsonify({
+            'success': True,
+            'razorpay_order_id': order.get('id'),
+            'key_id': RAZORPAY_KEY_ID,
+            'amount': amount_paise,
+            'currency': 'INR'
+        })
+    except Exception as e:
+        print(f"Create Razorpay order error: {e}")
+        return jsonify({"success": False, "error": "Failed to create Razorpay order"}), 500
+
+
+@app.route('/booking/verify-razorpay-payment', methods=['POST'])
+@login_required
+def verify_razorpay_payment():
+    if not razorpay_client:
+        return jsonify({"success": False, "error": "Razorpay not configured"}), 500
+    try:
+        data = request.get_json(silent=True) or {}
+        razorpay_order_id = data.get('razorpay_order_id')
+        razorpay_payment_id = data.get('razorpay_payment_id')
+        razorpay_signature = data.get('razorpay_signature')
+
+        if not (razorpay_order_id and razorpay_payment_id and razorpay_signature):
+            return jsonify({"success": False, "error": "Missing Razorpay fields"}), 400
+
+        params_dict = {
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        }
+
+        # Verify signature
+        try:
+            razorpay_client.utility.verify_payment_signature(params_dict)
+        except Exception:
+            return jsonify({"success": False, "error": "Invalid payment signature"}), 400
+
+        pending = session.get('pending_booking')
+        if not pending:
+            return jsonify({"success": False, "error": "No pending booking found in session"}), 400
+
+        with db.session.begin():
+            new_booking = Booking(
+                customer_id=current_user.id,
+                total_amount=pending['amount']
+            )
+            db.session.add(new_booking)
+            db.session.flush()
+
+            for sid in pending.get('seat_ids') or []:
+                ticket = Ticket(
+                    event_id=pending['event_id'],
+                    seat_id=sid,
+                    customer_id=current_user.id,
+                    ticket_status='Booked',
+                    booking=new_booking
+                )
+                db.session.add(ticket)
+
+            payment = Payment(
+                amount=pending['amount'],
+                payment_method='Razorpay',
+                transaction_id=razorpay_payment_id,
+                booking=new_booking
+            )
+            db.session.add(payment)
+
+            if pending.get('parking_id') and pending.get('parking_hours', 0) > 0:
+                parking_booking = ParkingBooking(
+                    parking_id=pending['parking_id'],
+                    customer_id=current_user.id,
+                    vehicle_number='N/A',
+                    amount_paid=pending['amount']
+                )
+                db.session.add(parking_booking)
+
+        session.pop('pending_booking', None)
+        return jsonify({"success": True, "booking_id": new_booking.id})
+    except Exception as e:
+        print(f"Verify Razorpay error: {e}")
+        return jsonify({"success": False, "error": "Failed to verify Razorpay payment"}), 500
+
+
+@app.route('/booking/capture-order', methods=['POST'])
+@login_required
+def booking_capture_order():
+    """Capture a PayPal order and write booking + tickets atomically."""
+    try:
+        data = request.get_json(silent=True) or {}
+        order_id = data.get('orderID')
+        if not order_id:
+            return jsonify({"success": False, "error": "orderID is required"}), 400
+
+        pending = session.get('pending_booking')
+        if not pending:
+            return jsonify({"success": False, "error": "No pending booking found in session"}), 400
+
+        # Capture via HTTP API
+        capture_data = paypal_capture_order(order_id)
+        status = capture_data.get('status')
+        if status != 'COMPLETED':
+            return jsonify({"success": False, "error": f"Capture failed: {status}"}), 400
+
+        transaction_id = capture_data.get('id')
+
+        # Atomic DB writes
+        with db.session.begin():
+            new_booking = Booking(
+                customer_id=current_user.id,
+                total_amount=pending['amount']
+            )
+            db.session.add(new_booking)
+            db.session.flush()
+
+            # Create tickets for seats
+            for sid in pending.get('seat_ids') or []:
+                ticket = Ticket(
+                    event_id=pending['event_id'],
+                    seat_id=sid,
+                    customer_id=current_user.id,
+                    ticket_status='Booked',
+                    booking=new_booking
+                )
+                db.session.add(ticket)
+
+            # Record payment
+            payment = Payment(
+                amount=pending['amount'],
+                payment_method='PayPal',
+                transaction_id=transaction_id,
+                booking=new_booking
+            )
+            db.session.add(payment)
+
+            # Optional parking booking record
+            if pending.get('parking_id') and pending.get('parking_hours', 0) > 0:
+                parking_booking = ParkingBooking(
+                    parking_id=pending['parking_id'],
+                    customer_id=current_user.id,
+                    vehicle_number='N/A',
+                    amount_paid=pending['amount']  # simplistic; could split amounts
+                )
+                db.session.add(parking_booking)
+
+        # Clear pending
+        session.pop('pending_booking', None)
+
+        return jsonify({"success": True, "booking_id": new_booking.id})
+
+    except Exception as e:
+        print(f"Capture order error: {e}")
+        return jsonify({"success": False, "error": "Failed to capture order"}), 500
+
+
+@app.route('/my-bookings')
+@login_required
+def my_bookings():
+    """Return current user's bookings with items."""
+    try:
+        bookings = Booking.query.filter_by(customer_id=current_user.id).order_by(Booking.booking_date.desc()).all()
+        result = []
+        for b in bookings:
+            tickets = Ticket.query.filter_by(booking_id=b.id).all()
+            result.append({
+                'id': b.id,
+                'date': b.booking_date.isoformat() if b.booking_date else None,
+                'total_amount': b.total_amount,
+                'items': [
+                    {
+                        'ticket_id': t.id,
+                        'event_id': t.event_id,
+                        'seat_id': t.seat_id,
+                        'status': t.ticket_status,
+                    } for t in tickets
+                ]
+            })
+        return jsonify({"success": True, "bookings": result})
+    except Exception as e:
+        print(f"My bookings error: {e}")
+        return jsonify({"success": False, "error": "Failed to fetch bookings"}), 500
+
 @app.route('/place_order', methods=['POST'])
 @login_required
 @customer_required
@@ -2271,6 +2621,19 @@ def verify_pass_qr(verification_code):
         return render_template('qr_verification.html',
                              verification_result={'valid': False, 'error': str(e)},
                              data_type='pass')
+
+@app.route('/booking/confirmation')
+@login_required
+def booking_confirmation():
+    booking_id = request.args.get('booking_id')
+    try:
+        booking = Booking.query.get(int(booking_id)) if booking_id else None
+    except Exception:
+        booking = None
+    return render_template('payment_success.html', payment_data={
+        'booking_id': booking.id if booking else None,
+        'amount': getattr(booking, 'total_amount', None)
+    })
 
 if __name__ == '__main__':
     with app.app_context():

@@ -765,3 +765,59 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('visibilitychange', () => {
 if (!document.hidden && window.AOS) { window.AOS.refreshHard(); }
 });
+
+// ------------------------------
+// PayPal Checkout Integration
+// ------------------------------
+
+async function createOrderOnServer(cart) {
+  const res = await fetch('/booking/create-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cart)
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Failed to create order');
+  return data.orderID;
+}
+
+async function captureOrderOnServer(orderID) {
+  const res = await fetch('/booking/capture-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderID })
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Failed to capture order');
+  return data.booking_id;
+}
+
+window.CricVerseCheckout = {
+  async start(cart) {
+    try {
+      const method = (document.querySelector('input[name="paymentMethod"]:checked')?.value) || 'stripe';
+      if (method === 'stripe') {
+        // Stripe flow is handled by stripe_checkout.js; here we just signal start if needed
+        if (!window.cricVerseStripe) throw new Error('Stripe SDK not loaded');
+        // Implement page-specific Stripe initiation as needed
+        alert('Stripe checkout is enabled. Integrate with stripe_checkout.js as per page design.');
+      } else {
+        // PayPal flow
+        const orderID = await createOrderOnServer(cart);
+        if (!window.paypal) throw new Error('PayPal SDK not loaded');
+        paypal.Buttons({
+          createOrder: () => orderID,
+          onApprove: async () => {
+            const bookingId = await captureOrderOnServer(orderID);
+            window.location.href = `/booking/confirmation?booking_id=${bookingId}`;
+          },
+          onError: (err) => {
+            alert('Payment error: ' + (err?.message || 'Unknown error'));
+          }
+        }).render('#paypal-buttons');
+      }
+    } catch (e) {
+      alert(e.message || 'Checkout failed');
+    }
+  }
+};

@@ -4,6 +4,9 @@ psycopg2-binary==2.9.9
 python-dotenv==1.0.1
 Flask-Login==0.6.3
 Werkzeug==3.0.3
+Flask-WTF==1.2.1
+Flask-Limiter==3.5.1
+Flask-Cors==4.0.0
 
 # Real-time features
 Flask-SocketIO==5.3.6
@@ -34,6 +37,7 @@ cryptography==41.0.7
 requests==2.31.0
 celery==5.3.4
 redis==5.0.1
+email-validator==2.1.1
 
 # Google Gemini SDK
 google-generativeai==0.3.2
