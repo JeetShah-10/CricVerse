@@ -601,6 +601,11 @@ class Ticket(db.Model):
     ticket_status = db.Column(db.String(20), default='Booked')
     ticket_type = db.Column(db.String(20))
     access_gate = db.Column(db.String(10))
+    
+    # Enhanced fields
+    qr_code = db.Column(db.String(200))  # QR code URL or path
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class Payment(db.Model):
     __tablename__ = 'payment'
@@ -1843,6 +1848,22 @@ def book_ticket(event_id):
     
     try:
         db.session.commit()
+        
+        # Generate QR codes for all tickets
+        from qr_generator import qr_generator
+        for ticket in new_booking.tickets:
+            qr_data = {
+                'ticket_id': ticket.id,
+                'event_id': ticket.event_id,
+                'seat_id': ticket.seat_id,
+                'customer_id': current_user.id
+            }
+            qr_result = qr_generator.generate_ticket_qr(qr_data)
+            if qr_result:
+                ticket.qr_code = qr_result['qr_code_base64']
+        
+        db.session.commit()
+        
         flash(f'Successfully booked {len(seats)} ticket(s) for {event.event_name}!', 'success')
         return redirect(url_for('dashboard'))
     except Exception as e:
@@ -2231,6 +2252,9 @@ def verify_razorpay_payment():
         if not pending:
             return jsonify({"success": False, "error": "No pending booking found in session"}), 400
 
+        # Create tickets list to store created tickets
+        tickets = []
+
         with db.session.begin():
             new_booking = Booking(
                 customer_id=current_user.id,
@@ -2248,6 +2272,7 @@ def verify_razorpay_payment():
                     booking=new_booking
                 )
                 db.session.add(ticket)
+                tickets.append(ticket)  # Store ticket for QR code generation
 
             payment = Payment(
                 amount=pending['amount'],
@@ -2265,6 +2290,21 @@ def verify_razorpay_payment():
                     amount_paid=pending['amount']
                 )
                 db.session.add(parking_booking)
+
+        # Generate QR codes for all tickets
+        from qr_generator import qr_generator
+        for ticket in tickets:
+            qr_data = {
+                'ticket_id': ticket.id,
+                'event_id': ticket.event_id,
+                'seat_id': ticket.seat_id,
+                'customer_id': current_user.id
+            }
+            qr_result = qr_generator.generate_ticket_qr(qr_data)
+            if qr_result:
+                ticket.qr_code = qr_result['qr_code_base64']
+        
+        db.session.commit()
 
         session.pop('pending_booking', None)
         return jsonify({"success": True, "booking_id": new_booking.id})
@@ -2307,6 +2347,9 @@ def booking_capture_order():
 
         transaction_id = capture_data.get('id')
 
+        # Create tickets list to store created tickets
+        tickets = []
+
         # Atomic DB writes
         with db.session.begin():
             new_booking = Booking(
@@ -2326,6 +2369,7 @@ def booking_capture_order():
                     booking=new_booking
                 )
                 db.session.add(ticket)
+                tickets.append(ticket)  # Store ticket for QR code generation
 
             # Record payment
             payment = Payment(
@@ -2345,6 +2389,21 @@ def booking_capture_order():
                     amount_paid=pending['amount']  # simplistic; could split amounts
                 )
                 db.session.add(parking_booking)
+
+        # Generate QR codes for all tickets
+        from qr_generator import qr_generator
+        for ticket in tickets:
+            qr_data = {
+                'ticket_id': ticket.id,
+                'event_id': ticket.event_id,
+                'seat_id': ticket.seat_id,
+                'customer_id': current_user.id
+            }
+            qr_result = qr_generator.generate_ticket_qr(qr_data)
+            if qr_result:
+                ticket.qr_code = qr_result['qr_code_base64']
+        
+        db.session.commit()
 
         # Clear pending
         session.pop('pending_booking', None)
@@ -3459,25 +3518,17 @@ if __name__ == '__main__':
             print("[PASS] Basic database tables created")
             
             # Create enhanced tables with better error handling
-            # Temporarily disabled to avoid circular import issues
-            print("[WARN] Enhanced tables creation temporarily disabled")
-            print("[NOTE] Application will continue with basic functionality")
-            # try:
-            #     # Import enhanced models only within app context to avoid circular imports
-            #     import sys
-            #     if 'enhanced_models' not in sys.modules:
-            #         import enhanced_models
-            #         # Pass db instance to avoid circular import
-            #         enhanced_models.db = db
-            #     
-            #     success = enhanced_models._create_tables_internal(db)
-            #     if success:
-            #         print("[PASS] Enhanced database tables created")
-            #     else:
-            #         print("[WARN] Enhanced tables creation skipped (likely already exist)")
-            # except Exception as e:
-            #     print(f"[WARN] Could not create enhanced tables: {e}")
-            #     print("[NOTE] Application will continue with basic functionality")
+            try:
+                # Import and initialize enhanced models
+                from enhanced_models import init_enhanced_models
+                success = init_enhanced_models(app, db)
+                if success:
+                    print("[PASS] Enhanced database tables created")
+                else:
+                    print("[WARN] Enhanced tables creation completed with warnings")
+            except Exception as e:
+                print(f"[WARN] Could not create enhanced tables: {e}")
+                print("[NOTE] Application will continue with basic functionality")
                 
         except Exception as e:
             print(f"[FAIL] Database initialization failed: {e}")
