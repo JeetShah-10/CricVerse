@@ -1,0 +1,493 @@
+{% extends 'base.html' %}
+{% block title %}🏟️ Select Seats • {{ event.event_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .stadium-view-container {
+    background: linear-gradient(135deg, #0a1a2e 0%, #16213e 100%);
+    position: relative;
+    overflow: hidden;
+    border-radius: 15px;
+    min-height: 600px;
+  }
+  
+  .stadium-view {
+    perspective: 1000px;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+    transform-origin: center center;
+    transition: transform 0.3s ease;
+  }
+  
+  .pitch-area {
+    background: linear-gradient(45deg, #228B22, #32CD32);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(34, 139, 34, 0.3);
+    position: relative;
+    margin: 2rem auto;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.2rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  }
+  
+  .section-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    margin: 1rem 0;
+  }
+  
+  .section-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .section-header.premium { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+  .section-header.vip { background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%); }
+  .section-header.corporate { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
+  
+  .seat-btn {
+    width: 45px;
+    height: 40px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    cursor: pointer;
+    margin: 2px;
+  }
+  
+  .seat-btn.available {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-color: #2196f3;
+    color: #1565c0;
+  }
+  
+  .seat-btn.available:hover {
+    background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+    color: white;
+    transform: scale(1.1) translateY(-2px);
+    box-shadow: 0 8px 25px rgba(33, 150, 243, 0.4);
+  }
+  
+  .seat-btn.selected {
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+    border-color: #2e7d32;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+  }
+  
+  .seat-btn.premium { background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); border-color: #ef6c00; color: white; }
+  .seat-btn.vip { background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); border-color: #6a1b9a; color: white; }
+  .seat-btn.corporate { background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%); border-color: #00838f; color: white; }
+  
+  .seat-btn:disabled {
+    background: linear-gradient(135deg, #9e9e9e 0%, #757575 100%);
+    border-color: #616161;
+    color: #bdbdbd;
+    cursor: not-allowed;
+  }
+  
+  .zoom-controls {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .zoom-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .filter-btn {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: 2px solid #2196f3;
+    color: #1565c0;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    margin: 0.2rem;
+  }
+  
+  .filter-btn.active {
+    background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+    color: white;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Event Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 bg-dark text-white">
+        <div class="card-body text-center py-4">
+          <h2 class="mb-2">🏆 {{ event.event_name }}</h2>
+          <h4 class="text-primary mb-1">🏟️ {{ event.stadium.name }}</h4>
+          <p class="mb-0 opacity-75">
+            <i class="fas fa-calendar me-2"></i>{{ event.event_date.strftime('%A, %B %d, %Y') }} 
+            <i class="fas fa-clock ms-3 me-2"></i>{{ event.start_time.strftime('%I:%M %p') }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="row g-4">
+    <!-- Stadium View -->
+    <div class="col-lg-8">
+      <!-- Filter Controls -->
+      <div class="card mb-4 border-0" style="background: rgba(255, 255, 255, 0.95);">
+        <div class="card-body">
+          <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <div>
+              <h6 class="mb-2">🎨 Filter by Seat Type:</h6>
+              <button class="filter-btn active" data-filter="all">🏆 All Seats</button>
+              <button class="filter-btn" data-filter="General">📄 General</button>
+              <button class="filter-btn" data-filter="Standard">⭐ Standard</button>
+              <button class="filter-btn" data-filter="Premium">💎 Premium</button>
+              <button class="filter-btn" data-filter="Corporate">🏢 Corporate</button>
+              <button class="filter-btn" data-filter="VIP">👑 VIP</button>
+            </div>
+            <div>
+              <button class="btn btn-sm btn-outline-primary" id="reset-view">🎯 Reset View</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stadium Container -->
+      <div class="stadium-view-container" id="stadium-container">
+        <!-- Zoom Controls -->
+        <div class="zoom-controls">
+          <button class="zoom-btn" id="zoom-in" title="Zoom In">
+            <i class="fas fa-plus"></i>
+          </button>
+          <button class="zoom-btn" id="zoom-out" title="Zoom Out">
+            <i class="fas fa-minus"></i>
+          </button>
+          <button class="zoom-btn" id="center-view" title="Center View">
+            <i class="fas fa-crosshairs"></i>
+          </button>
+        </div>
+        
+        <div class="stadium-view" id="stadium-view">
+          <!-- Cricket Pitch -->
+          <div class="pitch-area text-center">
+            <div>
+              <i class="fas fa-baseball-ball me-2"></i>
+              CRICKET PITCH
+              <i class="fas fa-baseball-ball ms-2"></i>
+            </div>
+          </div>
+          
+          <!-- Seating Sections -->
+          <div id="seating-sections">
+            {% for section in sections %}
+            <div class="section-card" data-section="{{ section.name }}">
+              <div class="section-header {{ section.class }}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span>🏢 {{ section.name }}</span>
+                  <span class="badge bg-light text-dark">{{ section.total_seats }} seats</span>
+                </div>
+                <small class="opacity-75">{{ section.price_range }}</small>
+              </div>
+              
+              <div class="p-3">
+                {% for row in section.rows %}
+                <div class="mb-3" data-row="{{ row.name }}">
+                  <div class="d-flex align-items-center mb-2">
+                    <span class="badge bg-primary me-2">Row {{ row.name }}</span>
+                    <small class="text-muted">{{ row.seats|length }} seats</small>
+                  </div>
+                  
+                  <div class="d-flex flex-wrap justify-content-center">
+                    {% for seat in row.seats %}
+                    <button 
+                      class="seat-btn available {{ seat.seat_type.lower() }}"
+                      data-seat-id="{{ seat.id }}"
+                      data-seat-number="{{ seat.seat_number }}"
+                      data-row="{{ seat.row_number }}"
+                      data-section="{{ seat.section }}"
+                      data-price="{{ seat.price }}"
+                      data-type="{{ seat.seat_type }}"
+                      data-has-shade="{{ seat.has_shade }}"
+                      {% if not seat.is_available %}disabled{% endif %}
+                      title="{{ seat.section }} - Row {{ seat.row_number }}, Seat {{ seat.seat_number }} - ₹{{ seat.price }}"
+                    >
+                      <div style="font-size: 10px; font-weight: 700;">{{ seat.seat_number }}</div>
+                      <div style="font-size: 8px; opacity: 0.9;">{{ seat.seat_type[:3] }}</div>
+                    </button>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Selected Seats Panel -->
+    <div class="col-lg-4">
+      <div class="card border-0" style="background: rgba(255, 255, 255, 0.95); position: sticky; top: 100px;">
+        <div class="card-header bg-primary text-white text-center">
+          <h5 class="mb-0">🎫 Selected Seats</h5>
+        </div>
+        
+        <div class="card-body p-4">
+          <!-- Selected Seats List -->
+          <div id="selected-seats-list" class="mb-4">
+            <div class="text-center text-muted py-4">
+              <i class="fas fa-chair fa-3x mb-3 opacity-50"></i>
+              <p class="mb-0">No seats selected</p>
+              <small>Click on available seats to select them</small>
+            </div>
+          </div>
+          
+          <!-- Total Price -->
+          <div class="text-center mb-4">
+            <div class="bg-primary text-white p-3 rounded-pill" id="total-price">₹0</div>
+            <small class="text-muted d-block mt-2">Total Amount</small>
+          </div>
+          
+          <!-- Booking Form -->
+          <form method="post" id="booking-form">
+            <input type="hidden" name="selected_seats" id="selected-seats-input">
+            <input type="hidden" name="total_amount" id="total-amount-input">
+            
+            <div class="mb-3">
+              <label class="form-label fw-semibold">🎫 Ticket Type</label>
+              <select name="ticket_type" class="form-select" required>
+                <option value="Single Match">Single Match</option>
+                <option value="Season">Season Pass</option>
+                <option value="Hospitality">Hospitality Package</option>
+              </select>
+            </div>
+            
+            <div class="mb-4">
+              <label class="form-label fw-semibold">💳 Payment Method</label>
+              <select name="payment_method" class="form-select" required>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="UPI">UPI</option>
+                <option value="PayPal">PayPal</option>
+              </select>
+            </div>
+            
+            <button type="submit" class="btn btn-success w-100 py-3" id="book-btn" disabled>
+              <i class="fas fa-ticket-alt me-2"></i>Book Selected Seats
+            </button>
+          </form>
+          
+          <!-- Quick Stats -->
+          <div class="mt-4 pt-3 border-top">
+            <div class="row text-center">
+              <div class="col-4">
+                <div class="fw-bold text-primary" id="selected-count">0</div>
+                <small class="text-muted">Selected</small>
+              </div>
+              <div class="col-4">
+                <div class="fw-bold text-success" id="available-count">{{ total_available }}</div>
+                <small class="text-muted">Available</small>
+              </div>
+              <div class="col-4">
+                <div class="fw-bold text-warning" id="capacity-count">{{ event.stadium.capacity }}</div>
+                <small class="text-muted">Capacity</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedSeats = [];
+let totalAmount = 0;
+let currentZoom = 1;
+
+// Initialize when document is ready
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSeatSelection();
+    initializeZoomControls();
+    initializeFilters();
+});
+
+function initializeSeatSelection() {
+    const seatButtons = document.querySelectorAll('.seat-btn:not(:disabled)');
+    seatButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            toggleSeat(this);
+        });
+    });
+}
+
+function toggleSeat(button) {
+    const seatId = parseInt(button.dataset.seatId);
+    const seatData = {
+        id: seatId,
+        number: button.dataset.seatNumber,
+        row: button.dataset.row,
+        section: button.dataset.section,
+        price: parseFloat(button.dataset.price),
+        type: button.dataset.type
+    };
+    
+    const index = selectedSeats.findIndex(seat => seat.id === seatId);
+    
+    if (index === -1) {
+        selectedSeats.push(seatData);
+        button.classList.add('selected');
+    } else {
+        selectedSeats.splice(index, 1);
+        button.classList.remove('selected');
+    }
+    
+    updateSelectedSeatsList();
+    updateTotal();
+}
+
+function updateSelectedSeatsList() {
+    const container = document.getElementById('selected-seats-list');
+    
+    if (selectedSeats.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-chair fa-3x mb-3 opacity-50"></i>
+                <p class="mb-0">No seats selected</p>
+                <small>Click on available seats to select them</small>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = selectedSeats.map(seat => `
+        <div class="bg-primary text-white rounded-3 p-3 mb-2 d-flex justify-content-between align-items-center">
+            <div>
+                <div class="fw-bold">${seat.section}</div>
+                <small>Row ${seat.row}, Seat ${seat.number} - ₹${seat.price}</small>
+            </div>
+            <button class="btn-close btn-close-white" onclick="removeSeat(${seat.id})"></button>
+        </div>
+    `).join('');
+}
+
+function removeSeat(seatId) {
+    const button = document.querySelector(`[data-seat-id="${seatId}"]`);
+    if (button) {
+        button.classList.remove('selected');
+    }
+    selectedSeats = selectedSeats.filter(seat => seat.id !== seatId);
+    updateSelectedSeatsList();
+    updateTotal();
+}
+
+function updateTotal() {
+    totalAmount = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+    document.getElementById('total-price').textContent = `₹${totalAmount.toLocaleString()}`;
+    document.getElementById('total-amount-input').value = totalAmount;
+    document.getElementById('selected-seats-input').value = selectedSeats.map(seat => seat.id).join(',');
+    document.getElementById('selected-count').textContent = selectedSeats.length;
+    
+    const bookBtn = document.getElementById('book-btn');
+    bookBtn.disabled = selectedSeats.length === 0;
+}
+
+function initializeZoomControls() {
+    const stadiumView = document.getElementById('stadium-view');
+    
+    document.getElementById('zoom-in').addEventListener('click', () => {
+        currentZoom = Math.min(currentZoom * 1.2, 3);
+        stadiumView.style.transform = `scale(${currentZoom})`;
+    });
+    
+    document.getElementById('zoom-out').addEventListener('click', () => {
+        currentZoom = Math.max(currentZoom / 1.2, 0.5);
+        stadiumView.style.transform = `scale(${currentZoom})`;
+    });
+    
+    document.getElementById('center-view').addEventListener('click', () => {
+        currentZoom = 1;
+        stadiumView.style.transform = `scale(${currentZoom})`;
+    });
+    
+    document.getElementById('reset-view').addEventListener('click', () => {
+        currentZoom = 1;
+        stadiumView.style.transform = `scale(${currentZoom})`;
+        // Reset filters
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector('[data-filter="all"]').classList.add('active');
+        document.querySelectorAll('.seat-btn').forEach(btn => btn.style.display = '');
+    });
+}
+
+function initializeFilters() {
+    document.querySelectorAll('.filter-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // Update active filter
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            const filter = this.dataset.filter;
+            
+            // Show/hide seats based on filter
+            document.querySelectorAll('.seat-btn').forEach(seat => {
+                if (filter === 'all' || seat.dataset.type === filter) {
+                    seat.style.display = '';
+                } else {
+                    seat.style.display = 'none';
+                }
+            });
+        });
+    });
+}
+
+// Form submission
+document.getElementById('booking-form').addEventListener('submit', function(e) {
+    if (selectedSeats.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one seat.');
+        return;
+    }
+});
+</script>
+{% endblock %}

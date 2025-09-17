@@ -6,12 +6,14 @@
     <link rel="preload" href="{{ url_for('static', filename='css/unified.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <link rel="preload" href="{{ url_for('static', filename='css/bbl-enhanced.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <link rel="preload" href="{{ url_for('static', filename='css/home-enhanced.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="{{ url_for('static', filename='css/bbl-action-hub.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
     
     <!-- Fallback for browsers without preload support -->
     <noscript>
         <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-enhanced.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='css/home-enhanced.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-action-hub.css') }}">
     </noscript>
     
     <!-- Enhanced Home Page Styles -->
@@ -1097,4 +1099,7 @@ document.head.appendChild(style);
     </div>
   </div>
 </section>
+
+<!-- Enhanced BBL JavaScript -->
+<script src="{{ url_for('static', filename='js/bbl-enhanced.js') }}"></script>
 {% endblock %}

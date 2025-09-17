@@ -30,16 +30,16 @@ def test_paypal_credentials():
     
     # Check if credentials exist
     if not client_id:
-        print("❌ PayPal Client ID not found")
+        print("FAIL PayPal Client ID not found")
         return False
         
     if not client_secret:
-        print("❌ PayPal Client Secret not found")
+        print("FAIL PayPal Client Secret not found")
         return False
     
     # Check if these are placeholder values
     if 'your_' in client_id.lower() or 'your_' in client_secret.lower() or '...' in client_id or '...' in client_secret:
-        print("❌ PayPal credentials still contain placeholder values")
+        print("[FAIL] PayPal credentials still contain placeholder values")
         print("   Please update PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in your .env file")
         return False
     
@@ -54,14 +54,14 @@ def test_paypal_credentials():
         # Test authentication by getting an access token
         token = paypalrestsdk.Api().get_access_token()
         if token:
-            print("✅ PayPal credentials are valid!")
+            print("[PASS] PayPal credentials are valid!")
             return True
         else:
-            print("❌ PayPal authentication failed")
+            print("[FAIL] PayPal authentication failed")
             return False
             
     except Exception as e:
-        print(f"❌ PayPal test failed: {e}")
+        print(f"[FAIL] PayPal test failed: {e}")
         print("   Please check your PayPal credentials and internet connection")
         return False
 
@@ -74,28 +74,28 @@ def test_razorpay_credentials():
     
     # Check if credentials exist
     if not key_id:
-        print("❌ Razorpay Key ID not found")
+        print("[FAIL] Razorpay Key ID not found")
         return False
         
     if not key_secret:
-        print("❌ Razorpay Key Secret not found")
+        print("[FAIL] Razorpay Key Secret not found")
         return False
     
     # Check if these are placeholder values
     if 'your_' in key_id.lower() or 'your_' in key_secret.lower() or '...' in key_id or '...' in key_secret:
-        print("❌ Razorpay credentials still contain placeholder values")
+        print("[FAIL] Razorpay credentials still contain placeholder values")
         print("   Please update RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in your .env file")
         return False
     
     # For Razorpay, we'll just verify the credentials exist and format is correct
     if key_id.startswith('rzp_'):
-        print("✅ Razorpay credentials format looks correct!")
+        print("[PASS] Razorpay credentials format looks correct!")
         return True
     elif 'rzp_' in key_id:
-        print("✅ Razorpay credentials format looks correct!")
+        print("[PASS] Razorpay credentials format looks correct!")
         return True
     else:
-        print("❌ Razorpay key ID format doesn't look correct")
+        print("[FAIL] Razorpay key ID format doesn't look correct")
         print("   Key ID should start with 'rzp_'")
         return False
 
@@ -137,16 +137,16 @@ def show_current_config():
 
 def main():
     """Main test function"""
-    print("🔐 CricVerse Stadium System - Credential Tester")
+    print("CricVerse Stadium System - Credential Tester")
     print("=" * 50)
     
     # Load environment variables
     loaded_env = load_environment()
     
     if loaded_env:
-        print(f"✅ Loaded environment from: {loaded_env}")
+        print(f"[PASS] Loaded environment from: {loaded_env}")
     else:
-        print("⚠️  No .env file found, using system environment variables")
+        print("[WARN]  No .env file found, using system environment variables")
     
     # Show current configuration
     show_current_config()
@@ -157,17 +157,17 @@ def main():
     
     print("\n" + "=" * 50)
     if paypal_ok and razorpay_ok:
-        print("🎉 All credentials are properly configured!")
-        print("🏆 Your CricVerse Stadium System is ready for Big Bash League fans worldwide!")
+        print("[SUCCESS] All credentials are properly configured!")
+        print("[TROPHY] Your CricVerse Stadium System is ready for Big Bash League fans worldwide!")
     elif paypal_ok:
-        print("✅ PayPal is ready! (Razorpay needs configuration)")
-        print("📝 Please add your Razorpay credentials to complete the setup")
+        print("[PASS] PayPal is ready! (Razorpay needs configuration)")
+        print("[NOTE] Please add your Razorpay credentials to complete the setup")
     elif razorpay_ok:
-        print("✅ Razorpay is ready! (PayPal configuration issue)")
+        print("[PASS] Razorpay is ready! (PayPal configuration issue)")
     else:
-        print("❌ Please check your credentials in the .env file")
+        print("[FAIL] Please check your credentials in the .env file")
     
-    print("\n📝 Next steps:")
+    print("\n[NOTE] Next steps:")
     print("1. If Razorpay shows placeholder values, add your actual Razorpay credentials")
     print("2. Run this test again to verify")
     print("3. Start your Flask app: python app.py")

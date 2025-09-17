@@ -1,0 +1,103 @@
+{
+  "test_run": {
+    "timestamp": "2025-09-17T11:13:40.460271",
+    "total_tests": 6,
+    "passed": 5,
+    "failed": 1,
+    "fixes_applied": 6
+  },
+  "test_results": [
+    {
+      "test": "Flask App",
+      "status": "[FAIL] FAIL",
+      "success": false,
+      "message": "App not running: HTTPConnectionPool(host='localhost', port=5000): Read timed out. (read timeout=5)",
+      "details": null,
+      "timestamp": "2025-09-17T11:11:55.231166"
+    },
+    {
+      "test": "Flask App",
+      "status": "[PASS] PASS",
+      "success": true,
+      "message": "App is running",
+      "details": null,
+      "timestamp": "2025-09-17T11:12:03.244916"
+    },
+    {
+      "test": "Credentials",
+      "status": "[PASS] PASS",
+      "success": true,
+      "message": "All credentials are valid",
+      "details": null,
+      "timestamp": "2025-09-17T11:12:03.794662"
+    },
+    {
+      "test": "QR Code",
+      "status": "[PASS] PASS",
+      "success": true,
+      "message": "QR code generation working",
+      "details": null,
+      "timestamp": "2025-09-17T11:12:22.288797"
+    },
+    {
+      "test": "Chatbot",
+      "status": "[PASS] PASS",
+      "success": true,
+      "message": "Chatbot integration working",
+      "details": null,
+      "timestamp": "2025-09-17T11:12:54.746670"
+    },
+    {
+      "test": "Performance",
+      "status": "[PASS] PASS",
+      "success": true,
+      "message": "Performance test completed",
+      "details": null,
+      "timestamp": "2025-09-17T11:13:21.115936"
+    }
+  ],
+  "fixes_applied": [
+    {
+      "fix": "Directory static/qrcodes",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Created successfully",
+      "timestamp": "2025-09-17T11:11:31.625697"
+    },
+    {
+      "fix": "Directory static/uploads",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Created successfully",
+      "timestamp": "2025-09-17T11:11:31.625697"
+    },
+    {
+      "fix": "Directory logs",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Created successfully",
+      "timestamp": "2025-09-17T11:11:31.625697"
+    },
+    {
+      "fix": "Database",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Database tables created/verified",
+      "timestamp": "2025-09-17T11:11:48.184058"
+    },
+    {
+      "fix": "Flask App Startup",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "App started successfully",
+      "timestamp": "2025-09-17T11:12:03.245269"
+    },
+    {
+      "fix": "Performance Optimization",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Optimization completed",
+      "timestamp": "2025-09-17T11:13:40.435930"
+    }
+  ]
+}

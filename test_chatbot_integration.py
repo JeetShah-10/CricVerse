@@ -30,7 +30,7 @@ class ChatbotIntegrationTester:
         
     def log_test(self, test_name, success, message="", details=None):
         """Log test results"""
-        status = "✅ PASS" if success else "❌ FAIL"
+        status = "[PASS] PASS" if success else "[FAIL] FAIL"
         result = {
             'test': test_name,
             'status': status,
@@ -98,13 +98,25 @@ class ChatbotIntegrationTester:
     def test_chat_endpoint(self):
         """Test the chat API endpoint"""
         try:
+            # First get CSRF token
+            csrf_response = self.session.get(f"{self.base_url}/api/csrf-token", timeout=10)
+            csrf_token = None
+            if csrf_response.status_code == 200:
+                csrf_data = csrf_response.json()
+                csrf_token = csrf_data.get('csrf_token')
+            
             test_message = {
                 "message": "Hello, can you help me book tickets?"
             }
             
+            headers = {}
+            if csrf_token:
+                headers['X-CSRFToken'] = csrf_token
+            
             response = self.session.post(
                 f"{self.base_url}/api/chat",
                 json=test_message,
+                headers=headers,
                 timeout=30
             )
             
@@ -209,11 +221,23 @@ class ChatbotIntegrationTester:
         
         passed_scenarios = 0
         
+        # Get CSRF token once for all scenarios
+        csrf_response = self.session.get(f"{self.base_url}/api/csrf-token", timeout=10)
+        csrf_token = None
+        if csrf_response.status_code == 200:
+            csrf_data = csrf_response.json()
+            csrf_token = csrf_data.get('csrf_token')
+        
+        headers = {}
+        if csrf_token:
+            headers['X-CSRFToken'] = csrf_token
+        
         for i, scenario in enumerate(test_scenarios):
             try:
                 response = self.session.post(
                     f"{self.base_url}/api/chat",
                     json={"message": scenario["message"]},
+                    headers=headers,
                     timeout=30
                 )
                 
@@ -226,14 +250,14 @@ class ChatbotIntegrationTester:
                     
                     if keyword_found:
                         passed_scenarios += 1
-                        print(f"   ✅ Scenario {i+1}: {scenario['message'][:30]}...")
+                        print(f"   [PASS] Scenario {i+1}: {scenario['message'][:30]}...")
                     else:
-                        print(f"   ❌ Scenario {i+1}: {scenario['message'][:30]}... (no relevant keywords)")
+                        print(f"   [FAIL] Scenario {i+1}: {scenario['message'][:30]}... (no relevant keywords)")
                 else:
-                    print(f"   ❌ Scenario {i+1}: HTTP {response.status_code}")
+                    print(f"   [FAIL] Scenario {i+1}: HTTP {response.status_code}")
                     
             except Exception as e:
-                print(f"   ❌ Scenario {i+1}: Error - {e}")
+                print(f"   [FAIL] Scenario {i+1}: Error - {e}")
         
         success_rate = (passed_scenarios / len(test_scenarios)) * 100
         
@@ -246,7 +270,7 @@ class ChatbotIntegrationTester:
     
     def run_all_tests(self):
         """Run all chatbot integration tests"""
-        print("🚀 Starting Chatbot Integration Tests...")
+        print("[START] Starting Chatbot Integration Tests...")
         print("=" * 60)
         
         # Core functionality tests
@@ -270,20 +294,20 @@ class ChatbotIntegrationTester:
                 if test():
                     passed += 1
             except Exception as e:
-                print(f"❌ Test {test.__name__} failed with exception: {e}")
+                print(f"[FAIL] Test {test.__name__} failed with exception: {e}")
         
         print("\n" + "=" * 60)
-        print(f"📊 TEST SUMMARY")
+        print(f"[STATS] TEST SUMMARY")
         print(f"Passed: {passed}/{total} ({(passed/total)*100:.1f}%)")
         
         if passed == total:
-            print("🎉 ALL TESTS PASSED! Chatbot integration is working correctly.")
+            print("[SUCCESS] ALL TESTS PASSED! Chatbot integration is working correctly.")
             return True
         elif passed >= total * 0.8:
-            print("⚠️  Most tests passed. Minor issues may exist.")
+            print("[WARN]  Most tests passed. Minor issues may exist.")
             return True
         else:
-            print("❌ Multiple test failures. Chatbot integration needs attention.")
+            print("[FAIL] Multiple test failures. Chatbot integration needs attention.")
             return False
     
     def generate_report(self):
@@ -301,7 +325,7 @@ class ChatbotIntegrationTester:
         with open('chatbot_test_report.json', 'w') as f:
             json.dump(report, f, indent=2)
         
-        print(f"\n📋 Detailed report saved to: chatbot_test_report.json")
+        print(f"\n[REPORT] Detailed report saved to: chatbot_test_report.json")
         return report
 
 def main():

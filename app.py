@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
@@ -42,7 +43,7 @@ try:
     )
     SECURITY_FRAMEWORK_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠️ Security framework components not available: {e}")
+    print(f"[WARN] Security framework components not available: {e}")
     SECURITY_FRAMEWORK_AVAILABLE = False
 
 # Load environment variables (prefer local cricverse.env, fallback to .env)
@@ -56,6 +57,14 @@ csrf = CSRFProtect(app)
 
 # Configuration with fallbacks
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'cricverse-secret-key-change-in-production')
+
+# CSRF Configuration
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
+app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow HTTP for development
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
 
 # Database configuration with PostgreSQL fallback
 database_url = os.getenv('DATABASE_URL')
@@ -118,11 +127,11 @@ socketio = init_socketio(app)
 try:
     from security_framework import init_security
     init_security(app)
-    print("✅ Production security framework initialized")
+    print("[PASS] Production security framework initialized")
 except ImportError as e:
-    print(f"⚠️ Security framework not available: {e}")
+    print(f"[WARN] Security framework not available: {e}")
 except Exception as e:
-    print(f"❌ Security framework initialization failed: {e}")
+    print(f"[FAIL] Security framework initialization failed: {e}")
 
 # Database connection info
 if 'postgresql' in database_url:
@@ -1490,7 +1499,7 @@ def index():
             next_match_countdown = None
         
         # Log successful data retrieval
-        print(f"✅ Home page loaded: {len(upcoming_events)} events, {len(featured_stadiums)} stadiums, {len(featured_teams_data)} teams")
+        print(f"[PASS] Home page loaded: {len(upcoming_events)} events, {len(featured_stadiums)} stadiums, {len(featured_teams_data)} teams")
         
         # If no data was loaded from database, provide static fallback
         if not upcoming_events and not featured_stadiums and not featured_teams_data:
@@ -1504,7 +1513,7 @@ def index():
                                next_match_countdown=next_match_countdown)
         
     except Exception as e:
-        print(f"❌ Critical error in index route: {e}")
+        print(f"[FAIL] Critical error in index route: {e}")
         # Return template with empty data to prevent complete failure
         return render_template('index.html',
                                upcoming_events=[],
@@ -1862,47 +1871,112 @@ def select_seats(event_id):
     for seat in all_seats:
         seat.is_available = seat.id not in booked_seat_ids
     
-    # Group seats by section -> rows
+    # Group seats by section -> rows with enhanced data structure
     sections: dict = {}
+    total_available = 0
+    
     for seat in all_seats:
         section_name = seat.section
         row_name = seat.row_number
+        
         if section_name not in sections:
             sections[section_name] = {
                 'name': section_name,
-                'rows': {}
+                'rows': {},
+                'total_seats': 0,
+                'available_seats': 0,
+                'price_range': {'min': float('inf'), 'max': 0},
+                'seat_types': set(),
+                'class': 'standard'  # CSS class for styling
             }
+        
         if row_name not in sections[section_name]['rows']:
             sections[section_name]['rows'][row_name] = {
                 'name': row_name,
                 'seats': []
             }
+        
         sections[section_name]['rows'][row_name]['seats'].append(seat)
-
+        sections[section_name]['total_seats'] += 1
+        sections[section_name]['seat_types'].add(seat.seat_type)
+        
+        # Update price range
+        if seat.price < sections[section_name]['price_range']['min']:
+            sections[section_name]['price_range']['min'] = seat.price
+        if seat.price > sections[section_name]['price_range']['max']:
+            sections[section_name]['price_range']['max'] = seat.price
+        
+        if seat.is_available:
+            sections[section_name]['available_seats'] += 1
+            total_available += 1
+    
+    # Determine section styling class based on seat types
+    for section_data in sections.values():
+        seat_types = section_data['seat_types']
+        if 'VIP' in seat_types:
+            section_data['class'] = 'vip'
+        elif 'Corporate' in seat_types:
+            section_data['class'] = 'corporate'
+        elif 'Premium' in seat_types:
+            section_data['class'] = 'premium'
+        else:
+            section_data['class'] = 'standard'
+        
+        # Format price range
+        min_price = section_data['price_range']['min']
+        max_price = section_data['price_range']['max']
+        if min_price == max_price:
+            section_data['price_range'] = f"₹{min_price:.0f}"
+        else:
+            section_data['price_range'] = f"₹{min_price:.0f} - ₹{max_price:.0f}"
+    
     # Sort seats within rows by numeric seat_number when possible
     def _to_int_or_str(value: str):
         try:
             return int(value)
         except Exception:
             return value
-
+    
     for section_data in sections.values():
-        # order rows by natural name
+        # Order rows by natural name
         ordered_rows = []
         for row_name, row_data in section_data['rows'].items():
             row_data['seats'].sort(key=lambda s: _to_int_or_str(s.seat_number))
             ordered_rows.append(row_data)
-        # sort rows by their name with numeric fallback
+        # Sort rows by their name with numeric fallback
         ordered_rows.sort(key=lambda r: _to_int_or_str(r['name']))
         section_data['rows'] = ordered_rows
-
-    # Convert to list for template
-    sections_list = list(sections.values())
     
-    return render_template('seat_selection.html', 
-                         event=event, 
-                         sections=sections_list,
-                         selected_seats=[])
+    # Convert to list for template, sorted by section importance
+    def section_priority(section):
+        # Priority order: VIP -> Corporate -> Premium -> Standard -> General
+        if 'VIP' in section['seat_types']:
+            return 0
+        elif 'Corporate' in section['seat_types']:
+            return 1
+        elif 'Premium' in section['seat_types']:
+            return 2
+        elif 'Standard' in section['seat_types']:
+            return 3
+        else:
+            return 4
+    
+    sections_list = sorted(sections.values(), key=section_priority)
+    
+    # Use enhanced template if it exists, fallback to original
+    try:
+        return render_template('enhanced_seat_selection.html', 
+                             event=event, 
+                             sections=sections_list,
+                             selected_seats=[],
+                             total_available=total_available)
+    except Exception:
+        # Fallback to original template
+        return render_template('seat_selection.html', 
+                             event=event, 
+                             sections=sections_list,
+                             selected_seats=[],
+                             total_available=total_available)
 
 @app.route('/parking')
 def parking():
@@ -2391,6 +2465,11 @@ def ai_assistant():
 def ai_options():
     """AI Assistant options page"""
     return render_template('ai_options.html')
+
+@app.route('/api/csrf-token')
+def get_csrf_token():
+    """Get CSRF token for API requests"""
+    return jsonify({'csrf_token': generate_csrf()})
 
 @app.route('/api/chat', methods=['POST'])
 def enhanced_chat_api():
@@ -3041,17 +3120,348 @@ def booking_confirmation():
         'amount': getattr(booking, 'total_amount', None)
     })
 
+# BBL Action Hub API Routes
+@app.route('/api/bbl/live-scores')
+def get_live_scores():
+    """Get live match scores and fixtures"""
+    try:
+        # Sample live data - in production, this would come from Supabase
+        live_scores = [
+            {
+                'id': 1,
+                'home_team': 'Melbourne Stars',
+                'away_team': 'Sydney Sixers',
+                'home_score': '156/4',
+                'away_score': '132/6',
+                'status': 'LIVE',
+                'overs': '15.3',
+                'venue': 'Melbourne Cricket Ground',
+                'date': 'Today, 7:15 PM',
+                'home_logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'away_logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png')
+            },
+            {
+                'id': 2,
+                'home_team': 'Perth Scorchers',
+                'away_team': 'Brisbane Heat',
+                'home_score': None,
+                'away_score': None,
+                'status': 'UPCOMING',
+                'overs': None,
+                'venue': 'Optus Stadium, Perth',
+                'date': 'Tomorrow, 6:30 PM',
+                'home_logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'away_logo': url_for('static', filename='img/teams/Brisbane Heat.png')
+            },
+            {
+                'id': 3,
+                'home_team': 'Hobart Hurricanes',
+                'away_team': 'Adelaide Strikers',
+                'home_score': None,
+                'away_score': None,
+                'status': 'UPCOMING',
+                'overs': None,
+                'venue': 'Bellerive Oval, Hobart',
+                'date': 'Dec 18, 7:15 PM',
+                'home_logo': url_for('static', filename='img/teams/Hobart Hurricanes.png'),
+                'away_logo': url_for('static', filename='img/teams/Adelaide Striker.png')
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'matches': live_scores
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/bbl/standings')
+def get_standings():
+    """Get current BBL standings/points table"""
+    try:
+        standings = [
+            {
+                'position': 1,
+                'team': 'Melbourne Stars',
+                'played': 8,
+                'won': 6,
+                'lost': 2,
+                'nrr': '+0.85',
+                'points': 16,
+                'logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'is_playoff': True
+            },
+            {
+                'position': 2,
+                'team': 'Sydney Sixers',
+                'played': 8,
+                'won': 5,
+                'lost': 3,
+                'nrr': '+0.42',
+                'points': 14,
+                'logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png'),
+                'is_playoff': True
+            },
+            {
+                'position': 3,
+                'team': 'Perth Scorchers',
+                'played': 7,
+                'won': 4,
+                'lost': 3,
+                'nrr': '+0.18',
+                'points': 12,
+                'logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'is_playoff': True
+            },
+            {
+                'position': 4,
+                'team': 'Brisbane Heat',
+                'played': 8,
+                'won': 4,
+                'lost': 4,
+                'nrr': '-0.15',
+                'points': 10,
+                'logo': url_for('static', filename='img/teams/Brisbane Heat.png'),
+                'is_playoff': True
+            },
+            {
+                'position': 5,
+                'team': 'Hobart Hurricanes',
+                'played': 7,
+                'won': 3,
+                'lost': 4,
+                'nrr': '-0.28',
+                'points': 8,
+                'logo': url_for('static', filename='img/teams/Hobart Hurricanes.png'),
+                'is_playoff': False
+            },
+            {
+                'position': 6,
+                'team': 'Adelaide Strikers',
+                'played': 8,
+                'won': 3,
+                'lost': 5,
+                'nrr': '-0.35',
+                'points': 8,
+                'logo': url_for('static', filename='img/teams/Adelaide Striker.png'),
+                'is_playoff': False
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'standings': standings
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/bbl/top-performers')
+def get_top_performers():
+    """Get top performing players"""
+    try:
+        top_runs = [
+            {
+                'id': 1,
+                'name': 'Marcus Stoinis',
+                'team': 'Melbourne Stars',
+                'runs': 485,
+                'avatar': 'MS',
+                'logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'headshot': url_for('static', filename='img/players/marcus_stoinis.jpg')
+            },
+            {
+                'id': 2,
+                'name': 'Josh Inglis',
+                'team': 'Perth Scorchers',
+                'runs': 423,
+                'avatar': 'JI',
+                'logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'headshot': url_for('static', filename='img/players/josh_inglis.jpg')
+            },
+            {
+                'id': 3,
+                'name': 'Alex Hales',
+                'team': 'Sydney Sixers',
+                'runs': 395,
+                'avatar': 'AH',
+                'logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png'),
+                'headshot': url_for('static', filename='img/players/alex_hales.jpg')
+            },
+            {
+                'id': 4,
+                'name': 'Chris Lynn',
+                'team': 'Brisbane Heat',
+                'runs': 367,
+                'avatar': 'CL',
+                'logo': url_for('static', filename='img/teams/Brisbane Heat.png'),
+                'headshot': url_for('static', filename='img/players/chris_lynn.jpg')
+            }
+        ]
+        
+        top_wickets = [
+            {
+                'id': 1,
+                'name': 'Trent Boult',
+                'team': 'Hobart Hurricanes',
+                'wickets': 24,
+                'avatar': 'TB',
+                'logo': url_for('static', filename='img/teams/Hobart Hurricanes.png'),
+                'headshot': url_for('static', filename='img/players/trent_boult.jpg')
+            },
+            {
+                'id': 2,
+                'name': 'Jhye Richardson',
+                'team': 'Perth Scorchers',
+                'wickets': 22,
+                'avatar': 'JR',
+                'logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'headshot': url_for('static', filename='img/players/jhye_richardson.jpg')
+            },
+            {
+                'id': 3,
+                'name': 'Adam Zampa',
+                'team': 'Melbourne Stars',
+                'wickets': 21,
+                'avatar': 'AZ',
+                'logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'headshot': url_for('static', filename='img/players/adam_zampa.jpg')
+            },
+            {
+                'id': 4,
+                'name': 'Sean Abbott',
+                'team': 'Sydney Sixers',
+                'wickets': 19,
+                'avatar': 'SA',
+                'logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png'),
+                'headshot': url_for('static', filename='img/players/sean_abbott.jpg')
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'top_runs': top_runs,
+            'top_wickets': top_wickets
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/bbl/teams')
+def get_teams():
+    """Get all BBL teams data"""
+    try:
+        teams = [
+            {
+                'id': 1,
+                'name': 'Adelaide Strikers',
+                'short_name': 'STR',
+                'position': 6,
+                'points': 8,
+                'logo': url_for('static', filename='img/teams/Adelaide Striker.png'),
+                'color': '#003DA5',
+                'subtitle': 'The Strike Force'
+            },
+            {
+                'id': 2,
+                'name': 'Brisbane Heat',
+                'short_name': 'HEA',
+                'position': 4,
+                'points': 10,
+                'logo': url_for('static', filename='img/teams/Brisbane Heat.png'),
+                'color': '#FF6B35',
+                'subtitle': 'Feel the Heat'
+            },
+            {
+                'id': 3,
+                'name': 'Hobart Hurricanes',
+                'short_name': 'HUR',
+                'position': 5,
+                'points': 8,
+                'logo': url_for('static', filename='img/teams/Hobart Hurricanes.png'),
+                'color': '#6B2C91',
+                'subtitle': 'Hurricane Force'
+            },
+            {
+                'id': 4,
+                'name': 'Melbourne Renegades',
+                'short_name': 'REN',
+                'position': 7,
+                'points': 6,
+                'logo': url_for('static', filename='img/teams/Melbourne Renegades.png'),
+                'color': '#E40613',
+                'subtitle': 'Rebel Spirit'
+            },
+            {
+                'id': 5,
+                'name': 'Melbourne Stars',
+                'short_name': 'STA',
+                'position': 1,
+                'points': 16,
+                'logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'color': '#00A651',
+                'subtitle': 'Shine Bright'
+            },
+            {
+                'id': 6,
+                'name': 'Perth Scorchers',
+                'short_name': 'SCO',
+                'position': 3,
+                'points': 12,
+                'logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'color': '#FF8800',
+                'subtitle': 'Desert Fire'
+            },
+            {
+                'id': 7,
+                'name': 'Sydney Sixers',
+                'short_name': 'SIX',
+                'position': 2,
+                'points': 14,
+                'logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png'),
+                'color': '#FF1493',
+                'subtitle': 'Six Appeal'
+            },
+            {
+                'id': 8,
+                'name': 'Sydney Thunder',
+                'short_name': 'THU',
+                'position': 8,
+                'points': 4,
+                'logo': url_for('static', filename='img/teams/Sydney Thunder.png'),
+                'color': '#FFED00',
+                'subtitle': 'Thunder Strike'
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'teams': teams
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 if __name__ == '__main__':
     with app.app_context():
         try:
             # Create all basic tables
             db.create_all()
-            print("✅ Basic database tables created")
+            print("[PASS] Basic database tables created")
             
             # Create enhanced tables with better error handling
             # Temporarily disabled to avoid circular import issues
-            print("⚠️ Enhanced tables creation temporarily disabled")
-            print("📝 Application will continue with basic functionality")
+            print("[WARN] Enhanced tables creation temporarily disabled")
+            print("[NOTE] Application will continue with basic functionality")
             # try:
             #     # Import enhanced models only within app context to avoid circular imports
             #     import sys
@@ -3062,27 +3472,27 @@ if __name__ == '__main__':
             #     
             #     success = enhanced_models._create_tables_internal(db)
             #     if success:
-            #         print("✅ Enhanced database tables created")
+            #         print("[PASS] Enhanced database tables created")
             #     else:
-            #         print("⚠️ Enhanced tables creation skipped (likely already exist)")
+            #         print("[WARN] Enhanced tables creation skipped (likely already exist)")
             # except Exception as e:
-            #     print(f"⚠️ Could not create enhanced tables: {e}")
-            #     print("📝 Application will continue with basic functionality")
+            #     print(f"[WARN] Could not create enhanced tables: {e}")
+            #     print("[NOTE] Application will continue with basic functionality")
                 
         except Exception as e:
-            print(f"❌ Database initialization failed: {e}")
-            print("📝 Check your database connection and try again")
+            print(f"[FAIL] Database initialization failed: {e}")
+            print("[NOTE] Check your database connection and try again")
     
     # Initialize Flask-Admin
     try:
         admin = init_admin(app, db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking)
-        print("✅ Flask-Admin initialized")
+        print("[PASS] Flask-Admin initialized")
     except Exception as e:
-        print(f"⚠️ Flask-Admin initialization failed: {e}")
+        print(f"[WARN] Flask-Admin initialization failed: {e}")
     
     # Start the application with optimized settings
-    print("🚀 Starting CricVerse Stadium System...")
-    print(f"🌐 Server will be available at: http://localhost:5000")
+    print("[START] Starting CricVerse Stadium System...")
+    print(f"[WEB] Server will be available at: http://localhost:5000")
     
     # Use production-like settings even in development for better performance
     socketio.run(app, 
