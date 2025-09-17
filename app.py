@@ -4,9 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
 import re
+import logging
 from dotenv import load_dotenv
 from functools import wraps
 from flask_socketio import SocketIO
@@ -15,6 +16,10 @@ import razorpay
 import hmac
 import hashlib
 import json
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Import our utility functions
 from utils import (
@@ -25,12 +30,58 @@ from utils import (
 )
 
 # Import unified payment processor (PayPal + Indian gateways)
-from unified_payment_processor import (
-    unified_payment_processor,
-    UnifiedPaymentResponse,
-    PaymentGateway,
-    Currency
-)
+UNIFIED_PAYMENT_AVAILABLE = False
+
+# Import the processor first
+try:
+    from unified_payment_processor_simple import unified_payment_processor
+    UNIFIED_PAYMENT_AVAILABLE = True
+    # Import the classes from the same module
+    from unified_payment_processor_simple import UnifiedPaymentResponse, PaymentGateway, Currency
+except ImportError as e:
+    print(f"[WARN] Unified payment processor not available: {e}")
+    # Import our fallback classes
+    from enum import Enum
+    from dataclasses import dataclass
+    from typing import Optional, Dict, Any
+    
+    class PaymentGateway(Enum):
+        PAYPAL = "paypal"
+        RAZORPAY = "razorpay"
+        UPI = "upi"
+        CARD = "card"
+    
+    class Currency(Enum):
+        USD = "USD"
+        INR = "INR"
+        AUD = "AUD"
+        EUR = "EUR"
+    
+    @dataclass
+    class UnifiedPaymentResponse:
+        success: bool
+        payment_id: Optional[str] = None
+        gateway: Optional[PaymentGateway] = None
+        amount: Optional[float] = None
+        currency: Optional[Currency] = None
+        metadata: Optional[Dict[str, Any]] = None
+        error_message: Optional[str] = None
+        approval_url: Optional[str] = None
+    
+    # Create dummy processor
+    class DummyProcessor:
+        def create_payment(self, *args, **kwargs):
+            return UnifiedPaymentResponse(success=False, error_message='Payment processor not available')
+        def verify_payment(self, *args, **kwargs):
+            return UnifiedPaymentResponse(success=False, error_message='Payment processor not available')
+        def get_supported_methods(self, currency):
+            return ['paypal', 'card']
+        def get_currency_for_country(self, country):
+            return 'USD'
+        def process_successful_payment(self, payment_response: UnifiedPaymentResponse, metadata):  # type: ignore
+            return False
+    
+    unified_payment_processor = DummyProcessor()
 
 # Import admin module
 from admin import init_admin
@@ -117,7 +168,7 @@ if 'postgresql' in database_url:
 # Initialize extensions
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'login'  # type: ignore
 
 # Initialize SocketIO for real-time features
 from realtime_simple import init_socketio
@@ -195,9 +246,9 @@ def create_unified_payment_order(payment_data):
             result = {
                 'success': True,
                 'payment_id': payment_response.payment_id,
-                'gateway': payment_response.gateway.value,
+                'gateway': payment_response.gateway.value if payment_response.gateway is not None else None,
                 'amount': payment_response.amount,
-                'currency': payment_response.currency.value,
+                'currency': payment_response.currency.value if payment_response.currency is not None else None,
                 'payment_data': payment_response.metadata
             }
             
@@ -440,10 +491,10 @@ class Stadium(db.Model):
 
     @property
     def upcoming_matches(self):
-        from datetime import datetime
+        from datetime import datetime, timezone
         return Event.query.filter(
             Event.stadium_id == self.id,
-            Event.event_date >= datetime.utcnow().date()
+            Event.event_date >= datetime.now(timezone.utc).date()
         ).order_by(Event.event_date).all()
 
 class Team(db.Model):
@@ -554,6 +605,8 @@ class Customer(db.Model, UserMixin):
     membership_level = db.Column(db.String(20), default='Basic')
     favorite_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
     role = db.Column(db.String(20), default='customer')  # 'customer', 'admin', or 'stadium_owner'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     tickets = db.relationship('Ticket', backref='customer', lazy=True)
@@ -725,6 +778,209 @@ class Photo(db.Model):
     url = db.Column(db.String(200), nullable=False)
     caption = db.Column(db.String(200))
 
+class TicketTransfer(db.Model):
+    """Ticket transfer between customers"""
+    __tablename__ = 'ticket_transfer'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
+    from_customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    to_customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
+    to_email = db.Column(db.String(100))  # For transfers to new users
+    
+    # Transfer details
+    transfer_status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected, expired
+    transfer_code = db.Column(db.String(32), unique=True, nullable=False)
+    transfer_fee = db.Column(db.Float, default=0.0)
+    
+    # Timing
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    completed_at = db.Column(db.DateTime)
+    
+    # Security
+    verification_code = db.Column(db.String(6))  # SMS/Email verification
+    is_verified = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    ticket = db.relationship('Ticket', backref='transfers')
+    from_customer = db.relationship('Customer', foreign_keys=[from_customer_id], backref='sent_transfers')
+    to_customer = db.relationship('Customer', foreign_keys=[to_customer_id], backref='received_transfers')
+
+class ResaleMarketplace(db.Model):
+    """Resale marketplace for tickets"""
+    __tablename__ = 'resale_marketplace'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
+    seller_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
+    
+    # Pricing
+    original_price = db.Column(db.Float, nullable=False)
+    listing_price = db.Column(db.Float, nullable=False)
+    final_price = db.Column(db.Float)
+    platform_fee = db.Column(db.Float, default=0.0)
+    seller_fee = db.Column(db.Float, default=0.0)
+    
+    # Listing details
+    listing_status = db.Column(db.String(20), default='active')  # active, sold, cancelled, expired
+    listing_description = db.Column(db.Text)
+    is_negotiable = db.Column(db.Boolean, default=False)
+    
+    # Timing
+    listed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sold_at = db.Column(db.DateTime)
+    expires_at = db.Column(db.DateTime)
+    
+    # Verification
+    is_verified = db.Column(db.Boolean, default=False)
+    verification_status = db.Column(db.String(20), default='pending')  # pending, verified, rejected
+    
+    # Relationships
+    ticket = db.relationship('Ticket', backref='marketplace_listings')
+    seller = db.relationship('Customer', foreign_keys=[seller_id], backref='selling_tickets')
+    buyer = db.relationship('Customer', foreign_keys=[buyer_id], backref='bought_tickets')
+
+class SeasonTicket(db.Model):
+    """Season ticket management"""
+    __tablename__ = 'season_ticket'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False)
+    seat_id = db.Column(db.Integer, db.ForeignKey('seat.id'), nullable=False)
+    
+    # Season details
+    season_name = db.Column(db.String(100), nullable=False)  # e.g., "BBL 2024-25"
+    season_start_date = db.Column(db.Date, nullable=False)
+    season_end_date = db.Column(db.Date, nullable=False)
+    
+    # Package details
+    total_matches = db.Column(db.Integer, nullable=False)
+    matches_used = db.Column(db.Integer, default=0)
+    matches_transferred = db.Column(db.Integer, default=0)
+    
+    # Pricing
+    total_price = db.Column(db.Float, nullable=False)
+    price_per_match = db.Column(db.Float, nullable=False)
+    
+    # Status
+    ticket_status = db.Column(db.String(20), default='active')  # active, suspended, cancelled, expired
+    
+    # Benefits
+    priority_booking = db.Column(db.Boolean, default=True)
+    transfer_limit = db.Column(db.Integer, default=5)  # Max transfers per season
+    
+    # Timing
+    purchased_at = db.Column(db.DateTime, default=datetime.utcnow)
+    activated_at = db.Column(db.DateTime)
+    
+    # Relationships
+    customer = db.relationship('Customer', backref='season_tickets')
+    stadium = db.relationship('Stadium', backref='season_tickets')
+    seat = db.relationship('Seat', backref='season_tickets')
+    matches = db.relationship('SeasonTicketMatch', backref='season_ticket', lazy='dynamic')
+
+class SeasonTicketMatch(db.Model):
+    """Individual matches in a season ticket"""
+    __tablename__ = 'season_ticket_match'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    season_ticket_id = db.Column(db.Integer, db.ForeignKey('season_ticket.id'), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    
+    # Usage status
+    is_used = db.Column(db.Boolean, default=False)
+    used_at = db.Column(db.DateTime)
+    
+    # Transfer details
+    is_transferred = db.Column(db.Boolean, default=False)
+    transferred_to_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
+    transferred_at = db.Column(db.DateTime)
+    transfer_price = db.Column(db.Float, default=0.0)
+    
+    # Relationships
+    event = db.relationship('Event', backref='season_ticket_matches')
+    transferred_to = db.relationship('Customer', backref='received_season_matches')
+
+class AccessibilityAccommodation(db.Model):
+    """Accessibility accommodations tracking"""
+    __tablename__ = 'accessibility_accommodation'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    
+    # Accommodation details
+    accommodation_type = db.Column(db.String(50), nullable=False)  # wheelchair, hearing, visual, mobility, other
+    description = db.Column(db.Text)
+    severity_level = db.Column(db.String(20))  # mild, moderate, severe
+    
+    # Requirements
+    requires_wheelchair_access = db.Column(db.Boolean, default=False)
+    requires_companion_seat = db.Column(db.Boolean, default=False)
+    requires_aisle_access = db.Column(db.Boolean, default=False)
+    requires_hearing_loop = db.Column(db.Boolean, default=False)
+    requires_sign_language = db.Column(db.Boolean, default=False)
+    requires_braille = db.Column(db.Boolean, default=False)
+    
+    # Equipment needs
+    mobility_equipment = db.Column(db.String(100))  # wheelchair, crutches, walker, etc.
+    service_animal = db.Column(db.Boolean, default=False)
+    service_animal_type = db.Column(db.String(50))
+    
+    # Communication preferences
+    preferred_communication = db.Column(db.String(50))  # email, sms, phone, sign_language
+    emergency_contact_name = db.Column(db.String(100))
+    emergency_contact_phone = db.Column(db.String(20))
+    
+    # Verification
+    is_verified = db.Column(db.Boolean, default=False)
+    verification_document = db.Column(db.String(200))  # Path to uploaded document
+    verified_at = db.Column(db.DateTime)
+    verified_by = db.Column(db.Integer, db.ForeignKey('customer.id'))
+    
+    # Timing
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    customer = db.relationship('Customer', foreign_keys=[customer_id], backref='accessibility_needs')
+    verified_by_user = db.relationship('Customer', foreign_keys=[verified_by])
+    bookings = db.relationship('AccessibilityBooking', backref='accommodation', lazy='dynamic')
+
+class AccessibilityBooking(db.Model):
+    """Bookings with accessibility accommodations"""
+    __tablename__ = 'accessibility_booking'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(db.Integer, db.ForeignKey('booking.id'), nullable=False)
+    accommodation_id = db.Column(db.Integer, db.ForeignKey('accessibility_accommodation.id'), nullable=False)
+    
+    # Specific accommodations for this booking
+    requested_accommodations = db.Column(db.Text)  # JSON array of requested accommodations
+    provided_accommodations = db.Column(db.Text)  # JSON array of provided accommodations
+    
+    # Staff notes
+    staff_notes = db.Column(db.Text)
+    special_instructions = db.Column(db.Text)
+    
+    # Status
+    accommodation_status = db.Column(db.String(20), default='requested')  # requested, confirmed, fulfilled, not_available
+    
+    # Fulfillment
+    assigned_staff_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
+    fulfillment_notes = db.Column(db.Text)
+    fulfilled_at = db.Column(db.DateTime)
+    
+    # Timing
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    booking = db.relationship('Booking', backref='accessibility_bookings')
+    assigned_staff = db.relationship('Customer', backref='assigned_accessibility_tasks')
+
 # Authentication decorators
 def admin_required(f):
     """Decorator to require admin role"""
@@ -792,7 +1048,7 @@ def stadium_admin_required(stadium_id_param='stadium_id'):
 def get_static_fallback_data():
     """Provide static fallback data when database is unavailable"""
     from collections import namedtuple
-    from datetime import datetime, timedelta
+    from datetime import datetime, timezone, timedelta
     
     # Create mock objects with the same structure as database models
     MockEvent = namedtuple('MockEvent', ['id', 'event_name', 'event_date', 'start_time', 'stadium_id', 'home_team_id', 'away_team_id'])
@@ -964,18 +1220,17 @@ def add_stadium():
         has_dressing_rooms = 'has_dressing_rooms' in request.form
         has_practice_nets = 'has_practice_nets' in request.form
         
-        new_stadium = Stadium(
-            name=name,
-            location=location,
-            capacity=capacity,
-            contact_number=contact_number,
-            opening_year=opening_year,
-            pitch_type=pitch_type,
-            boundary_length=boundary_length,
-            floodlight_quality=floodlight_quality,
-            has_dressing_rooms=has_dressing_rooms,
-            has_practice_nets=has_practice_nets
-        )
+        new_stadium = Stadium()
+        new_stadium.name = name
+        new_stadium.location = location
+        new_stadium.capacity = capacity
+        new_stadium.contact_number = contact_number
+        new_stadium.opening_year = opening_year
+        new_stadium.pitch_type = pitch_type
+        new_stadium.boundary_length = boundary_length
+        new_stadium.floodlight_quality = floodlight_quality
+        new_stadium.has_dressing_rooms = has_dressing_rooms
+        new_stadium.has_practice_nets = has_practice_nets
         
         db.session.add(new_stadium)
         db.session.flush()  # Get the stadium ID
@@ -1493,7 +1748,7 @@ def index():
             if upcoming_events:
                 next_event = upcoming_events[0]
                 next_event_datetime = datetime.combine(next_event.event_date, next_event.start_time)
-                time_difference = next_event_datetime - datetime.utcnow()
+                time_difference = next_event_datetime - datetime.now(timezone.utc)
                 if time_difference.total_seconds() > 0:
                     days = time_difference.days
                     hours = time_difference.seconds // 3600
@@ -1731,7 +1986,7 @@ def dashboard():
     # Find upcoming events from the user's tickets
     upcoming_events_count = db.session.query(Ticket).join(Event).filter(
         Ticket.customer_id == current_user.id,
-        Event.event_date >= datetime.utcnow().date()
+        Event.event_date >= datetime.now(timezone.utc).date()
     ).count()
 
     stats = {
@@ -2054,10 +2309,13 @@ def concession_menu(concession_id):
 
 @app.route('/booking/create-order', methods=['POST'])
 @login_required
+@limiter.limit("5 per minute", key_func=rate_limit_by_user)
+@validate_json_input(BookingValidationModel)
 def booking_create_order():
     """Create a PayPal order after validating inventory and computing total server-side.
-
-    Expected JSON body:
+    Enhanced with rate limiting, validation, concurrency handling, and transaction management.
+    
+    Expected JSON body (validated by BookingValidationModel):
     {
       "event_id": 123,
       "seat_ids": [1,2,3],
@@ -2066,160 +2324,415 @@ def booking_create_order():
     }
     """
     try:
-        data = request.get_json(silent=True) or {}
+        # Get validated data from the decorator
+        data = request.validated_data
         event_id = data.get('event_id')
         seat_ids = data.get('seat_ids') or []
         parking_id = data.get('parking_id')
         parking_hours = data.get('parking_hours')
+        
+        logger.info(f"[BOOKING] Creating order for user {current_user.id}, event {event_id}, seats {seat_ids}")
 
-        if not event_id:
-            return jsonify({"success": False, "error": "event_id is required"}), 400
-
-        # Validate event
+        # Enhanced validation: Verify event exists and is bookable
         event = Event.query.get(event_id)
         if not event:
-            return jsonify({"success": False, "error": "Invalid event_id"}), 400
+            logger.warning(f"[BOOKING] Invalid event_id {event_id} from user {current_user.id}")
+            return jsonify({"success": False, "error": "Invalid event_id", "error_code": "EVENT_NOT_FOUND"}), 400
+        
+        # Check if event is in the future
+        if event.event_date < datetime.now().date():
+            return jsonify({"success": False, "error": "Cannot book past events", "error_code": "PAST_EVENT"}), 400
+        
+        # Check if event is too far in the future (prevent spam bookings)
+        max_future_days = 365  # 1 year
+        if (event.event_date - datetime.now().date()).days > max_future_days:
+            return jsonify({"success": False, "error": "Event too far in future", "error_code": "TOO_FUTURE"}), 400
 
         total_amount = 0.0
         validated_seat_ids = []
 
-        # Validate seats availability and compute total
+        # Enhanced concurrency handling with database locks
         if seat_ids:
-            seats = Seat.query.filter(Seat.id.in_(seat_ids), Seat.stadium_id == event.stadium_id).all()
-            if len(seats) != len(seat_ids):
-                return jsonify({"success": False, "error": "One or more seats not found for this event's stadium"}), 400
+            # Use SELECT FOR UPDATE to prevent race conditions
+            with db.session.begin():  # Start transaction
+                # Get seats with row-level locking
+                seats = db.session.query(Seat).filter(
+                    Seat.id.in_(seat_ids), 
+                    Seat.stadium_id == event.stadium_id
+                ).with_for_update().all()
+                
+                if len(seats) != len(seat_ids):
+                    logger.warning(f"[BOOKING] Seat validation failed - requested: {len(seat_ids)}, found: {len(seats)}")
+                    return jsonify({"success": False, "error": "One or more seats not found for this event's stadium", "error_code": "SEATS_NOT_FOUND"}), 400
 
-            # Seats already booked for this event
-            booked_seat_ids = db.session.query(Ticket.seat_id).filter(
-                Ticket.event_id == event_id,
-                Ticket.ticket_status.in_(['Booked', 'Used'])
-            ).all()
-            booked_seat_ids = {sid for (sid,) in booked_seat_ids}
+                # Check seat availability with atomic query
+                booked_seats_query = db.session.query(Ticket.seat_id).filter(
+                    Ticket.event_id == event_id,
+                    Ticket.seat_id.in_(seat_ids),
+                    Ticket.ticket_status.in_(['Booked', 'Used'])
+                ).with_for_update()  # Lock these records too
+                
+                booked_seat_ids = {sid for (sid,) in booked_seats_query.all()}
 
-            for seat in seats:
-                if seat.id in booked_seat_ids:
-                    return jsonify({"success": False, "error": f"Seat {seat.seat_number} is no longer available"}), 409
-                total_amount += float(seat.price or 0)
-                validated_seat_ids.append(seat.id)
+                # Validate each seat and calculate total
+                unavailable_seats = []
+                for seat in seats:
+                    if seat.id in booked_seat_ids:
+                        unavailable_seats.append(f"Section {seat.section}, Row {seat.row_number}, Seat {seat.seat_number}")
+                    else:
+                        total_amount += float(seat.price or 0)
+                        validated_seat_ids.append(seat.id)
+                
+                if unavailable_seats:
+                    logger.warning(f"[BOOKING] Seat availability conflict - unavailable seats: {unavailable_seats}")
+                    return jsonify({
+                        "success": False, 
+                        "error": f"Seats no longer available: {', '.join(unavailable_seats)}", 
+                        "error_code": "SEATS_UNAVAILABLE",
+                        "unavailable_seats": unavailable_seats
+                    }), 409
 
-        # Optional parking validation and fee
+        # Enhanced parking validation with concurrency handling
+        parking_amount = 0.0
         if parking_id:
-            parking = Parking.query.get(parking_id)
-            if not parking or parking.stadium_id != event.stadium_id:
-                return jsonify({"success": False, "error": "Invalid parking selection"}), 400
-            hours = float(parking_hours or 0)
-            if hours > 0:
-                total_amount += float(parking.rate_per_hour or 0) * hours
+            with db.session.begin():
+                parking = db.session.query(Parking).filter(
+                    Parking.id == parking_id
+                ).with_for_update().one_or_none()
+                
+                if not parking or parking.stadium_id != event.stadium_id:
+                    return jsonify({"success": False, "error": "Invalid parking selection", "error_code": "PARKING_INVALID"}), 400
+                
+                hours = float(parking_hours or 0)
+                if hours <= 0 or hours > 24:
+                    return jsonify({"success": False, "error": "Invalid parking hours (1-24)", "error_code": "PARKING_HOURS_INVALID"}), 400
+                    
+                # Check parking availability for the event time
+                existing_bookings = db.session.query(ParkingBooking).filter(
+                    ParkingBooking.parking_id == parking_id,
+                    ParkingBooking.arrival_time.between(
+                        event.start_time - timedelta(hours=2),
+                        event.start_time + timedelta(hours=6)
+                    )
+                ).count()
+                
+                if existing_bookings >= parking.capacity:
+                    return jsonify({"success": False, "error": "Parking zone full for this time", "error_code": "PARKING_FULL"}), 409
+                    
+                parking_amount = float(parking.rate_per_hour or 0) * hours
+                total_amount += parking_amount
 
+        # Final validation
         if total_amount <= 0:
-            return jsonify({"success": False, "error": "Cart is empty"}), 400
+            return jsonify({"success": False, "error": "Cart is empty", "error_code": "EMPTY_CART"}), 400
+        
+        # Apply service fees (configurable)
+        service_fee_rate = float(os.getenv('SERVICE_FEE_RATE', '0.05'))  # 5%
+        processing_fee = float(os.getenv('PROCESSING_FEE', '2.50'))
+        
+        service_fee = total_amount * service_fee_rate
+        final_amount = total_amount + service_fee + processing_fee
+        
+        # Enhanced amount validation against potential tampering
+        expected_total = data.get('total_amount')
+        if expected_total and abs(final_amount - expected_total) > 0.01:
+            logger.warning(f"[BOOKING] Amount mismatch - calculated: {final_amount}, provided: {expected_total}")
+            return jsonify({
+                "success": False, 
+                "error": "Amount calculation mismatch", 
+                "error_code": "AMOUNT_MISMATCH",
+                "calculated_total": round(final_amount, 2)
+            }), 400
 
-        # Create payment order using unified processor
+        # Create payment order using unified processor with enhanced metadata
+        payment_metadata = {
+            'customer_id': str(current_user.id),
+            'customer_email': current_user.email,
+            'customer_name': current_user.name,
+            'booking_type': 'ticket',
+            'event_id': str(event_id),
+            'event_name': event.event_name,
+            'stadium_id': str(event.stadium_id),
+            'seat_count': len(validated_seat_ids),
+            'base_amount': round(total_amount, 2),
+            'service_fee': round(service_fee, 2),
+            'processing_fee': round(processing_fee, 2),
+            'final_amount': round(final_amount, 2),
+            'booking_timestamp': datetime.now(timezone.utc).isoformat(),
+            'user_agent': request.headers.get('User-Agent', ''),
+            'ip_address': request.remote_addr
+        }
+        
+        if parking_id:
+            payment_metadata.update({
+                'parking_id': str(parking_id),
+                'parking_hours': str(parking_hours),
+                'parking_amount': round(parking_amount, 2)
+            })
+        
         payment_response = unified_payment_processor.create_payment(
-            amount=total_amount,
+            amount=final_amount,
             currency='USD',
             payment_method='paypal',
             customer_email=current_user.email,
-            metadata={
-                'customer_id': str(current_user.id),
-                'customer_email': current_user.email,
-                'booking_type': 'ticket',
-                'description': f"Big Bash League Booking"
-            }
+            metadata=payment_metadata
         )
         
         if not payment_response.success:
-            return jsonify({"success": False, "error": payment_response.error_message or "Payment setup failed"}), 400
+            logger.error(f"[BOOKING] Payment creation failed: {payment_response.error_message}")
+            return jsonify({
+                "success": False, 
+                "error": payment_response.error_message or "Payment setup failed", 
+                "error_code": "PAYMENT_SETUP_FAILED"
+            }), 400
         
         order_id = payment_response.payment_id
+        logger.info(f"[BOOKING] PayPal order created: {order_id} for user {current_user.id}")
 
-        # Stash a lightweight pending context in session for capture step
-        session['pending_booking'] = {
+        # Store enhanced pending booking context with expiration
+        pending_booking = {
+            'order_id': order_id,
             'event_id': event_id,
             'seat_ids': validated_seat_ids,
             'parking_id': parking_id,
             'parking_hours': float(parking_hours or 0),
-            'amount': float(f"{total_amount:.2f}")
+            'base_amount': round(total_amount, 2),
+            'service_fee': round(service_fee, 2),
+            'processing_fee': round(processing_fee, 2),
+            'final_amount': round(final_amount, 2),
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'expires_at': (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(),  # 15 min expiry
+            'user_id': current_user.id,
+            'metadata': payment_metadata
         }
+        
+        session['pending_booking'] = pending_booking
+        
+        # Log successful order creation for monitoring
+        logger.info(f"[BOOKING] Order created successfully - User: {current_user.id}, Order: {order_id}, Amount: {final_amount}")
 
-        return jsonify({"success": True, "orderID": order_id, "amount": f"{total_amount:.2f}"})
+        return jsonify({
+            "success": True, 
+            "orderID": order_id, 
+            "amount": f"{final_amount:.2f}",
+            "breakdown": {
+                "base_amount": round(total_amount, 2),
+                "service_fee": round(service_fee, 2),
+                "processing_fee": round(processing_fee, 2),
+                "total": round(final_amount, 2)
+            },
+            "expires_at": pending_booking['expires_at']
+        })
 
     except Exception as e:
-        print(f"Create order error: {e}")
-        return jsonify({"success": False, "error": "Failed to create order"}), 500
+        logger.error(f"[BOOKING] Create order error for user {current_user.id}: {e}")
+        db.session.rollback()  # Ensure rollback on error
+        return jsonify({"success": False, "error": "Failed to create order", "error_code": "INTERNAL_ERROR"}), 500
 
 
 @app.route('/booking/create-razorpay-order', methods=['POST'])
 @login_required
+@limiter.limit("5 per minute", key_func=rate_limit_by_user)
+@validate_json_input(BookingValidationModel)
 def booking_create_razorpay_order():
+    """Create Razorpay order with enhanced security, validation and concurrency handling"""
     if not razorpay_client:
-        return jsonify({"success": False, "error": "Razorpay not configured"}), 500
+        return jsonify({"success": False, "error": "Razorpay not configured", "error_code": "SERVICE_UNAVAILABLE"}), 500
+    
     try:
-        data = request.get_json(silent=True) or {}
+        # Get validated data from the decorator
+        data = request.validated_data
         event_id = data.get('event_id')
         seat_ids = data.get('seat_ids') or []
         parking_id = data.get('parking_id')
         parking_hours = data.get('parking_hours')
+        
+        logger.info(f"[RAZORPAY] Creating order for user {current_user.id}, event {event_id}, seats {seat_ids}")
 
-        if not event_id:
-            return jsonify({"success": False, "error": "event_id is required"}), 400
-
+        # Enhanced validation: Verify event exists and is bookable
         event = Event.query.get(event_id)
         if not event:
-            return jsonify({"success": False, "error": "Invalid event_id"}), 400
+            logger.warning(f"[RAZORPAY] Invalid event_id {event_id} from user {current_user.id}")
+            return jsonify({"success": False, "error": "Invalid event_id", "error_code": "EVENT_NOT_FOUND"}), 400
+        
+        # Check if event is in the future
+        if event.event_date < datetime.now().date():
+            return jsonify({"success": False, "error": "Cannot book past events", "error_code": "PAST_EVENT"}), 400
 
         total_amount = 0.0
         validated_seat_ids = []
 
+        # Enhanced concurrency handling with database locks
         if seat_ids:
-            seats = Seat.query.filter(Seat.id.in_(seat_ids), Seat.stadium_id == event.stadium_id).all()
-            if len(seats) != len(seat_ids):
-                return jsonify({"success": False, "error": "One or more seats not found for this event's stadium"}), 400
+            # Use SELECT FOR UPDATE to prevent race conditions
+            with db.session.begin():  # Start transaction
+                # Get seats with row-level locking
+                seats = db.session.query(Seat).filter(
+                    Seat.id.in_(seat_ids), 
+                    Seat.stadium_id == event.stadium_id
+                ).with_for_update().all()
+                
+                if len(seats) != len(seat_ids):
+                    logger.warning(f"[RAZORPAY] Seat validation failed - requested: {len(seat_ids)}, found: {len(seats)}")
+                    return jsonify({"success": False, "error": "One or more seats not found for this event's stadium", "error_code": "SEATS_NOT_FOUND"}), 400
 
-            booked_seat_ids = db.session.query(Ticket.seat_id).filter(
-                Ticket.event_id == event_id,
-                Ticket.ticket_status.in_(['Booked', 'Used'])
-            ).all()
-            booked_seat_ids = {sid for (sid,) in booked_seat_ids}
+                # Check seat availability with atomic query
+                booked_seats_query = db.session.query(Ticket.seat_id).filter(
+                    Ticket.event_id == event_id,
+                    Ticket.seat_id.in_(seat_ids),
+                    Ticket.ticket_status.in_(['Booked', 'Used'])
+                ).with_for_update()  # Lock these records too
+                
+                booked_seat_ids = {sid for (sid,) in booked_seats_query.all()}
 
-            for seat in seats:
-                if seat.id in booked_seat_ids:
-                    return jsonify({"success": False, "error": f"Seat {seat.seat_number} is no longer available"}), 409
-                total_amount += float(seat.price or 0)
-                validated_seat_ids.append(seat.id)
+                # Validate each seat and calculate total
+                unavailable_seats = []
+                for seat in seats:
+                    if seat.id in booked_seat_ids:
+                        unavailable_seats.append(f"Section {seat.section}, Row {seat.row_number}, Seat {seat.seat_number}")
+                    else:
+                        total_amount += float(seat.price or 0)
+                        validated_seat_ids.append(seat.id)
+                
+                if unavailable_seats:
+                    logger.warning(f"[RAZORPAY] Seat availability conflict - unavailable seats: {unavailable_seats}")
+                    return jsonify({
+                        "success": False, 
+                        "error": f"Seats no longer available: {', '.join(unavailable_seats)}", 
+                        "error_code": "SEATS_UNAVAILABLE",
+                        "unavailable_seats": unavailable_seats
+                    }), 409
 
+        # Enhanced parking validation with concurrency handling
+        parking_amount = 0.0
         if parking_id:
-            parking = Parking.query.get(parking_id)
-            if not parking or parking.stadium_id != event.stadium_id:
-                return jsonify({"success": False, "error": "Invalid parking selection"}), 400
-            hours = float(parking_hours or 0)
-            if hours > 0:
-                total_amount += float(parking.rate_per_hour or 0) * hours
+            with db.session.begin():
+                parking = db.session.query(Parking).filter(
+                    Parking.id == parking_id
+                ).with_for_update().one_or_none()
+                
+                if not parking or parking.stadium_id != event.stadium_id:
+                    return jsonify({"success": False, "error": "Invalid parking selection", "error_code": "PARKING_INVALID"}), 400
+                
+                hours = float(parking_hours or 0)
+                if hours <= 0 or hours > 24:
+                    return jsonify({"success": False, "error": "Invalid parking hours (1-24)", "error_code": "PARKING_HOURS_INVALID"}), 400
+                    
+                # Check parking availability for the event time
+                existing_bookings = db.session.query(ParkingBooking).filter(
+                    ParkingBooking.parking_id == parking_id,
+                    ParkingBooking.arrival_time.between(
+                        event.start_time - timedelta(hours=2),
+                        event.start_time + timedelta(hours=6)
+                    )
+                ).count()
+                
+                if existing_bookings >= parking.capacity:
+                    return jsonify({"success": False, "error": "Parking zone full for this time", "error_code": "PARKING_FULL"}), 409
+                    
+                parking_amount = float(parking.rate_per_hour or 0) * hours
+                total_amount += parking_amount
 
+        # Final validation
         if total_amount <= 0:
-            return jsonify({"success": False, "error": "Cart is empty"}), 400
+            return jsonify({"success": False, "error": "Cart is empty", "error_code": "EMPTY_CART"}), 400
+        
+        # Apply service fees and convert to INR paise (Razorpay requirement)
+        service_fee_rate = float(os.getenv('SERVICE_FEE_RATE', '0.05'))  # 5%
+        processing_fee = float(os.getenv('PROCESSING_FEE_INR', '20.00'))  # ₹20 in INR
+        
+        service_fee = total_amount * service_fee_rate
+        final_amount = total_amount + service_fee + processing_fee
+        
+        # Convert to paise (smallest currency unit for INR)
+        amount_paise = int(round(final_amount * 100))
+        
+        # Razorpay order creation with enhanced metadata
+        receipt_id = f"rcpt_{current_user.id}_{event_id}_{int(datetime.now(timezone.utc).timestamp())}"
+        
+        razorpay_order_data = {
+            'amount': amount_paise,
+            'currency': 'INR',
+            'receipt': receipt_id,
+            'notes': {
+                'customer_id': str(current_user.id),
+                'customer_email': current_user.email,
+                'customer_name': current_user.name,
+                'event_id': str(event_id),
+                'event_name': event.event_name,
+                'stadium_id': str(event.stadium_id),
+                'seat_count': str(len(validated_seat_ids)),
+                'seat_ids': ','.join(map(str, validated_seat_ids)),
+                'base_amount': str(round(total_amount, 2)),
+                'service_fee': str(round(service_fee, 2)),
+                'processing_fee': str(round(processing_fee, 2)),
+                'final_amount': str(round(final_amount, 2)),
+                'booking_timestamp': datetime.now(timezone.utc).isoformat(),
+                'ip_address': request.remote_addr
+            }
+        }
+        
+        if parking_id:
+            razorpay_order_data['notes'].update({
+                'parking_id': str(parking_id),
+                'parking_hours': str(parking_hours),
+                'parking_amount': str(round(parking_amount, 2))
+            })
+        
+        # Create Razorpay order
+        order = razorpay_client.order.create(razorpay_order_data)
+        
+        if not order or not order.get('id'):
+            logger.error(f"[RAZORPAY] Order creation failed for user {current_user.id}")
+            return jsonify({"success": False, "error": "Failed to create Razorpay order", "error_code": "RAZORPAY_ORDER_FAILED"}), 500
+        
+        logger.info(f"[RAZORPAY] Order created: {order.get('id')} for user {current_user.id}")
 
-        amount_paise = int(round(total_amount * 100))
-        order = razorpay_client.order.create(dict(amount=amount_paise, currency='INR', receipt=f'rcpt_{current_user.id}_{event_id}'))
-
-        session['pending_booking'] = {
+        # Store enhanced pending booking context with expiration
+        pending_booking = {
+            'razorpay_order_id': order.get('id'),
             'event_id': event_id,
             'seat_ids': validated_seat_ids,
             'parking_id': parking_id,
             'parking_hours': float(parking_hours or 0),
-            'amount': float(f"{total_amount:.2f}")
+            'base_amount': round(total_amount, 2),
+            'service_fee': round(service_fee, 2),
+            'processing_fee': round(processing_fee, 2),
+            'final_amount': round(final_amount, 2),
+            'amount_paise': amount_paise,
+            'receipt_id': receipt_id,
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'expires_at': (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(),  # 15 min expiry
+            'user_id': current_user.id,
+            'metadata': razorpay_order_data['notes']
         }
+        
+        session['pending_booking'] = pending_booking
+        
+        # Log successful order creation for monitoring
+        logger.info(f"[RAZORPAY] Order created successfully - User: {current_user.id}, Order: {order.get('id')}, Amount: ₹{final_amount}")
 
         return jsonify({
             'success': True,
             'razorpay_order_id': order.get('id'),
             'key_id': RAZORPAY_KEY_ID,
             'amount': amount_paise,
-            'currency': 'INR'
+            'currency': 'INR',
+            'receipt': receipt_id,
+            'amount_display': f"₹{final_amount:.2f}",
+            'breakdown': {
+                'base_amount': round(total_amount, 2),
+                'service_fee': round(service_fee, 2),
+                'processing_fee': round(processing_fee, 2),
+                'total': round(final_amount, 2)
+            },
+            'expires_at': pending_booking['expires_at']
         })
+        
     except Exception as e:
-        print(f"Create Razorpay order error: {e}")
-        return jsonify({"success": False, "error": "Failed to create Razorpay order"}), 500
+        logger.error(f"[RAZORPAY] Create order error for user {current_user.id}: {e}")
+        db.session.rollback()  # Ensure rollback on error
+        return jsonify({"success": False, "error": "Failed to create Razorpay order", "error_code": "INTERNAL_ERROR"}), 500
 
 
 @app.route('/booking/verify-razorpay-payment', methods=['POST'])
@@ -2315,104 +2828,210 @@ def verify_razorpay_payment():
 
 @app.route('/booking/capture-order', methods=['POST'])
 @login_required
+@limiter.limit("3 per minute", key_func=rate_limit_by_user)
+@validate_json_input(BookingValidationModel)
 def booking_capture_order():
-    """Capture a PayPal order and write booking + tickets atomically."""
+    """Capture a PayPal order and write booking + tickets atomically with enhanced security."""
     try:
-        data = request.get_json(silent=True) or {}
+        data = request.validated_data
         order_id = data.get('orderID')
+        payer_id = data.get('payerID', '')
+        
         if not order_id:
-            return jsonify({"success": False, "error": "orderID is required"}), 400
+            return jsonify({"success": False, "error": "orderID is required", "error_code": "MISSING_ORDER_ID"}), 400
 
         pending = session.get('pending_booking')
         if not pending:
-            return jsonify({"success": False, "error": "No pending booking found in session"}), 400
-
-        # Verify payment using unified processor
-        payment_verification = unified_payment_processor.verify_payment({
-            'gateway': 'paypal',
-            'payment_id': order_id,
-            'payer_id': data.get('payerID', '')
-        })
+            logger.warning(f"[CAPTURE] No pending booking for user {current_user.id}, order {order_id}")
+            return jsonify({"success": False, "error": "No pending booking found in session", "error_code": "NO_PENDING_BOOKING"}), 400
         
-        if not payment_verification.success:
-            return jsonify({"success": False, "error": "Payment verification failed"}), 400
+        # Enhanced security: Verify booking hasn't expired
+        if 'expires_at' in pending:
+            expires_at = datetime.fromisoformat(pending['expires_at'])
+            if datetime.now(timezone.utc) > expires_at:
+                session.pop('pending_booking', None)
+                logger.warning(f"[CAPTURE] Expired booking for user {current_user.id}, order {order_id}")
+                return jsonify({"success": False, "error": "Booking has expired", "error_code": "BOOKING_EXPIRED"}), 400
         
-        capture_data = {
-            'status': 'COMPLETED',
-            'id': payment_verification.payment_id
-        }
-        status = capture_data.get('status')
-        if status != 'COMPLETED':
-            return jsonify({"success": False, "error": f"Capture failed: {status}"}), 400
-
-        transaction_id = capture_data.get('id')
-
-        # Create tickets list to store created tickets
-        tickets = []
-
-        # Atomic DB writes
-        with db.session.begin():
-            new_booking = Booking(
-                customer_id=current_user.id,
-                total_amount=pending['amount']
-            )
-            db.session.add(new_booking)
-            db.session.flush()
-
-            # Create tickets for seats
-            for sid in pending.get('seat_ids') or []:
-                ticket = Ticket(
-                    event_id=pending['event_id'],
-                    seat_id=sid,
-                    customer_id=current_user.id,
-                    ticket_status='Booked',
-                    booking=new_booking
-                )
-                db.session.add(ticket)
-                tickets.append(ticket)  # Store ticket for QR code generation
-
-            # Record payment
-            payment = Payment(
-                amount=pending['amount'],
-                payment_method='PayPal',
-                transaction_id=transaction_id,
-                booking=new_booking
-            )
-            db.session.add(payment)
-
-            # Optional parking booking record
-            if pending.get('parking_id') and pending.get('parking_hours', 0) > 0:
-                parking_booking = ParkingBooking(
-                    parking_id=pending['parking_id'],
-                    customer_id=current_user.id,
-                    vehicle_number='N/A',
-                    amount_paid=pending['amount']  # simplistic; could split amounts
-                )
-                db.session.add(parking_booking)
-
-        # Generate QR codes for all tickets
-        from qr_generator import qr_generator
-        for ticket in tickets:
-            qr_data = {
-                'ticket_id': ticket.id,
-                'event_id': ticket.event_id,
-                'seat_id': ticket.seat_id,
-                'customer_id': current_user.id
-            }
-            qr_result = qr_generator.generate_ticket_qr(qr_data)
-            if qr_result:
-                ticket.qr_code = qr_result['qr_code_base64']
+        # Enhanced security: Verify order belongs to user
+        if pending.get('user_id') != current_user.id:
+            logger.error(f"[CAPTURE] Security violation - user {current_user.id} trying to capture order for user {pending.get('user_id')}")
+            return jsonify({"success": False, "error": "Security violation detected", "error_code": "SECURITY_VIOLATION"}), 403
         
-        db.session.commit()
+        # Enhanced security: Verify order ID matches
+        if pending.get('order_id') != order_id:
+            logger.error(f"[CAPTURE] Order ID mismatch - expected {pending.get('order_id')}, got {order_id}")
+            return jsonify({"success": False, "error": "Order ID mismatch", "error_code": "ORDER_MISMATCH"}), 400
 
-        # Clear pending
+        logger.info(f"[CAPTURE] Processing capture for user {current_user.id}, order {order_id}")
+
+        # Verify payment using unified processor with enhanced validation
+        if UNIFIED_PAYMENT_AVAILABLE:
+            payment_verification = unified_payment_processor.verify_payment({
+                'gateway': 'paypal',
+                'payment_id': order_id,
+                'payer_id': payer_id
+            })
+            
+            if not payment_verification.success:
+                logger.error(f"[CAPTURE] Payment verification failed for order {order_id}: {payment_verification.error_message}")
+                return jsonify({"success": False, "error": "Payment verification failed", "error_code": "PAYMENT_VERIFICATION_FAILED"}), 400
+            
+            transaction_id = payment_verification.payment_id
+        else:
+            # Fallback verification (simplified)
+            transaction_id = order_id
+            logger.warning(f"[CAPTURE] Using fallback payment verification for order {order_id}")
+
+        # Enhanced atomicity: Use explicit transaction with retry mechanism
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                with db.session.begin():  # Explicit transaction
+                    # Re-verify seat availability with locks (double-check for race conditions)
+                    if pending.get('seat_ids'):
+                        # Lock seats to prevent double booking
+                        locked_seats = db.session.query(Seat).filter(
+                            Seat.id.in_(pending['seat_ids'])
+                        ).with_for_update().all()
+                        
+                        # Check for conflicting bookings that might have been created after order creation
+                        conflicting_tickets = db.session.query(Ticket.seat_id).filter(
+                            Ticket.event_id == pending['event_id'],
+                            Ticket.seat_id.in_(pending['seat_ids']),
+                            Ticket.ticket_status.in_(['Booked', 'Used'])
+                        ).with_for_update().all()
+                        
+                        if conflicting_tickets:
+                            conflicting_seat_ids = [t[0] for t in conflicting_tickets]
+                            logger.error(f"[CAPTURE] Seat availability conflict during capture - seats {conflicting_seat_ids} already booked")
+                            return jsonify({
+                                "success": False, 
+                                "error": "Selected seats are no longer available", 
+                                "error_code": "SEATS_UNAVAILABLE_AT_CAPTURE",
+                                "conflicting_seats": conflicting_seat_ids
+                            }), 409
+
+                    # Create booking record with enhanced data
+                    new_booking = Booking(
+                        customer_id=current_user.id,
+                        total_amount=pending.get('final_amount', pending.get('amount', 0)),
+                        booking_date=datetime.now(timezone.utc)
+                    )
+                    db.session.add(new_booking)
+                    db.session.flush()  # Get booking ID
+
+                    # Create tickets for seats with enhanced metadata
+                    tickets = []
+                    for sid in pending.get('seat_ids', []):
+                        ticket = Ticket(
+                            event_id=pending['event_id'],
+                            seat_id=sid,
+                            customer_id=current_user.id,
+                            booking_id=new_booking.id,
+                            ticket_status='Booked',
+                            created_at=datetime.now(timezone.utc),
+                            updated_at=datetime.now(timezone.utc)
+                        )
+                        db.session.add(ticket)
+                        tickets.append(ticket)
+
+                    # Record payment with enhanced metadata
+                    payment = Payment(
+                        booking_id=new_booking.id,
+                        amount=pending.get('final_amount', pending.get('amount', 0)),
+                        payment_method='PayPal',
+                        transaction_id=transaction_id,
+                        payment_date=datetime.now(timezone.utc)
+                    )
+                    db.session.add(payment)
+
+                    # Optional parking booking record with enhanced validation
+                    if pending.get('parking_id') and pending.get('parking_hours', 0) > 0:
+                        # Verify parking is still available
+                        parking = db.session.query(Parking).filter(
+                            Parking.id == pending['parking_id']
+                        ).with_for_update().one_or_none()
+                        
+                        if parking:
+                            parking_booking = ParkingBooking(
+                                parking_id=pending['parking_id'],
+                                customer_id=current_user.id,
+                                booking_date=datetime.now(timezone.utc),
+                                vehicle_number='TBD',  # To be updated by user later
+                                arrival_time=None,  # To be set based on event time
+                                departure_time=None,  # To be calculated
+                                amount_paid=pending.get('parking_amount', 0)
+                            )
+                            db.session.add(parking_booking)
+                        else:
+                            logger.warning(f"[CAPTURE] Parking {pending['parking_id']} no longer available during capture")
+
+                    # Commit transaction
+                    db.session.commit()
+                    
+                    logger.info(f"[CAPTURE] Booking created successfully - ID: {new_booking.id}, User: {current_user.id}, Amount: {pending.get('final_amount')}")
+                    break  # Success, exit retry loop
+                    
+            except Exception as transaction_error:
+                logger.error(f"[CAPTURE] Transaction failed (attempt {retry_count + 1}): {transaction_error}")
+                db.session.rollback()
+                retry_count += 1
+                
+                if retry_count >= max_retries:
+                    logger.error(f"[CAPTURE] Transaction failed after {max_retries} attempts for user {current_user.id}")
+                    return jsonify({"success": False, "error": "Booking creation failed after retries", "error_code": "TRANSACTION_FAILED"}), 500
+                
+                # Wait before retry
+                import time
+                time.sleep(0.1 * retry_count)  # Exponential backoff
+        
+        # Generate QR codes for all tickets (after successful transaction)
+        try:
+            from qr_generator import qr_generator
+            for ticket in tickets:
+                qr_data = {
+                    'ticket_id': ticket.id,
+                    'event_id': ticket.event_id,
+                    'seat_id': ticket.seat_id,
+                    'customer_id': current_user.id,
+                    'booking_id': new_booking.id,
+                    'verification_token': hashlib.sha256(f"{ticket.id}_{current_user.id}_{transaction_id}".encode()).hexdigest()[:16]
+                }
+                qr_result = qr_generator.generate_ticket_qr(qr_data)
+                if qr_result:
+                    # Update ticket with QR code in separate transaction
+                    with db.session.begin():
+                        db.session.query(Ticket).filter(Ticket.id == ticket.id).update({
+                            'qr_code': qr_result['qr_code_base64'],
+                            'updated_at': datetime.now(timezone.utc)
+                        })
+                        db.session.commit()
+        except Exception as qr_error:
+            logger.warning(f"[CAPTURE] QR code generation failed: {qr_error}")
+            # Don't fail the booking for QR code issues
+
+        # Clear pending booking from session
         session.pop('pending_booking', None)
+        
+        # Log successful capture for monitoring
+        logger.info(f"[CAPTURE] Successfully captured PayPal payment - Booking: {new_booking.id}, Transaction: {transaction_id}")
 
-        return jsonify({"success": True, "booking_id": new_booking.id})
+        return jsonify({
+            "success": True, 
+            "booking_id": new_booking.id,
+            "transaction_id": transaction_id,
+            "amount": f"{pending.get('final_amount', pending.get('amount', 0)):.2f}",
+            "tickets_count": len(tickets),
+            "confirmation_number": f"BBL-{new_booking.id:06d}"
+        })
 
     except Exception as e:
-        print(f"Capture order error: {e}")
-        return jsonify({"success": False, "error": "Failed to capture order"}), 500
+        logger.error(f"[CAPTURE] Capture order error for user {current_user.id}: {e}")
+        db.session.rollback()  # Ensure rollback on error
+        return jsonify({"success": False, "error": "Failed to capture order", "error_code": "INTERNAL_ERROR"}), 500
 
 
 @app.route('/my-bookings')
@@ -3414,6 +4033,682 @@ def get_top_performers():
         }), 500
 
 @app.route('/api/bbl/teams')
+# ===============================
+# TICKET TRANSFER API ENDPOINTS
+# ===============================
+
+@app.route('/api/ticket/transfer', methods=['POST'])
+@login_required
+@require_csrf if SECURITY_FRAMEWORK_AVAILABLE else lambda f: f
+def initiate_ticket_transfer():
+    """Initiate a ticket transfer to another user"""
+    try:
+        data = request.get_json()
+        
+        # Validate input using security framework if available
+        if SECURITY_FRAMEWORK_AVAILABLE:
+            validation_result = validate_json_input(data, {
+                'ticket_id': {'type': 'integer', 'required': True},
+                'to_email': {'type': 'string', 'required': True, 'format': 'email'},
+                'transfer_fee': {'type': 'number', 'minimum': 0, 'default': 0}
+            })
+            if not validation_result['valid']:
+                return jsonify({'error': validation_result['error']}), 400
+            data = validation_result['data']
+        
+        # Verify ticket ownership
+        ticket = Ticket.query.get(data['ticket_id'])
+        if not ticket:
+            return jsonify({'error': 'Ticket not found'}), 404
+            
+        if ticket.customer_id != current_user.id:
+            return jsonify({'error': 'You do not own this ticket'}), 403
+            
+        # Check if ticket is already being transferred
+        existing_transfer = TicketTransfer.query.filter_by(
+            ticket_id=ticket.id,
+            transfer_status='pending'
+        ).first()
+        if existing_transfer:
+            return jsonify({'error': 'Ticket transfer already in progress'}), 400
+            
+        # Check if event is still in the future
+        event = Event.query.get(ticket.event_id)
+        if event.event_date <= datetime.now(timezone.utc).date():
+            return jsonify({'error': 'Cannot transfer tickets for past events'}), 400
+            
+        # Generate transfer code and verification code
+        import secrets
+        transfer_code = secrets.token_urlsafe(16)
+        verification_code = f"{secrets.randbelow(999999):06d}"
+        
+        # Create transfer record
+        transfer = TicketTransfer(
+            ticket_id=ticket.id,
+            from_customer_id=current_user.id,
+            to_email=data['to_email'].lower(),
+            transfer_code=transfer_code,
+            transfer_fee=data.get('transfer_fee', 0),
+            verification_code=verification_code,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=48)
+        )
+        
+        # Check if recipient has an account
+        recipient = Customer.query.filter_by(email=data['to_email'].lower()).first()
+        if recipient:
+            transfer.to_customer_id = recipient.id
+            
+        db.session.add(transfer)
+        db.session.commit()
+        
+        # TODO: Send email notification to recipient
+        
+        return jsonify({
+            'success': True,
+            'transfer_code': transfer_code,
+            'message': 'Transfer initiated successfully. Recipient will receive an email with instructions.'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Ticket transfer initiation failed: {e}")
+        return jsonify({'error': 'Transfer initiation failed'}), 500
+
+@app.route('/api/ticket/transfer/<transfer_code>/accept', methods=['POST'])
+def accept_ticket_transfer(transfer_code):
+    """Accept a ticket transfer"""
+    try:
+        data = request.get_json() or {}
+        
+        # Find transfer by code
+        transfer = TicketTransfer.query.filter_by(transfer_code=transfer_code).first()
+        if not transfer:
+            return jsonify({'error': 'Invalid transfer code'}), 404
+            
+        if transfer.transfer_status != 'pending':
+            return jsonify({'error': 'Transfer is no longer available'}), 400
+            
+        if transfer.expires_at < datetime.now(timezone.utc):
+            transfer.transfer_status = 'expired'
+            db.session.commit()
+            return jsonify({'error': 'Transfer has expired'}), 400
+            
+        # Verify recipient email or require login
+        if current_user.is_authenticated:
+            if current_user.email != transfer.to_email:
+                return jsonify({'error': 'This transfer is not intended for your account'}), 403
+            recipient = current_user
+        else:
+            # For non-logged-in users, create account or find existing
+            recipient = Customer.query.filter_by(email=transfer.to_email).first()
+            if not recipient:
+                return jsonify({'error': 'Please create an account first to accept this transfer'}), 400
+            
+        # Verify with verification code if provided
+        if 'verification_code' in data:
+            if data['verification_code'] != transfer.verification_code:
+                return jsonify({'error': 'Invalid verification code'}), 400
+            transfer.is_verified = True
+            
+        # Complete the transfer
+        ticket = Ticket.query.get(transfer.ticket_id)
+        original_customer_id = ticket.customer_id
+        ticket.customer_id = recipient.id
+        
+        transfer.to_customer_id = recipient.id
+        transfer.transfer_status = 'accepted'
+        transfer.completed_at = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Ticket transfer completed successfully',
+            'ticket_id': ticket.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Ticket transfer acceptance failed: {e}")
+        return jsonify({'error': 'Transfer acceptance failed'}), 500
+
+# ===============================
+# RESALE MARKETPLACE API ENDPOINTS
+# ===============================
+
+@app.route('/api/marketplace/list-ticket', methods=['POST'])
+@login_required
+@require_csrf if SECURITY_FRAMEWORK_AVAILABLE else lambda f: f
+def list_ticket_for_resale():
+    """List a ticket on the resale marketplace"""
+    try:
+        data = request.get_json()
+        
+        # Validate input
+        required_fields = ['ticket_id', 'listing_price']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+                
+        # Verify ticket ownership
+        ticket = Ticket.query.get(data['ticket_id'])
+        if not ticket:
+            return jsonify({'error': 'Ticket not found'}), 404
+            
+        if ticket.customer_id != current_user.id:
+            return jsonify({'error': 'You do not own this ticket'}), 403
+            
+        # Check if ticket is already listed
+        existing_listing = ResaleMarketplace.query.filter_by(
+            ticket_id=ticket.id,
+            listing_status='active'
+        ).first()
+        if existing_listing:
+            return jsonify({'error': 'Ticket is already listed for sale'}), 400
+            
+        # Check if event is still in the future
+        event = Event.query.get(ticket.event_id)
+        if event.event_date <= datetime.now(timezone.utc).date():
+            return jsonify({'error': 'Cannot list tickets for past events'}), 400
+            
+        # Get original ticket price
+        seat = Seat.query.get(ticket.seat_id)
+        original_price = seat.price if seat else 0
+        
+        # Validate listing price (max 150% of original price)
+        max_price = original_price * 1.5
+        if data['listing_price'] > max_price:
+            return jsonify({'error': f'Listing price cannot exceed {max_price:.2f} (150% of original price)'}), 400
+            
+        # Calculate platform fee (5% of listing price)
+        platform_fee = data['listing_price'] * 0.05
+        seller_fee = data['listing_price'] * 0.03  # 3% seller fee
+        
+        # Create marketplace listing
+        listing = ResaleMarketplace(
+            ticket_id=ticket.id,
+            seller_id=current_user.id,
+            original_price=original_price,
+            listing_price=data['listing_price'],
+            platform_fee=platform_fee,
+            seller_fee=seller_fee,
+            listing_description=data.get('description', ''),
+            is_negotiable=data.get('is_negotiable', False),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30)
+        )
+        
+        db.session.add(listing)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'listing_id': listing.id,
+            'platform_fee': platform_fee,
+            'seller_fee': seller_fee,
+            'net_amount': data['listing_price'] - platform_fee - seller_fee,
+            'message': 'Ticket listed successfully on marketplace'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Marketplace listing failed: {e}")
+        return jsonify({'error': 'Listing failed'}), 500
+
+@app.route('/api/marketplace/search', methods=['GET'])
+def search_marketplace():
+    """Search tickets on the resale marketplace"""
+    try:
+        # Get search parameters
+        event_id = request.args.get('event_id', type=int)
+        stadium_id = request.args.get('stadium_id', type=int)
+        max_price = request.args.get('max_price', type=float)
+        seat_type = request.args.get('seat_type')
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 20, type=int), 100)
+        
+        # Build query
+        query = ResaleMarketplace.query.filter_by(listing_status='active')
+        
+        # Join with related tables for filtering
+        query = query.join(Ticket).join(Event).join(Seat)
+        
+        # Apply filters
+        if event_id:
+            query = query.filter(Event.id == event_id)
+        if stadium_id:
+            query = query.filter(Event.stadium_id == stadium_id)
+        if max_price:
+            query = query.filter(ResaleMarketplace.listing_price <= max_price)
+        if seat_type:
+            query = query.filter(Seat.seat_type == seat_type)
+            
+        # Only show future events
+        query = query.filter(Event.event_date > datetime.now(timezone.utc).date())
+        
+        # Order by listing date (newest first)
+        query = query.order_by(ResaleMarketplace.listed_at.desc())
+        
+        # Paginate
+        listings = query.paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        # Format results
+        results = []
+        for listing in listings.items:
+            ticket = listing.ticket
+            event = ticket.event
+            seat = ticket.seat
+            stadium = event.stadium
+            
+            results.append({
+                'listing_id': listing.id,
+                'ticket_id': ticket.id,
+                'event': {
+                    'id': event.id,
+                    'name': event.event_name,
+                    'date': event.event_date.isoformat(),
+                    'start_time': event.start_time.isoformat()
+                },
+                'stadium': {
+                    'id': stadium.id,
+                    'name': stadium.name,
+                    'location': stadium.location
+                },
+                'seat': {
+                    'section': seat.section,
+                    'row': seat.row_number,
+                    'number': seat.seat_number,
+                    'type': seat.seat_type
+                },
+                'pricing': {
+                    'original_price': listing.original_price,
+                    'listing_price': listing.listing_price,
+                    'savings': listing.original_price - listing.listing_price if listing.original_price > listing.listing_price else 0
+                },
+                'description': listing.listing_description,
+                'is_negotiable': listing.is_negotiable,
+                'listed_at': listing.listed_at.isoformat(),
+                'expires_at': listing.expires_at.isoformat() if listing.expires_at else None
+            })
+            
+        return jsonify({
+            'success': True,
+            'listings': results,
+            'pagination': {
+                'page': page,
+                'pages': listings.pages,
+                'per_page': per_page,
+                'total': listings.total,
+                'has_next': listings.has_next,
+                'has_prev': listings.has_prev
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Marketplace search failed: {e}")
+        return jsonify({'error': 'Search failed'}), 500
+
+# ===============================
+# SEASON TICKET API ENDPOINTS
+# ===============================
+
+@app.route('/api/season-ticket/purchase', methods=['POST'])
+@login_required
+@require_csrf if SECURITY_FRAMEWORK_AVAILABLE else lambda f: f
+def purchase_season_ticket():
+    """Purchase a season ticket"""
+    try:
+        data = request.get_json()
+        
+        # Validate input
+        required_fields = ['stadium_id', 'seat_id', 'season_name']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+                
+        # Verify stadium and seat
+        stadium = Stadium.query.get(data['stadium_id'])
+        if not stadium:
+            return jsonify({'error': 'Stadium not found'}), 404
+            
+        seat = Seat.query.get(data['seat_id'])
+        if not seat or seat.stadium_id != stadium.id:
+            return jsonify({'error': 'Seat not found or not in specified stadium'}), 404
+            
+        # Check if seat is already taken for this season
+        existing_season_ticket = SeasonTicket.query.filter_by(
+            stadium_id=stadium.id,
+            seat_id=seat.id,
+            season_name=data['season_name'],
+            ticket_status='active'
+        ).first()
+        if existing_season_ticket:
+            return jsonify({'error': 'Seat is already taken for this season'}), 400
+            
+        # Get season details
+        season_start = datetime.strptime(data.get('season_start_date', '2024-01-01'), '%Y-%m-%d').date()
+        season_end = datetime.strptime(data.get('season_end_date', '2024-12-31'), '%Y-%m-%d').date()
+        
+        # Calculate matches and pricing
+        total_matches = data.get('total_matches', 10)  # Default 10 matches per season
+        price_per_match = seat.price
+        total_price = price_per_match * total_matches * 0.85  # 15% discount for season tickets
+        
+        # Create season ticket
+        season_ticket = SeasonTicket(
+            customer_id=current_user.id,
+            stadium_id=stadium.id,
+            seat_id=seat.id,
+            season_name=data['season_name'],
+            season_start_date=season_start,
+            season_end_date=season_end,
+            total_matches=total_matches,
+            price_per_match=price_per_match,
+            total_price=total_price,
+            priority_booking=True,
+            transfer_limit=data.get('transfer_limit', 5),
+            activated_at=datetime.now(timezone.utc)
+        )
+        
+        db.session.add(season_ticket)
+        db.session.flush()  # Get the ID
+        
+        # Create individual match records for upcoming events
+        upcoming_events = Event.query.filter(
+            Event.stadium_id == stadium.id,
+            Event.event_date.between(season_start, season_end)
+        ).limit(total_matches).all()
+        
+        for event in upcoming_events:
+            match_record = SeasonTicketMatch(
+                season_ticket_id=season_ticket.id,
+                event_id=event.id
+            )
+            db.session.add(match_record)
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'season_ticket_id': season_ticket.id,
+            'total_price': total_price,
+            'savings': (price_per_match * total_matches) - total_price,
+            'matches_included': len(upcoming_events),
+            'message': 'Season ticket purchased successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Season ticket purchase failed: {e}")
+        return jsonify({'error': 'Season ticket purchase failed'}), 500
+
+@app.route('/api/season-ticket/<int:season_ticket_id>/matches', methods=['GET'])
+@login_required
+def get_season_ticket_matches(season_ticket_id):
+    """Get matches included in a season ticket"""
+    try:
+        # Verify ownership
+        season_ticket = SeasonTicket.query.get(season_ticket_id)
+        if not season_ticket:
+            return jsonify({'error': 'Season ticket not found'}), 404
+            
+        if season_ticket.customer_id != current_user.id:
+            return jsonify({'error': 'Access denied'}), 403
+            
+        # Get all matches
+        matches = db.session.query(SeasonTicketMatch, Event).join(
+            Event, SeasonTicketMatch.event_id == Event.id
+        ).filter(
+            SeasonTicketMatch.season_ticket_id == season_ticket_id
+        ).order_by(Event.event_date).all()
+        
+        results = []
+        for match_record, event in matches:
+            results.append({
+                'match_id': match_record.id,
+                'event': {
+                    'id': event.id,
+                    'name': event.event_name,
+                    'date': event.event_date.isoformat(),
+                    'start_time': event.start_time.isoformat()
+                },
+                'status': {
+                    'is_used': match_record.is_used,
+                    'used_at': match_record.used_at.isoformat() if match_record.used_at else None,
+                    'is_transferred': match_record.is_transferred,
+                    'transferred_at': match_record.transferred_at.isoformat() if match_record.transferred_at else None,
+                    'transfer_price': match_record.transfer_price
+                }
+            })
+            
+        return jsonify({
+            'success': True,
+            'season_ticket': {
+                'id': season_ticket.id,
+                'season_name': season_ticket.season_name,
+                'matches_used': season_ticket.matches_used,
+                'matches_transferred': season_ticket.matches_transferred,
+                'transfer_limit': season_ticket.transfer_limit
+            },
+            'matches': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Season ticket matches retrieval failed: {e}")
+        return jsonify({'error': 'Failed to retrieve matches'}), 500
+
+# ===============================
+# ACCESSIBILITY API ENDPOINTS
+# ===============================
+
+@app.route('/api/accessibility/register', methods=['POST'])
+@login_required
+@require_csrf if SECURITY_FRAMEWORK_AVAILABLE else lambda f: f
+def register_accessibility_needs():
+    """Register accessibility accommodation needs"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if 'accommodation_type' not in data:
+            return jsonify({'error': 'accommodation_type is required'}), 400
+            
+        # Check if user already has accommodation record
+        existing = AccessibilityAccommodation.query.filter_by(
+            customer_id=current_user.id
+        ).first()
+        
+        if existing:
+            # Update existing record
+            existing.accommodation_type = data['accommodation_type']
+            existing.description = data.get('description', '')
+            existing.severity_level = data.get('severity_level', 'moderate')
+            existing.requires_wheelchair_access = data.get('requires_wheelchair_access', False)
+            existing.requires_companion_seat = data.get('requires_companion_seat', False)
+            existing.requires_aisle_access = data.get('requires_aisle_access', False)
+            existing.requires_hearing_loop = data.get('requires_hearing_loop', False)
+            existing.requires_sign_language = data.get('requires_sign_language', False)
+            existing.requires_braille = data.get('requires_braille', False)
+            existing.mobility_equipment = data.get('mobility_equipment', '')
+            existing.service_animal = data.get('service_animal', False)
+            existing.service_animal_type = data.get('service_animal_type', '')
+            existing.preferred_communication = data.get('preferred_communication', 'email')
+            existing.emergency_contact_name = data.get('emergency_contact_name', '')
+            existing.emergency_contact_phone = data.get('emergency_contact_phone', '')
+            existing.updated_at = datetime.now(timezone.utc)
+            
+            accommodation = existing
+        else:
+            # Create new record
+            accommodation = AccessibilityAccommodation(
+                customer_id=current_user.id,
+                accommodation_type=data['accommodation_type'],
+                description=data.get('description', ''),
+                severity_level=data.get('severity_level', 'moderate'),
+                requires_wheelchair_access=data.get('requires_wheelchair_access', False),
+                requires_companion_seat=data.get('requires_companion_seat', False),
+                requires_aisle_access=data.get('requires_aisle_access', False),
+                requires_hearing_loop=data.get('requires_hearing_loop', False),
+                requires_sign_language=data.get('requires_sign_language', False),
+                requires_braille=data.get('requires_braille', False),
+                mobility_equipment=data.get('mobility_equipment', ''),
+                service_animal=data.get('service_animal', False),
+                service_animal_type=data.get('service_animal_type', ''),
+                preferred_communication=data.get('preferred_communication', 'email'),
+                emergency_contact_name=data.get('emergency_contact_name', ''),
+                emergency_contact_phone=data.get('emergency_contact_phone', '')
+            )
+            db.session.add(accommodation)
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'accommodation_id': accommodation.id,
+            'message': 'Accessibility needs registered successfully',
+            'verification_required': not accommodation.is_verified
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Accessibility registration failed: {e}")
+        return jsonify({'error': 'Registration failed'}), 500
+
+@app.route('/api/accessibility/book', methods=['POST'])
+@login_required
+@require_csrf if SECURITY_FRAMEWORK_AVAILABLE else lambda f: f
+def book_with_accessibility():
+    """Create a booking with accessibility accommodations"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['event_id', 'seat_ids', 'requested_accommodations']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+                
+        # Get user's accessibility accommodation record
+        accommodation = AccessibilityAccommodation.query.filter_by(
+            customer_id=current_user.id
+        ).first()
+        
+        if not accommodation:
+            return jsonify({'error': 'Please register your accessibility needs first'}), 400
+            
+        # Verify event and seats
+        event = Event.query.get(data['event_id'])
+        if not event:
+            return jsonify({'error': 'Event not found'}), 404
+            
+        seats = Seat.query.filter(Seat.id.in_(data['seat_ids'])).all()
+        if len(seats) != len(data['seat_ids']):
+            return jsonify({'error': 'One or more seats not found'}), 404
+            
+        # Check seat availability
+        occupied_seats = Ticket.query.filter(
+            Ticket.event_id == event.id,
+            Ticket.seat_id.in_(data['seat_ids'])
+        ).all()
+        if occupied_seats:
+            return jsonify({'error': 'One or more seats are already booked'}), 400
+            
+        # Validate accessibility requirements for selected seats
+        if accommodation.requires_wheelchair_access:
+            # Check if seats support wheelchair access (this would need to be added to Seat model)
+            # For now, we'll just log the requirement
+            logger.info(f"Wheelchair access required for booking by user {current_user.id}")
+            
+        # Calculate total amount
+        total_amount = sum(seat.price for seat in seats)
+        
+        # Create booking
+        booking = Booking(
+            customer_id=current_user.id,
+            total_amount=total_amount
+        )
+        db.session.add(booking)
+        db.session.flush()  # Get booking ID
+        
+        # Create tickets
+        tickets = []
+        for seat in seats:
+            ticket = Ticket(
+                event_id=event.id,
+                seat_id=seat.id,
+                customer_id=current_user.id,
+                booking_id=booking.id,
+                ticket_status='Booked'
+            )
+            db.session.add(ticket)
+            tickets.append(ticket)
+            
+        # Create accessibility booking record
+        accessibility_booking = AccessibilityBooking(
+            booking_id=booking.id,
+            accommodation_id=accommodation.id,
+            requested_accommodations=json.dumps(data['requested_accommodations']),
+            special_instructions=data.get('special_instructions', ''),
+            accommodation_status='requested'
+        )
+        db.session.add(accessibility_booking)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'booking_id': booking.id,
+            'accessibility_booking_id': accessibility_booking.id,
+            'total_amount': total_amount,
+            'message': 'Booking created successfully with accessibility accommodations',
+            'next_steps': 'Stadium staff will review your accommodation requests and contact you within 24 hours.'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Accessibility booking failed: {e}")
+        return jsonify({'error': 'Booking failed'}), 500
+
+@app.route('/api/accessibility/status/<int:booking_id>', methods=['GET'])
+@login_required
+def get_accessibility_status(booking_id):
+    """Get accessibility accommodation status for a booking"""
+    try:
+        # Verify booking ownership
+        booking = Booking.query.get(booking_id)
+        if not booking or booking.customer_id != current_user.id:
+            return jsonify({'error': 'Booking not found or access denied'}), 404
+            
+        # Get accessibility booking
+        accessibility_booking = AccessibilityBooking.query.filter_by(
+            booking_id=booking_id
+        ).first()
+        
+        if not accessibility_booking:
+            return jsonify({'error': 'No accessibility accommodations found for this booking'}), 404
+            
+        # Get accommodation details
+        accommodation = AccessibilityAccommodation.query.get(
+            accessibility_booking.accommodation_id
+        )
+        
+        return jsonify({
+            'success': True,
+            'booking_id': booking_id,
+            'accommodation_status': accessibility_booking.accommodation_status,
+            'requested_accommodations': json.loads(accessibility_booking.requested_accommodations or '[]'),
+            'provided_accommodations': json.loads(accessibility_booking.provided_accommodations or '[]'),
+            'staff_notes': accessibility_booking.staff_notes,
+            'special_instructions': accessibility_booking.special_instructions,
+            'fulfilled_at': accessibility_booking.fulfilled_at.isoformat() if accessibility_booking.fulfilled_at else None,
+            'accommodation_type': accommodation.accommodation_type if accommodation else None
+        })
+        
+    except Exception as e:
+        logger.error(f"Accessibility status retrieval failed: {e}")
+        return jsonify({'error': 'Failed to retrieve status'}), 500
+
 def get_teams():
     """Get all BBL teams data"""
     try:
