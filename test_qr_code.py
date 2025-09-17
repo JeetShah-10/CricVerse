@@ -8,10 +8,12 @@ from datetime import datetime
 
 def test_qr_code_generation():
     with app.app_context():
-        # 1. Create a new user
+        # 1. Create a new user with unique email
+        import time
+        unique_email = f"testuser_{int(time.time())}@example.com"
         new_user = Customer(
             name="Test User",
-            email="testuser@example.com",
+            email=unique_email,
             phone="1234567890",
             role="customer",
             membership_level="Basic"
@@ -19,7 +21,7 @@ def test_qr_code_generation():
         new_user.set_password("password")
         db.session.add(new_user)
         db.session.commit()
-        print(f"Created user: {new_user.name}")
+        print(f"Created user: {new_user.name} with email: {unique_email}")
 
         # 2. Find an event and a seat
         event = Event.query.first()
