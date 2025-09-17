@@ -2,82 +2,11 @@
 {% block title %}Big Bash League - CricVerse{% endblock %}
 {% block head %}
     {{ super() }}
-    <!-- Direct CSS loading for proper styling -->
+    <!-- BBL Page Specific CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-enhanced.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home-enhanced.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-action-hub.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stadium_enhanced.css') }}">
-    
-    <!-- Enhanced Home Page Styles -->
-    <style>
-        /* Enhanced Background Effects */
-        .page-background {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
-            overflow: hidden;
-        }
-        
-        .floating-particles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        
-        .particle {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            animation: float 8s infinite linear;
-        }
-        
-        @keyframes float {
-            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-        }
-        
-        /* Angled Section Dividers */
-        .section-divider {
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .section-divider::before {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(45deg, #ff6b35, #f7931e, #ffd23f);
-            transform: skewY(-1deg);
-            z-index: 1;
-        }
-        
-        .section-divider::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(-45deg, #ff6b35, #f7931e, #ffd23f);
-            transform: skewY(1deg);
-            z-index: 1;
-        }
-    </style>
-    
-    <!-- Preload critical fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 {% endblock %}
 {% block content %}
 <!-- Enhanced Background Elements -->
