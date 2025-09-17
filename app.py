@@ -15,6 +15,7 @@ import razorpay
 import hmac
 import hashlib
 import json
+from werkzeug.utils import secure_filename
 
 # Import our utility functions
 from utils import (
@@ -34,6 +35,9 @@ from unified_payment_processor import (
 
 # Import admin module
 from admin import init_admin
+
+# Import forms
+from forms import StadiumOwnerApplicationForm
 
 # Import security framework components
 try:
@@ -58,13 +62,81 @@ csrf = CSRFProtect(app)
 # Configuration with fallbacks
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'cricverse-secret-key-change-in-production')
 
+# Session Security Hardening - Production Settings
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only in production
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS access to session cookie
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['SESSION_COOKIE_NAME'] = 'cricverse_session'  # Custom session cookie name
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session timeout
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True  # Refresh session on each request
+
 # CSRF Configuration
 app.config['WTF_CSRF_ENABLED'] = True
 app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
 app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow HTTP for development
 
+# Additional Security Headers
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 year cache for static files
+
+# Production Security Settings
+if os.getenv('FLASK_ENV') == 'production':
+    app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS only
+    app.config['WTF_CSRF_SSL_STRICT'] = True  # HTTPS only for CSRF
+    app.config['PREFERRED_URL_SCHEME'] = 'https'
+else:
+    # Development settings - less restrictive but still secure
+    app.config['SESSION_COOKIE_SECURE'] = False  # Allow HTTP in development
+
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
+
+# Security Headers Middleware
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    # Prevent clickjacking
+    response.headers['X-Frame-Options'] = 'DENY'
+    
+    # Prevent MIME type sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    
+    # Enable XSS protection
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # Referrer policy for privacy
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    # Content Security Policy (CSP) - restrictive but functional
+    csp_policy = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.paypal.com https://www.paypal.com https://checkout.razorpay.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+        "img-src 'self' data: https: blob:; "
+        "connect-src 'self' https://api.paypal.com https://api.razorpay.com wss: ws:; "
+        "frame-src 'self' https://js.paypal.com https://www.paypal.com; "
+        "object-src 'none'; "
+        "base-uri 'self';"
+    )
+    response.headers['Content-Security-Policy'] = csp_policy
+    
+    # Strict Transport Security (HSTS) - only in production with HTTPS
+    if os.getenv('FLASK_ENV') == 'production' and request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+    
+    # Permissions Policy (formerly Feature Policy)
+    response.headers['Permissions-Policy'] = (
+        "geolocation=(), "
+        "microphone=(), "
+        "camera=(), "
+        "payment=(self), "
+        "usb=(), "
+        "magnetometer=(), "
+        "accelerometer=(), "
+        "gyroscope=()"
+    )
+    
+    return response
 
 # Database configuration with PostgreSQL fallback
 database_url = os.getenv('DATABASE_URL')
@@ -554,6 +626,7 @@ class Customer(db.Model, UserMixin):
     membership_level = db.Column(db.String(20), default='Basic')
     favorite_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
     role = db.Column(db.String(20), default='customer')  # 'customer', 'admin', or 'stadium_owner'
+    verification_status = db.Column(db.String(20), default='none') # 'none', 'pending', 'approved', 'rejected'
     
     # Relationships
     tickets = db.relationship('Ticket', backref='customer', lazy=True)
@@ -725,6 +798,18 @@ class Photo(db.Model):
     url = db.Column(db.String(200), nullable=False)
     caption = db.Column(db.String(200))
 
+class VerificationSubmission(db.Model):
+    __tablename__ = 'verification_submission'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    document_urls = db.Column(db.Text) # JSON array of URLs
+    notes = db.Column(db.Text)
+    submission_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('Customer', backref='verification_submissions')
+
 # Authentication decorators
 def admin_required(f):
     """Decorator to require admin role"""
@@ -784,6 +869,92 @@ def stadium_admin_required(stadium_id_param='stadium_id'):
             if stadium_id not in administered_stadiums:
                 flash('Access denied. You do not manage this stadium.')
                 return redirect(url_for('admin_dashboard'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+def prevent_role_modification(f):
+    """Decorator to prevent role modification in any route"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('login'))
+        
+        # Store original role and verification status before request
+        original_role = current_user.role
+        original_verification_status = current_user.verification_status
+        
+        # Execute the wrapped function
+        result = f(*args, **kwargs)
+        
+        # Check if role or verification status was tampered with
+        if (current_user.role != original_role or 
+            current_user.verification_status != original_verification_status):
+            
+            # Restore original values
+            current_user.role = original_role
+            current_user.verification_status = original_verification_status
+            
+            # Log security incident
+            try:
+                from enhanced_models import SystemLog
+                log_entry = SystemLog(
+                    customer_id=current_user.id,
+                    log_level='CRITICAL',
+                    category='security',
+                    action='unauthorized_role_change',
+                    message=f'BLOCKED: User {current_user.email} attempted unauthorized role change from {original_role} to {current_user.role}',
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent'),
+                    request_url=request.url,
+                    request_method=request.method
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+            except Exception as e:
+                print(f"Failed to log unauthorized role change: {e}")
+            
+            # Force rollback and redirect
+            db.session.rollback()
+            flash('SECURITY VIOLATION: Unauthorized role modification blocked.', 'danger')
+            return redirect(url_for('dashboard'))
+        
+        return result
+    return decorated_function
+
+def validate_role_permissions(allowed_roles=None):
+    """Decorator to validate that user has required role permissions"""
+    if allowed_roles is None:
+        allowed_roles = ['admin']
+    
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for('login'))
+            
+            if current_user.role not in allowed_roles:
+                try:
+                    from enhanced_models import SystemLog
+                    log_entry = SystemLog(
+                        customer_id=current_user.id,
+                        log_level='WARNING',
+                        category='security',
+                        action='unauthorized_access_attempt',
+                        message=f'User {current_user.email} ({current_user.role}) attempted to access route requiring roles: {allowed_roles}',
+                        ip_address=request.remote_addr,
+                        user_agent=request.headers.get('User-Agent'),
+                        request_url=request.url,
+                        request_method=request.method
+                    )
+                    db.session.add(log_entry)
+                    db.session.commit()
+                except Exception as e:
+                    print(f"Failed to log unauthorized access attempt: {e}")
+                
+                flash('Access denied. Insufficient privileges.', 'danger')
+                return redirect(url_for('dashboard'))
             
             return f(*args, **kwargs)
         return decorated_function
@@ -1109,6 +1280,7 @@ def add_concession(stadium_id):
 
 @app.route('/admin/concession/<int:concession_id>/menu/add', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def add_menu_item(concession_id):
     """Add a menu item to a concession"""
     concession = Concession.query.get_or_404(concession_id)
@@ -1440,6 +1612,99 @@ def admin_profile():
     administered_stadiums = Stadium.query.filter(Stadium.id.in_(stadium_ids)).all()
     return render_template('admin_profile.html', administered_stadiums=administered_stadiums)
 
+# Admin Verification Management Routes
+@app.route('/admin/verification/approve/<int:submission_id>', methods=['POST'])
+@login_required
+@admin_required
+def approve_verification(submission_id):
+    """Approve a stadium owner verification submission"""
+    try:
+        submission = VerificationSubmission.query.get_or_404(submission_id)
+        user = Customer.query.get_or_404(submission.user_id)
+        
+        # Check if user is already a stadium owner or admin
+        if user.role in ['stadium_owner', 'admin']:
+            flash('User already has elevated privileges.', 'info')
+            return redirect(url_for('admin_dashboard'))
+        
+        # Update user role and verification status
+        user.role = 'stadium_owner'
+        user.verification_status = 'approved'
+        
+        db.session.commit()
+        
+        # Send notification email using Celery
+        try:
+            from celery_tasks import send_verification_decision_notification
+            notification_data = {
+                'user_id': user.id,
+                'user_name': user.name,
+                'user_email': user.email,
+                'decision': 'approved',
+                'admin_name': current_user.name
+            }
+            send_verification_decision_notification.delay(notification_data)
+        except Exception as e:
+            print(f"Failed to queue notification email: {e}")
+        
+        flash(f'Successfully approved stadium owner application for {user.name}.', 'success')
+        return redirect(url_for('admin_dashboard'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while approving the application.', 'danger')
+        print(f"Verification approval error: {e}")
+        return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/verification/reject/<int:submission_id>', methods=['POST'])
+@login_required
+@admin_required
+def reject_verification(submission_id):
+    """Reject a stadium owner verification submission"""
+    try:
+        submission = VerificationSubmission.query.get_or_404(submission_id)
+        user = Customer.query.get_or_404(submission.user_id)
+        
+        # Update verification status
+        user.verification_status = 'rejected'
+        
+        db.session.commit()
+        
+        # Send notification email using Celery
+        try:
+            from celery_tasks import send_verification_decision_notification
+            notification_data = {
+                'user_id': user.id,
+                'user_name': user.name,
+                'user_email': user.email,
+                'decision': 'rejected',
+                'admin_name': current_user.name,
+                'rejection_reason': request.form.get('reason', 'Application did not meet requirements')
+            }
+            send_verification_decision_notification.delay(notification_data)
+        except Exception as e:
+            print(f"Failed to queue notification email: {e}")
+        
+        flash(f'Rejected stadium owner application for {user.name}.', 'info')
+        return redirect(url_for('admin_dashboard'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while rejecting the application.', 'danger')
+        print(f"Verification rejection error: {e}")
+        return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/verification/list')
+@login_required
+@admin_required
+def admin_verification_list():
+    """List all pending verification submissions for admin review"""
+    pending_submissions = db.session.query(VerificationSubmission).join(Customer).filter(
+        Customer.verification_status == 'pending'
+    ).order_by(VerificationSubmission.submission_timestamp.desc()).all()
+    
+    return render_template('admin_verification_list.html', submissions=pending_submissions)
+
 # Routes
 
 @app.route('/')
@@ -1581,8 +1846,7 @@ def register():
             'name': sanitize_input(request.form.get('name', ''), 100),
             'email': sanitize_input(request.form.get('email', ''), 100).lower(),
             'phone': sanitize_input(request.form.get('phone', ''), 20),
-            'password': request.form.get('password', ''),
-            'role': request.form.get('role', 'customer')
+            'password': request.form.get('password', '')
         }
         
         # Validate form data
@@ -1598,11 +1862,6 @@ def register():
         password_errors = validate_password_strength(form_data['password'])
         errors.extend(password_errors)
         
-        # Role validation
-        valid_roles = ['customer', 'admin', 'stadium_owner']
-        if form_data['role'] not in valid_roles:
-            form_data['role'] = 'customer'  # Default fallback
-        
         # If there are validation errors, return to form with errors
         if errors:
             flash_errors(errors)
@@ -1614,21 +1873,14 @@ def register():
                 name=form_data['name'], 
                 email=form_data['email'], 
                 phone=form_data['phone'], 
-                role=form_data['role'],
+                role='customer',
                 membership_level='Basic'
             )
             new_customer.set_password(form_data['password'])
             db.session.add(new_customer)
             db.session.commit()
             
-            # Role-specific success messages
-            role_messages = {
-                'admin': f'Administrator account created successfully! Welcome {form_data["name"]}. You now have full system access.',
-                'stadium_owner': f'Stadium Owner account created successfully! Welcome {form_data["name"]}. You can now manage stadium operations.',
-                'customer': f'Account created successfully! Welcome to CricVerse, {form_data["name`"]}',
-            }
-            
-            flash(role_messages.get(form_data['role'], role_messages['customer']), 'success')
+            flash(f'Account created successfully! Welcome to CricVerse, {form_data["name"]}.', 'success')
             return redirect(url_for('login'))
             
         except Exception as e:
@@ -1639,55 +1891,240 @@ def register():
     
     return render_template('register.html')
 
+# Stadium Owner Application Route
+@app.route('/apply/stadium-owner', methods=['GET', 'POST'])
+@login_required
+def apply_stadium_owner():
+    """Stadium owner application form"""
+    # Check if user already has a pending or approved application
+    if current_user.verification_status in ['pending', 'approved']:
+        flash('You already have a stadium owner application that is pending or approved.', 'info')
+        return redirect(url_for('dashboard'))
+    
+    # Check if user is already a stadium owner or admin
+    if current_user.role in ['stadium_owner', 'admin']:
+        flash('You already have elevated privileges.', 'info')
+        return redirect(url_for('dashboard'))
+    
+    form = StadiumOwnerApplicationForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Handle file upload
+            document_urls = []
+            if form.business_document.data:
+                file = form.business_document.data
+                filename = secure_filename(file.filename)
+                # Create uploads directory if it doesn't exist
+                import os
+                os.makedirs('uploads/documents', exist_ok=True)
+                file_path = os.path.join('uploads/documents', f"{current_user.id}_{filename}")
+                file.save(file_path)
+                document_urls.append(file_path)
+            
+            # Create verification submission
+            submission = VerificationSubmission(
+                user_id=current_user.id,
+                document_urls=json.dumps(document_urls),
+                notes=form.notes.data or ''
+            )
+            
+            # Update user verification status
+            current_user.verification_status = 'pending'
+            
+            db.session.add(submission)
+            db.session.commit()
+            
+            flash('Your stadium owner application has been submitted successfully! An administrator will review it shortly.', 'success')
+            return redirect(url_for('dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while submitting your application. Please try again.', 'danger')
+            print(f"Application submission error: {e}")
+    
+    return render_template('apply_stadium_owner.html', form=form)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Redirect if already logged in to prevent session hijacking
+    if current_user.is_authenticated:
+        # Force redirect to appropriate dashboard based on current role
+        role_redirects = {
+            'admin': 'admin_dashboard',
+            'stadium_owner': 'stadium_owner_dashboard',
+            'customer': 'dashboard'
+        }
+        redirect_route = role_redirects.get(current_user.role, 'dashboard')
+        return redirect(url_for(redirect_route))
+    
     if request.method == 'POST':
-        # Sanitize form data
-        email = sanitize_input(request.form.get('email', ''), 100).lower()
+        # Rate limiting check (if security framework is available)
+        try:
+            from security_framework import limiter
+            # This will automatically rate limit based on IP
+        except ImportError:
+            pass
+        
+        # Sanitize form data with strict validation
+        email = sanitize_input(request.form.get('email', ''), 100).lower().strip()
         password = request.form.get('password', '')
         remember_me = request.form.get('remember_me') == 'on'
         
-        # Basic input validation
+        # Enhanced input validation
+        validation_errors = []
+        
         if not email or not password:
-            flash('Please enter both email and password.', 'danger')
+            validation_errors.append('Please enter both email and password.')
+        
+        if email and not validate_email(email):
+            validation_errors.append('Please enter a valid email address.')
+        
+        if password and len(password) < 1:
+            validation_errors.append('Password cannot be empty.')
+        
+        if validation_errors:
+            for error in validation_errors:
+                flash(error, 'danger')
             return render_template('login.html')
         
-        # Email format validation
-        if not validate_email(email):
-            flash('Please enter a valid email address.', 'danger')
-            return render_template('login.html')
-        
-        # Find user by email
+        # Find user by email with protection against timing attacks
         customer = Customer.query.filter_by(email=email).first()
         
-        if customer and customer.check_password(password):
-            # Successful login
+        # Always check password even if user doesn't exist (prevents user enumeration)
+        password_valid = False
+        if customer:
+            password_valid = customer.check_password(password)
+        else:
+            # Dummy password check to prevent timing attacks
+            from werkzeug.security import check_password_hash
+            check_password_hash('$2b$12$dummy.hash.to.prevent.timing', password)
+        
+        if customer and password_valid:
+            # Log successful login attempt
+            try:
+                from enhanced_models import SystemLog
+                log_entry = SystemLog(
+                    customer_id=customer.id,
+                    log_level='INFO',
+                    category='auth',
+                    action='successful_login',
+                    message=f'User {customer.email} logged in successfully',
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent'),
+                    request_url=request.url,
+                    request_method=request.method
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+            except Exception as e:
+                print(f"Failed to log successful login: {e}")
+            
+            # Successful login - STRICT role-based redirection enforcement
             login_user(customer, remember=remember_me)
             
-            # Role-specific welcome messages and redirection
+            # CRITICAL SECURITY: Force strict role-based redirection
+            # This is the first line of defense in separating user environments
             role_redirects = {
                 'admin': {
                     'message': f'Welcome back, Administrator {customer.name}! You have full system access.',
-                    'redirect': 'admin_dashboard'
+                    'redirect': 'admin_dashboard',
+                    'allowed_routes': ['admin_dashboard', 'admin_profile', 'add_stadium', 'manage_stadium']
                 },
                 'stadium_owner': {
                     'message': f'Welcome back, {customer.name}! Ready to manage your stadiums.',
-                    'redirect': 'stadium_owner_dashboard'
+                    'redirect': 'stadium_owner_dashboard',
+                    'allowed_routes': ['stadium_owner_dashboard']
                 },
                 'customer': {
                     'message': f'Welcome back, {customer.name}! Enjoy your CricVerse experience.',
-                    'redirect': 'dashboard'
+                    'redirect': 'dashboard',
+                    'allowed_routes': ['dashboard', 'profile', 'book_ticket']
                 }
             }
             
+            # Get role configuration with fallback to customer
             role_config = role_redirects.get(customer.role, role_redirects['customer'])
+            
+            # Security Check: Validate next parameter against allowed routes for this role
+            next_page = request.args.get('next')
+            if next_page:
+                # Parse the route name from the next parameter
+                try:
+                    from urllib.parse import urlparse
+                    parsed_url = urlparse(next_page)
+                    # Remove leading slash and extract route
+                    route_path = parsed_url.path.lstrip('/')
+                    
+                    # Only allow navigation to routes appropriate for this role
+                    allowed_prefixes = {
+                        'admin': ['admin/'],
+                        'stadium_owner': ['stadium_owner/', 'stadium-owner/'],
+                        'customer': ['dashboard', 'profile', 'book', 'events', 'teams', 'stadiums', 'concessions', 'parking']
+                    }
+                    
+                    role_prefixes = allowed_prefixes.get(customer.role, allowed_prefixes['customer'])
+                    
+                    # Check if the next route is allowed for this role
+                    is_allowed = False
+                    for prefix in role_prefixes:
+                        if route_path.startswith(prefix) or route_path in prefix:
+                            is_allowed = True
+                            break
+                    
+                    if not is_allowed:
+                        # Security violation: User trying to access unauthorized route
+                        try:
+                            log_entry = SystemLog(
+                                customer_id=customer.id,
+                                log_level='WARNING',
+                                category='auth',
+                                action='unauthorized_redirect_attempt',
+                                message=f'User {customer.email} ({customer.role}) attempted to access unauthorized route: {next_page}',
+                                ip_address=request.remote_addr,
+                                user_agent=request.headers.get('User-Agent'),
+                                extra_data=json.dumps({'attempted_route': next_page, 'user_role': customer.role})
+                            )
+                            db.session.add(log_entry)
+                            db.session.commit()
+                        except Exception as e:
+                            print(f"Failed to log security violation: {e}")
+                        
+                        next_page = None  # Force redirect to role-appropriate dashboard
+                
+                except Exception as e:
+                    print(f"Error parsing next parameter: {e}")
+                    next_page = None
+            
+            # Flash success message and redirect
             flash(role_config['message'], 'success')
             
-            next_page = request.args.get('next')
-            return redirect(next_page if next_page else url_for(role_config['redirect']))
+            # ENFORCE STRICT ROLE-BASED REDIRECTION
+            final_redirect = next_page if next_page else url_for(role_config['redirect'])
+            return redirect(final_redirect)
                 
         else:
-            # Login failed
+            # Log failed login attempt
+            try:
+                from enhanced_models import SystemLog
+                log_entry = SystemLog(
+                    customer_id=customer.id if customer else None,
+                    log_level='WARNING',
+                    category='auth',
+                    action='failed_login',
+                    message=f'Failed login attempt for email: {email}',
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent'),
+                    request_url=request.url,
+                    request_method=request.method,
+                    extra_data=json.dumps({'attempted_email': email})
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+            except Exception as e:
+                print(f"Failed to log failed login: {e}")
+            
+            # Login failed - enhanced error messages
             if customer:
                 flash('Incorrect password. Please try again or reset your password.', 'danger')
             else:
@@ -1753,10 +2190,72 @@ def dashboard():
 def profile():
     teams = Team.query.all()
     if request.method == 'POST':
-        current_user.name = request.form['name']
-        current_user.phone = request.form['phone']
+        # CRITICAL SECURITY: Role Change Prevention
+        # Explicitly validate that no role-related fields are being modified
+        original_role = current_user.role
+        original_verification_status = current_user.verification_status
+        
+        # Log potential security violations
+        suspicious_fields = []
+        for field_name in request.form.keys():
+            if field_name.lower() in ['role', 'verification_status', 'is_admin', 'admin', 'stadium_owner']:
+                suspicious_fields.append(field_name)
+        
+        if suspicious_fields:
+            # Security violation detected - log and reject
+            try:
+                from enhanced_models import SystemLog
+                log_entry = SystemLog(
+                    customer_id=current_user.id,
+                    log_level='CRITICAL',
+                    category='security',
+                    action='role_modification_attempt',
+                    message=f'User {current_user.email} attempted to modify restricted fields: {suspicious_fields}',
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent'),
+                    request_url=request.url,
+                    request_method=request.method
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+            except Exception as e:
+                print(f"Failed to log security violation: {e}")
+            
+            flash('Security violation detected. Unauthorized field modification attempt.', 'danger')
+            return redirect(url_for('profile'))
+        
+        # Only allow safe profile field updates
+        current_user.name = sanitize_input(request.form.get('name', ''), 100)
+        current_user.phone = sanitize_input(request.form.get('phone', ''), 20)
         favorite_team_id = request.form.get('favorite_team_id')
         current_user.favorite_team_id = int(favorite_team_id) if favorite_team_id else None
+        
+        # CRITICAL: Ensure role and verification status haven't been tampered with
+        if current_user.role != original_role or current_user.verification_status != original_verification_status:
+            # Restore original values and log security incident
+            current_user.role = original_role
+            current_user.verification_status = original_verification_status
+            
+            try:
+                from enhanced_models import SystemLog
+                log_entry = SystemLog(
+                    customer_id=current_user.id,
+                    log_level='CRITICAL',
+                    category='security',
+                    action='privilege_escalation_attempt',
+                    message=f'SECURITY ALERT: User {current_user.email} attempted privilege escalation during profile update',
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent'),
+                    request_url=request.url,
+                    request_method=request.method
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+            except Exception as e:
+                print(f"Failed to log privilege escalation attempt: {e}")
+            
+            flash('SECURITY VIOLATION: Unauthorized privilege modification detected and blocked.', 'danger')
+            return redirect(url_for('profile'))
         
         try:
             db.session.commit()

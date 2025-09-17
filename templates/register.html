@@ -5,7 +5,7 @@
     <div class="w-100" style="max-width: 500px;">
         <div class="card shadow-lg">
             <div class="card-header bg-primary text-white text-center p-4">
-                <h3 class="h3 fw-bold mb-0">Create Account</h3>
+                <h3 class="h3 fw-bold mb-0">Create Your Fan Account</h3>
             </div>
             <div class="card-body p-4 p-md-5">
                 <form method="post">
@@ -32,28 +32,15 @@
                         </div>
                     </div>
                     
-                    <div class="mb-4">
-                        <label for="role" class="form-label fw-medium">Account Type</label>
-                        <select class="form-select form-select-lg" id="role" name="role" required>
-                            <option value="customer">Fan Account (Default)</option>
-                            <option value="stadium_owner">Stadium Owner</option>
-                            <option value="admin">Administrator</option>
-                        </select>
-                        <div class="form-text text-muted">
-                            <small>
-                                <strong>Fan:</strong> Book tickets, order concessions, manage your profile<br>
-                                <strong>Stadium Owner:</strong> Manage stadium operations and bookings<br>
-                                <strong>Administrator:</strong> Full system access and analytics
-                            </small>
-                        </div>
-                    </div>
-                    
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg">Register</button>
                     </div>
                 </form>
-                <div class="text-center mt-3">
+                <div class="text-center mt-4">
                     <p class="text-muted">Already have an account? <a href="{{ url_for('login') }}" class="text-decoration-none">Login here</a></p>
+                    <hr class="my-3">
+                    <p class="text-muted">Want to manage a stadium?</p>
+                    <a href="{{ url_for('apply_stadium_owner') }}" class="btn btn-outline-secondary">Apply to be a Stadium Owner</a>
                 </div>
             </div>
         </div>
@@ -68,7 +55,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.querySelector('form');
     const passwordInput = document.getElementById('password');
-    const roleSelect = document.getElementById('role');
     const nameInput = document.getElementById('name');
     const emailInput = document.getElementById('email');
     
@@ -96,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
         
         const feedbackElement = this.parentNode.querySelector('.password-feedback');
-        feedbackElement.innerHTML = `
+        feedbackElement.innerHTML = "`
             <div class="${colors[strength - 1] || 'text-muted'} small">
                 <i class="fas fa-shield-alt me-1"></i>
                 Password Strength: ${labels[strength - 1] || 'Too Short'}
@@ -119,34 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     Number
                 </div>
             </div>
-        `;
-    });
-    
-    // Role selection guidance
-    roleSelect.addEventListener('change', function() {
-        const selectedRole = this.value;
-        let roleInfo = '';
-        
-        switch(selectedRole) {
-            case 'customer':
-                roleInfo = 'Perfect for cricket fans! You\'ll have access to ticket booking, concession orders, and your personal dashboard.';
-                break;
-            case 'stadium_owner':
-                roleInfo = 'Ideal for venue managers. You\'ll manage stadium operations, view detailed analytics, and handle bookings.';
-                break;
-            case 'admin':
-                roleInfo = 'Full system administrator access. Manage all stadiums, users, analytics, and system configuration.';
-                break;
-        }
-        
-        let infoDiv = this.parentNode.querySelector('.role-info');
-        if (!infoDiv) {
-            infoDiv = document.createElement('div');
-            infoDiv.className = 'role-info alert alert-info mt-2 small';
-            this.parentNode.appendChild(infoDiv);
-        }
-        
-        infoDiv.innerHTML = `<i class="fas fa-info-circle me-1"></i>${roleInfo}`;
+        ";
     });
     
     // Form validation on submit
@@ -188,12 +147,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 registerForm.appendChild(errorDiv);
             }
             
-            errorDiv.innerHTML = `
-                <h6><i class="fas fa-exclamation-triangle me-2"></i>Please fix the following issues:</h6>
-                <ul class="mb-0">
+            errorDiv.innerHTML = "`
+                <h6><i class=\"fas fa-exclamation-triangle me-2\"></i>Please fix the following issues:</h6>
+                <ul class=\"mb-0\">
                     ${errorMessages.map(msg => `<li>${msg}</li>`).join('')}
                 </ul>
-            `;
+            `";
             
             // Scroll to error
             errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -217,9 +176,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 3000);
         }
     });
-    
-    // Trigger initial role info display
-    roleSelect.dispatchEvent(new Event('change'));
 });
 </script>
 {% endblock %}

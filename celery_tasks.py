@@ -403,3 +403,138 @@ def health_check() -> Dict[str, Any]:
         'status': 'healthy',
         'timestamp': datetime.utcnow().isoformat()
     }
+
+@celery_app.task(bind=True)
+def send_verification_decision_notification(self, notification_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Send verification decision notification email asynchronously"""
+    try:
+        logger.info(f"📧 Sending verification decision notification to {notification_data.get('user_email')}")
+        
+        # Import notification service
+        from notification import email_service
+        
+        if not email_service.client:
+            logger.warning("Email service not configured")
+            return {
+                'success': False,
+                'error': 'Email service not configured'
+            }
+        
+        user_email = notification_data.get('user_email')
+        user_name = notification_data.get('user_name')
+        decision = notification_data.get('decision')  # 'approved' or 'rejected'
+        admin_name = notification_data.get('admin_name')
+        
+        if decision == 'approved':
+            subject = "Stadium Owner Application Approved - CricVerse"
+            
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #0055A4 0%, #FF6B00 100%); padding: 20px; text-align: center; color: white;">
+                    <h1>🎉 Application Approved!</h1>
+                    <p>Congratulations! You are now a Stadium Owner</p>
+                </div>
+                
+                <div style="padding: 20px;">
+                    <h2>Dear {user_name},</h2>
+                    <p>We are pleased to inform you that your stadium owner application has been <strong>approved</strong> by our administrator {admin_name}.</p>
+                    
+                    <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #c3e6cb;">
+                        <h3 style="color: #155724;">🏟️ What's Next?</h3>
+                        <ul style="color: #155724;">
+                            <li>You now have stadium owner privileges</li>
+                            <li>Access your Stadium Owner Dashboard</li>
+                            <li>Start managing your stadium operations</li>
+                            <li>Create and manage events</li>
+                        </ul>
+                    </div>
+                    
+                    <p><strong>Your new role:</strong> Stadium Owner</p>
+                    <p><strong>Access Level:</strong> Enhanced Management Privileges</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="https://cricverse.com/stadium_owner/dashboard" 
+                           style="background-color: #0055A4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                            Access Your Dashboard
+                        </a>
+                    </div>
+                    
+                    <p>Thank you for choosing CricVerse as your stadium management platform!</p>
+                </div>
+                
+                <div style="background-color: #f1f1f1; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                    <p>© 2025 CricVerse Stadium System. Big Bash League Official Partner.</p>
+                    <p>This is an automated email. Please do not reply.</p>
+                </div>
+            </div>
+            """
+        else:  # rejected
+            subject = "Stadium Owner Application Update - CricVerse"
+            rejection_reason = notification_data.get('rejection_reason', 'Application did not meet requirements')
+            
+            html_content = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%); padding: 20px; text-align: center; color: white;">
+                    <h1>Application Update</h1>
+                    <p>Regarding your stadium owner application</p>
+                </div>
+                
+                <div style="padding: 20px;">
+                    <h2>Dear {user_name},</h2>
+                    <p>Thank you for your interest in becoming a stadium owner with CricVerse.</p>
+                    
+                    <p>After careful review by our administrator {admin_name}, we regret to inform you that your application has been <strong>declined</strong> at this time.</p>
+                    
+                    <div style="background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #f5c6cb;">
+                        <h3 style="color: #721c24;">📋 Reason for Decline</h3>
+                        <p style="color: #721c24;">{rejection_reason}</p>
+                    </div>
+                    
+                    <div style="background-color: #cce7ff; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #b3d7ff;">
+                        <h3 style="color: #004085;">🔄 Next Steps</h3>
+                        <ul style="color: #004085;">
+                            <li>Review the requirements for stadium owners</li>
+                            <li>Address any issues mentioned above</li>
+                            <li>You may reapply after making necessary improvements</li>
+                            <li>Contact our support team if you have questions</li>
+                        </ul>
+                    </div>
+                    
+                    <p>We appreciate your interest and encourage you to reapply once you've addressed the requirements.</p>
+                </div>
+                
+                <div style="background-color: #f1f1f1; padding: 15px; text-align: center; font-size: 12px; color: #666;">
+                    <p>© 2025 CricVerse Stadium System. Big Bash League Official Partner.</p>
+                    <p>This is an automated email. Please do not reply.</p>
+                </div>
+            </div>
+            """
+        
+        # Send email using notification service
+        from sendgrid.helpers.mail import Mail, Email, To, Content
+        
+        message = Mail(
+            from_email=Email(email_service.from_email),
+            to_emails=To(user_email),
+            subject=subject,
+            html_content=Content("text/html", html_content)
+        )
+        
+        response = email_service.client.send(message)
+        
+        if response.status_code in [200, 201, 202]:
+            logger.info(f"✅ Verification decision email sent to {user_email}")
+            return {
+                'success': True,
+                'message_id': response.headers.get('X-Message-Id'),
+                'decision': decision
+            }
+        else:
+            raise Exception(f"SendGrid API error: {response.status_code}")
+        
+    except Exception as e:
+        logger.error(f"❌ Verification decision notification failed: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }

@@ -196,12 +196,8 @@
                             </td>
                             <td>
                                 <div class="progress mb-1" style="height: 10px;">
-                                    <div class="progress-bar 
-                                        {% if performance.utilization_rate >= 80 %}bg-success
-                                        {% elif performance.utilization_rate >= 60 %}bg-info
-                                        {% elif performance.utilization_rate >= 40 %}bg-warning
-                                        {% else %}bg-danger{% endif %}" 
-                                        style="width: {{ performance.utilization_rate }}%"></div>
+                                    <div class="progress-bar {{ 'bg-success' if performance.utilization_rate >= 80 else 'bg-info' if performance.utilization_rate >= 60 else 'bg-warning' if performance.utilization_rate >= 40 else 'bg-danger' }}" 
+                                        style="width: {{ performance.utilization_rate|default(0) }}%"></div>
                                 </div>
                                 <small class="text-muted">{{ "%.1f"|format(performance.utilization_rate) }}%</small>
                             </td>
@@ -697,15 +693,15 @@ function initializeExportFunctionality() {
             // In production, this would generate and download actual reports
             const reportData = {
                 timestamp: new Date().toISOString(),
-                totalStadiums: {{ analytics_data.total_stadiums }},
-                totalRevenue: {{ analytics_data.total_revenue }},
-                totalTickets: {{ analytics_data.total_tickets_sold }},
+                totalStadiums: {{ analytics_data.total_stadiums|default(0)|tojson }},
+                totalRevenue: {{ analytics_data.total_revenue|default(0)|tojson }},
+                totalTickets: {{ analytics_data.total_tickets_sold|default(0)|tojson }},
                 stadiumPerformance: [
-                    {% for performance in analytics_data.stadium_performance %}
+                    {% for performance in analytics_data.stadium_performance|default([]) %}
                     {
-                        stadium: '{{ performance.stadium.name }}',
-                        utilization: {{ performance.utilization_rate }},
-                        revenue: {{ performance.revenue }}
+                        stadium: {{ performance.stadium.name|default('')|tojson }},
+                        utilization: {{ performance.utilization_rate|default(0)|tojson }},
+                        revenue: {{ performance.revenue|default(0)|tojson }}
                     }{% if not loop.last %},{% endif %}
                     {% endfor %}
                 ]
