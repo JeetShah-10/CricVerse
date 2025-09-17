@@ -13,9 +13,9 @@ def init_admin(app, db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, C
     
     # Custom admin view to restrict access
     class MyModelView(ModelView):
-        column_list = ('id', 'name', 'email', 'is_admin', 'created_at')
+        column_list = ('id', 'name', 'email', 'role', 'created_at')
         column_searchable_list = ('name', 'email')
-        column_filters = ('is_admin', 'created_at')
+        column_filters = ('role', 'created_at')
         
         def is_accessible(self):
             return current_user.is_authenticated and current_user.is_admin

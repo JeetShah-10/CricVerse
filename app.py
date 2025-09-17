@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask_wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -51,6 +52,7 @@ else:
     load_dotenv()
 
 app = Flask(__name__)
+csrf = CSRFProtect(app)
 
 # Configuration with fallbacks
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'cricverse-secret-key-change-in-production')
@@ -555,6 +557,7 @@ class Customer(db.Model, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
+    @property
     def is_admin(self):
         return self.role == 'admin'
     
@@ -2930,7 +2933,7 @@ def verify_pass_qr(verification_code):
 
 @app.route('/api/create-payment-intent', methods=['POST'])
 @login_required
-@require_csrf
+@csrf.exempt  # Replace require_csrf with csrf.exempt or remove if you want CSRF protection
 @validate_json_input(PaymentValidationModel)
 @limiter.limit("5 per minute", key_func=rate_limit_by_user)
 def create_payment_intent():
@@ -2973,7 +2976,7 @@ def unified_payment_webhook():
 
 @app.route('/api/booking/create', methods=['POST'])
 @login_required
-@require_csrf
+@csrf.exempt  # Replace require_csrf with csrf.exempt or remove if you want CSRF protection
 @validate_json_input(BookingValidationModel)
 @limiter.limit("10 per minute", key_func=rate_limit_by_user)
 def create_secure_booking():

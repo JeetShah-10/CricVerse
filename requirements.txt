@@ -1,6 +1,3 @@
-# CricVerse Stadium System - Indian Payment Gateway Setup
-# Big Bash League Cricket Platform
-
 # Flask Core
 Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
