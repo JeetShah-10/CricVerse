@@ -1563,47 +1563,112 @@ def select_seats(event_id):
     for seat in all_seats:
         seat.is_available = seat.id not in booked_seat_ids
     
-    # Group seats by section -> rows
+    # Group seats by section -> rows with enhanced data structure
     sections: dict = {}
+    total_available = 0
+    
     for seat in all_seats:
         section_name = seat.section
         row_name = seat.row_number
+        
         if section_name not in sections:
             sections[section_name] = {
                 'name': section_name,
-                'rows': {}
+                'rows': {},
+                'total_seats': 0,
+                'available_seats': 0,
+                'price_range': {'min': float('inf'), 'max': 0},
+                'seat_types': set(),
+                'class': 'standard'  # CSS class for styling
             }
+        
         if row_name not in sections[section_name]['rows']:
             sections[section_name]['rows'][row_name] = {
                 'name': row_name,
                 'seats': []
             }
+        
         sections[section_name]['rows'][row_name]['seats'].append(seat)
-
+        sections[section_name]['total_seats'] += 1
+        sections[section_name]['seat_types'].add(seat.seat_type)
+        
+        # Update price range
+        if seat.price < sections[section_name]['price_range']['min']:
+            sections[section_name]['price_range']['min'] = seat.price
+        if seat.price > sections[section_name]['price_range']['max']:
+            sections[section_name]['price_range']['max'] = seat.price
+        
+        if seat.is_available:
+            sections[section_name]['available_seats'] += 1
+            total_available += 1
+    
+    # Determine section styling class based on seat types
+    for section_data in sections.values():
+        seat_types = section_data['seat_types']
+        if 'VIP' in seat_types:
+            section_data['class'] = 'vip'
+        elif 'Corporate' in seat_types:
+            section_data['class'] = 'corporate'
+        elif 'Premium' in seat_types:
+            section_data['class'] = 'premium'
+        else:
+            section_data['class'] = 'standard'
+        
+        # Format price range
+        min_price = section_data['price_range']['min']
+        max_price = section_data['price_range']['max']
+        if min_price == max_price:
+            section_data['price_range'] = f"₹{min_price:.0f}"
+        else:
+            section_data['price_range'] = f"₹{min_price:.0f} - ₹{max_price:.0f}"
+    
     # Sort seats within rows by numeric seat_number when possible
     def _to_int_or_str(value: str):
         try:
             return int(value)
         except Exception:
             return value
-
+    
     for section_data in sections.values():
-        # order rows by natural name
+        # Order rows by natural name
         ordered_rows = []
         for row_name, row_data in section_data['rows'].items():
             row_data['seats'].sort(key=lambda s: _to_int_or_str(s.seat_number))
             ordered_rows.append(row_data)
-        # sort rows by their name with numeric fallback
+        # Sort rows by their name with numeric fallback
         ordered_rows.sort(key=lambda r: _to_int_or_str(r['name']))
         section_data['rows'] = ordered_rows
-
-    # Convert to list for template
-    sections_list = list(sections.values())
     
-    return render_template('seat_selection.html', 
-                         event=event, 
-                         sections=sections_list,
-                         selected_seats=[])
+    # Convert to list for template, sorted by section importance
+    def section_priority(section):
+        # Priority order: VIP -> Corporate -> Premium -> Standard -> General
+        if 'VIP' in section['seat_types']:
+            return 0
+        elif 'Corporate' in section['seat_types']:
+            return 1
+        elif 'Premium' in section['seat_types']:
+            return 2
+        elif 'Standard' in section['seat_types']:
+            return 3
+        else:
+            return 4
+    
+    sections_list = sorted(sections.values(), key=section_priority)
+    
+    # Use enhanced template if it exists, fallback to original
+    try:
+        return render_template('enhanced_seat_selection.html', 
+                             event=event, 
+                             sections=sections_list,
+                             selected_seats=[],
+                             total_available=total_available)
+    except Exception:
+        # Fallback to original template
+        return render_template('seat_selection.html', 
+                             event=event, 
+                             sections=sections_list,
+                             selected_seats=[],
+                             total_available=total_available)
 
 @app.route('/parking')
 def parking():
