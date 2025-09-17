@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
@@ -9,6 +10,10 @@ from dotenv import load_dotenv
 from functools import wraps
 from flask_socketio import SocketIO
 from chatbot import handle_chat_message
+import razorpay
+import hmac
+import hashlib
+import json
 
 # Import our utility functions
 from utils import (
@@ -17,6 +22,28 @@ from utils import (
     handle_form_errors, REGISTRATION_VALIDATION_RULES, STADIUM_VALIDATION_RULES,
     EVENT_VALIDATION_RULES, get_upcoming_events
 )
+
+# Import unified payment processor (PayPal + Indian gateways)
+from unified_payment_processor import (
+    unified_payment_processor,
+    UnifiedPaymentResponse,
+    PaymentGateway,
+    Currency
+)
+
+# Import admin module
+from admin import init_admin
+
+# Import security framework components
+try:
+    from security_framework import (
+        require_csrf, validate_json_input, limiter, rate_limit_by_user,
+        PaymentValidationModel, BookingValidationModel
+    )
+    SECURITY_FRAMEWORK_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARN] Security framework components not available: {e}")
+    SECURITY_FRAMEWORK_AVAILABLE = False
 
 # Load environment variables (prefer local cricverse.env, fallback to .env)
 if os.path.exists('cricverse.env'):
@@ -28,6 +55,14 @@ app = Flask(__name__)
 
 # Configuration with fallbacks
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'cricverse-secret-key-change-in-production')
+
+# CSRF Configuration
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_TIME_LIMIT'] = 3600  # 1 hour
+app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow HTTP for development
+
+# Initialize CSRF protection
+csrf = CSRFProtect(app)
 
 # Database configuration with PostgreSQL fallback
 database_url = os.getenv('DATABASE_URL')
@@ -86,6 +121,16 @@ login_manager.login_view = 'login'
 from realtime_simple import init_socketio
 socketio = init_socketio(app)
 
+# Initialize production security framework
+try:
+    from security_framework import init_security
+    init_security(app)
+    print("[PASS] Production security framework initialized")
+except ImportError as e:
+    print(f"[WARN] Security framework not available: {e}")
+except Exception as e:
+    print(f"[FAIL] Security framework initialization failed: {e}")
+
 # Database connection info
 if 'postgresql' in database_url:
     # Mask password in PostgreSQL URL for display
@@ -101,6 +146,266 @@ else:
     display_url = database_url
     
 print(f"[DATABASE] Database configured: {display_url}")
+
+# Unified Payment Processing Functions
+def create_unified_payment_order(payment_data):
+    """Create payment order using unified processor (PayPal + Indian gateways)"""
+    try:
+        # Extract payment details
+        amount = payment_data.get('amount', 0)
+        customer_email = current_user.email
+        payment_method = payment_data.get('payment_method', 'paypal')
+        currency = payment_data.get('currency', 'USD')
+        
+        # Auto-detect currency based on payment method
+        if payment_method in ['upi', 'card', 'netbanking', 'wallet']:
+            currency = 'INR'
+        elif payment_method == 'paypal':
+            currency = payment_data.get('currency', 'USD')
+        
+        # Prepare metadata
+        metadata = {
+            'customer_id': str(payment_data['customer_id']),
+            'customer_email': customer_email,
+            'customer_name': current_user.name,
+            'phone': getattr(current_user, 'phone', ''),
+            'booking_type': payment_data.get('booking_type', 'ticket'),
+            'description': f"Big Bash League - {payment_data.get('description', 'Booking')}",
+            'base_url': request.host_url
+        }
+        
+        # Add booking-specific metadata
+        if 'event_id' in payment_data:
+            metadata['event_id'] = str(payment_data['event_id'])
+        if 'seat_ids' in payment_data:
+            metadata['seat_ids'] = json.dumps(payment_data['seat_ids'])
+        
+        # Create payment order using unified processor
+        payment_response = unified_payment_processor.create_payment(
+            amount=amount,
+            currency=currency,
+            payment_method=payment_method,
+            customer_email=customer_email,
+            metadata=metadata
+        )
+        
+        if payment_response.success:
+            result = {
+                'success': True,
+                'payment_id': payment_response.payment_id,
+                'gateway': payment_response.gateway.value,
+                'amount': payment_response.amount,
+                'currency': payment_response.currency.value,
+                'payment_data': payment_response.metadata
+            }
+            
+            # Add PayPal-specific fields
+            if payment_response.approval_url:
+                result['approval_url'] = payment_response.approval_url
+                result['redirect_required'] = True
+            
+            return result
+        else:
+            return {
+                'error': payment_response.error_message or 'Payment order creation failed'
+            }, 400
+            
+    except Exception as e:
+        logger.error(f"Unified payment order creation failed: {e}")
+        return {'error': 'Payment setup failed'}, 500
+
+@app.route('/api/get-payment-methods', methods=['GET'])
+@login_required
+def get_payment_methods():
+    """Get available payment methods based on currency"""
+    try:
+        currency = request.args.get('currency', 'USD')
+        country = request.args.get('country', 'US')
+        
+        # Auto-detect currency if not provided
+        if not currency or currency == 'auto':
+            currency = unified_payment_processor.get_currency_for_country(country)
+        
+        methods = unified_payment_processor.get_supported_methods(currency)
+        
+        return jsonify({
+            'success': True,
+            'currency': currency,
+            'methods': methods
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get payment methods: {e}")
+        return jsonify({'error': 'Failed to load payment methods'}), 500
+
+def handle_unified_payment_webhook(payload, gateway):
+    """Handle payment webhook events from unified gateways"""
+    try:
+        if gateway == 'paypal':
+            # PayPal webhook handling
+            data = json.loads(payload)
+            
+            if data.get('event_type') == 'PAYMENT.CAPTURE.COMPLETED':
+                payment_data = data.get('resource', {})
+                
+                # Process PayPal payment
+                payment_response = unified_payment_processor.verify_payment({
+                    'gateway': 'paypal',
+                    'payment_id': payment_data.get('id'),
+                    'payer_id': payment_data.get('payer', {}).get('payer_id')
+                })
+                
+                if payment_response.success:
+                    # Get metadata from PayPal payment
+                    metadata = payment_response.metadata or {}
+                    
+                    # Process the booking
+                    success = unified_payment_processor.process_successful_payment(payment_response, metadata)
+                    
+                    if success:
+                        return {'status': 'success', 'message': 'PayPal payment processed'}
+                    else:
+                        return {'status': 'error', 'message': 'PayPal payment processing failed'}
+                else:
+                    return {'status': 'error', 'message': 'PayPal payment verification failed'}
+        
+        elif gateway == 'razorpay':
+            # Razorpay webhook handling
+            data = json.loads(payload)
+            
+            if data.get('event') == 'payment.captured':
+                payment_data = data.get('payload', {}).get('payment', {}).get('entity', {})
+                
+                # Verify and process payment
+                payment_response = unified_payment_processor.verify_payment({
+                    'gateway': 'razorpay',
+                    'razorpay_order_id': payment_data.get('order_id'),
+                    'razorpay_payment_id': payment_data.get('id'),
+                    'razorpay_signature': data.get('payload', {}).get('payment', {}).get('entity', {}).get('signature', ''),
+                    'amount': payment_data.get('amount', 0)
+                })
+                
+                if payment_response.success:
+                    # Get metadata from order
+                    metadata = payment_data.get('notes', {})
+                    
+                    # Process the booking
+                    success = unified_payment_processor.process_successful_payment(payment_response, metadata)
+                    
+                    if success:
+                        return {'status': 'success', 'message': 'Razorpay payment processed'}
+                    else:
+                        return {'status': 'error', 'message': 'Razorpay payment processing failed'}
+                else:
+                    return {'status': 'error', 'message': 'Razorpay payment verification failed'}
+        
+        return {'status': 'ignored', 'message': 'Event not handled'}
+        
+    except Exception as e:
+        logger.error(f"Unified webhook processing failed: {e}")
+        return {'status': 'error', 'message': 'Webhook processing failed'}
+
+@app.route('/payment/paypal/success')
+def paypal_success():
+    """Handle PayPal payment success redirect"""
+    try:
+        payment_id = request.args.get('paymentId')
+        payer_id = request.args.get('PayerID')
+        
+        if not payment_id or not payer_id:
+            flash('Payment information missing', 'error')
+            return redirect(url_for('index'))
+        
+        # Execute PayPal payment
+        payment_response = unified_payment_processor.verify_payment({
+            'gateway': 'paypal',
+            'payment_id': payment_id,
+            'payer_id': payer_id
+        })
+        
+        if payment_response.success:
+            flash('Payment successful! Your booking is confirmed.', 'success')
+            return redirect(url_for('booking_confirmation', payment_id=payment_id))
+        else:
+            flash('Payment verification failed', 'error')
+            return redirect(url_for('index'))
+            
+    except Exception as e:
+        logger.error(f"PayPal success handling failed: {e}")
+        flash('Payment processing error', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/verify-ticket')
+def verify_ticket():
+    """Verify ticket validity"""
+    ticket_id = request.args.get('id')
+    token = request.args.get('token')
+    
+    if not ticket_id:
+        flash('Invalid ticket verification request', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        # In a real implementation, you would verify the token and check ticket validity
+        # For now, we'll just show a verification page
+        from app import Booking, Ticket, Event, Stadium, Customer, Seat
+        
+        booking = Booking.query.get(int(ticket_id)) if ticket_id else None
+        if not booking:
+            flash('Ticket not found', 'error')
+            return redirect(url_for('index'))
+        
+        event = Event.query.get(booking.event_id)
+        stadium = Stadium.query.get(event.stadium_id) if event else None
+        customer = Customer.query.get(booking.customer_id)
+        tickets = Ticket.query.filter_by(booking_id=booking.id).all()
+        
+        # Get seat information for the first ticket
+        seat_info = None
+        if tickets:
+            seat = Seat.query.get(tickets[0].seat_id)
+            if seat:
+                seat_info = f"Section {seat.section}, Row {seat.row}, Seat {seat.number}"
+        
+        return render_template('ticket_verification.html', 
+                             booking=booking, 
+                             event=event, 
+                             stadium=stadium,
+                             customer=customer,
+                             seat_info=seat_info,
+                             is_valid=True)
+    except Exception as e:
+        logger.error(f"Ticket verification failed: {e}")
+        flash('Ticket verification error', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/payment/paypal/cancel')
+def paypal_cancel():
+    """Handle PayPal payment cancellation"""
+    flash('Payment was cancelled', 'warning')
+    return redirect(url_for('index'))
+
+# Expose payment client IDs to templates
+@app.context_processor
+def inject_payment_public_keys():
+    return {
+        'PAYPAL_CLIENT_ID': os.getenv('PAYPAL_CLIENT_ID'),
+        'RAZORPAY_KEY_ID': os.getenv('RAZORPAY_KEY_ID'),
+        'UNIFIED_PAYMENT_ENABLED': True
+    }
+
+
+
+# Razorpay client init
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET')
+razorpay_client = None
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    try:
+        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+        print("[PAYMENTS] Razorpay client initialized")
+    except Exception as e:
+        print(f"[PAYMENTS] Razorpay init failed: {e}")
 
 # Models
 class Stadium(db.Model):
@@ -1191,7 +1496,7 @@ def index():
             next_match_countdown = None
         
         # Log successful data retrieval
-        print(f"✅ Home page loaded: {len(upcoming_events)} events, {len(featured_stadiums)} stadiums, {len(featured_teams_data)} teams")
+        print(f"[PASS] Home page loaded: {len(upcoming_events)} events, {len(featured_stadiums)} stadiums, {len(featured_teams_data)} teams")
         
         # If no data was loaded from database, provide static fallback
         if not upcoming_events and not featured_stadiums and not featured_teams_data:
@@ -1205,7 +1510,7 @@ def index():
                                next_match_countdown=next_match_countdown)
         
     except Exception as e:
-        print(f"❌ Critical error in index route: {e}")
+        print(f"[FAIL] Critical error in index route: {e}")
         # Return template with empty data to prevent complete failure
         return render_template('index.html',
                                upcoming_events=[],
@@ -1719,6 +2024,362 @@ def concession_menu(concession_id):
                          concession=concession, 
                          menu_items=menu_items)
 
+# =============================
+# BOOKING + PAYPAL INTEGRATION
+# =============================
+
+@app.route('/booking/create-order', methods=['POST'])
+@login_required
+def booking_create_order():
+    """Create a PayPal order after validating inventory and computing total server-side.
+
+    Expected JSON body:
+    {
+      "event_id": 123,
+      "seat_ids": [1,2,3],
+      "parking_id": 10,            # optional
+      "parking_hours": 2           # optional float
+    }
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        event_id = data.get('event_id')
+        seat_ids = data.get('seat_ids') or []
+        parking_id = data.get('parking_id')
+        parking_hours = data.get('parking_hours')
+
+        if not event_id:
+            return jsonify({"success": False, "error": "event_id is required"}), 400
+
+        # Validate event
+        event = Event.query.get(event_id)
+        if not event:
+            return jsonify({"success": False, "error": "Invalid event_id"}), 400
+
+        total_amount = 0.0
+        validated_seat_ids = []
+
+        # Validate seats availability and compute total
+        if seat_ids:
+            seats = Seat.query.filter(Seat.id.in_(seat_ids), Seat.stadium_id == event.stadium_id).all()
+            if len(seats) != len(seat_ids):
+                return jsonify({"success": False, "error": "One or more seats not found for this event's stadium"}), 400
+
+            # Seats already booked for this event
+            booked_seat_ids = db.session.query(Ticket.seat_id).filter(
+                Ticket.event_id == event_id,
+                Ticket.ticket_status.in_(['Booked', 'Used'])
+            ).all()
+            booked_seat_ids = {sid for (sid,) in booked_seat_ids}
+
+            for seat in seats:
+                if seat.id in booked_seat_ids:
+                    return jsonify({"success": False, "error": f"Seat {seat.seat_number} is no longer available"}), 409
+                total_amount += float(seat.price or 0)
+                validated_seat_ids.append(seat.id)
+
+        # Optional parking validation and fee
+        if parking_id:
+            parking = Parking.query.get(parking_id)
+            if not parking or parking.stadium_id != event.stadium_id:
+                return jsonify({"success": False, "error": "Invalid parking selection"}), 400
+            hours = float(parking_hours or 0)
+            if hours > 0:
+                total_amount += float(parking.rate_per_hour or 0) * hours
+
+        if total_amount <= 0:
+            return jsonify({"success": False, "error": "Cart is empty"}), 400
+
+        # Create payment order using unified processor
+        payment_response = unified_payment_processor.create_payment(
+            amount=total_amount,
+            currency='USD',
+            payment_method='paypal',
+            customer_email=current_user.email,
+            metadata={
+                'customer_id': str(current_user.id),
+                'customer_email': current_user.email,
+                'booking_type': 'ticket',
+                'description': f"Big Bash League Booking"
+            }
+        )
+        
+        if not payment_response.success:
+            return jsonify({"success": False, "error": payment_response.error_message or "Payment setup failed"}), 400
+        
+        order_id = payment_response.payment_id
+
+        # Stash a lightweight pending context in session for capture step
+        session['pending_booking'] = {
+            'event_id': event_id,
+            'seat_ids': validated_seat_ids,
+            'parking_id': parking_id,
+            'parking_hours': float(parking_hours or 0),
+            'amount': float(f"{total_amount:.2f}")
+        }
+
+        return jsonify({"success": True, "orderID": order_id, "amount": f"{total_amount:.2f}"})
+
+    except Exception as e:
+        print(f"Create order error: {e}")
+        return jsonify({"success": False, "error": "Failed to create order"}), 500
+
+
+@app.route('/booking/create-razorpay-order', methods=['POST'])
+@login_required
+def booking_create_razorpay_order():
+    if not razorpay_client:
+        return jsonify({"success": False, "error": "Razorpay not configured"}), 500
+    try:
+        data = request.get_json(silent=True) or {}
+        event_id = data.get('event_id')
+        seat_ids = data.get('seat_ids') or []
+        parking_id = data.get('parking_id')
+        parking_hours = data.get('parking_hours')
+
+        if not event_id:
+            return jsonify({"success": False, "error": "event_id is required"}), 400
+
+        event = Event.query.get(event_id)
+        if not event:
+            return jsonify({"success": False, "error": "Invalid event_id"}), 400
+
+        total_amount = 0.0
+        validated_seat_ids = []
+
+        if seat_ids:
+            seats = Seat.query.filter(Seat.id.in_(seat_ids), Seat.stadium_id == event.stadium_id).all()
+            if len(seats) != len(seat_ids):
+                return jsonify({"success": False, "error": "One or more seats not found for this event's stadium"}), 400
+
+            booked_seat_ids = db.session.query(Ticket.seat_id).filter(
+                Ticket.event_id == event_id,
+                Ticket.ticket_status.in_(['Booked', 'Used'])
+            ).all()
+            booked_seat_ids = {sid for (sid,) in booked_seat_ids}
+
+            for seat in seats:
+                if seat.id in booked_seat_ids:
+                    return jsonify({"success": False, "error": f"Seat {seat.seat_number} is no longer available"}), 409
+                total_amount += float(seat.price or 0)
+                validated_seat_ids.append(seat.id)
+
+        if parking_id:
+            parking = Parking.query.get(parking_id)
+            if not parking or parking.stadium_id != event.stadium_id:
+                return jsonify({"success": False, "error": "Invalid parking selection"}), 400
+            hours = float(parking_hours or 0)
+            if hours > 0:
+                total_amount += float(parking.rate_per_hour or 0) * hours
+
+        if total_amount <= 0:
+            return jsonify({"success": False, "error": "Cart is empty"}), 400
+
+        amount_paise = int(round(total_amount * 100))
+        order = razorpay_client.order.create(dict(amount=amount_paise, currency='INR', receipt=f'rcpt_{current_user.id}_{event_id}'))
+
+        session['pending_booking'] = {
+            'event_id': event_id,
+            'seat_ids': validated_seat_ids,
+            'parking_id': parking_id,
+            'parking_hours': float(parking_hours or 0),
+            'amount': float(f"{total_amount:.2f}")
+        }
+
+        return jsonify({
+            'success': True,
+            'razorpay_order_id': order.get('id'),
+            'key_id': RAZORPAY_KEY_ID,
+            'amount': amount_paise,
+            'currency': 'INR'
+        })
+    except Exception as e:
+        print(f"Create Razorpay order error: {e}")
+        return jsonify({"success": False, "error": "Failed to create Razorpay order"}), 500
+
+
+@app.route('/booking/verify-razorpay-payment', methods=['POST'])
+@login_required
+def verify_razorpay_payment():
+    if not razorpay_client:
+        return jsonify({"success": False, "error": "Razorpay not configured"}), 500
+    try:
+        data = request.get_json(silent=True) or {}
+        razorpay_order_id = data.get('razorpay_order_id')
+        razorpay_payment_id = data.get('razorpay_payment_id')
+        razorpay_signature = data.get('razorpay_signature')
+
+        if not (razorpay_order_id and razorpay_payment_id and razorpay_signature):
+            return jsonify({"success": False, "error": "Missing Razorpay fields"}), 400
+
+        params_dict = {
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        }
+
+        # Verify signature
+        try:
+            razorpay_client.utility.verify_payment_signature(params_dict)
+        except Exception:
+            return jsonify({"success": False, "error": "Invalid payment signature"}), 400
+
+        pending = session.get('pending_booking')
+        if not pending:
+            return jsonify({"success": False, "error": "No pending booking found in session"}), 400
+
+        with db.session.begin():
+            new_booking = Booking(
+                customer_id=current_user.id,
+                total_amount=pending['amount']
+            )
+            db.session.add(new_booking)
+            db.session.flush()
+
+            for sid in pending.get('seat_ids') or []:
+                ticket = Ticket(
+                    event_id=pending['event_id'],
+                    seat_id=sid,
+                    customer_id=current_user.id,
+                    ticket_status='Booked',
+                    booking=new_booking
+                )
+                db.session.add(ticket)
+
+            payment = Payment(
+                amount=pending['amount'],
+                payment_method='Razorpay',
+                transaction_id=razorpay_payment_id,
+                booking=new_booking
+            )
+            db.session.add(payment)
+
+            if pending.get('parking_id') and pending.get('parking_hours', 0) > 0:
+                parking_booking = ParkingBooking(
+                    parking_id=pending['parking_id'],
+                    customer_id=current_user.id,
+                    vehicle_number='N/A',
+                    amount_paid=pending['amount']
+                )
+                db.session.add(parking_booking)
+
+        session.pop('pending_booking', None)
+        return jsonify({"success": True, "booking_id": new_booking.id})
+    except Exception as e:
+        print(f"Verify Razorpay error: {e}")
+        return jsonify({"success": False, "error": "Failed to verify Razorpay payment"}), 500
+
+
+@app.route('/booking/capture-order', methods=['POST'])
+@login_required
+def booking_capture_order():
+    """Capture a PayPal order and write booking + tickets atomically."""
+    try:
+        data = request.get_json(silent=True) or {}
+        order_id = data.get('orderID')
+        if not order_id:
+            return jsonify({"success": False, "error": "orderID is required"}), 400
+
+        pending = session.get('pending_booking')
+        if not pending:
+            return jsonify({"success": False, "error": "No pending booking found in session"}), 400
+
+        # Verify payment using unified processor
+        payment_verification = unified_payment_processor.verify_payment({
+            'gateway': 'paypal',
+            'payment_id': order_id,
+            'payer_id': data.get('payerID', '')
+        })
+        
+        if not payment_verification.success:
+            return jsonify({"success": False, "error": "Payment verification failed"}), 400
+        
+        capture_data = {
+            'status': 'COMPLETED',
+            'id': payment_verification.payment_id
+        }
+        status = capture_data.get('status')
+        if status != 'COMPLETED':
+            return jsonify({"success": False, "error": f"Capture failed: {status}"}), 400
+
+        transaction_id = capture_data.get('id')
+
+        # Atomic DB writes
+        with db.session.begin():
+            new_booking = Booking(
+                customer_id=current_user.id,
+                total_amount=pending['amount']
+            )
+            db.session.add(new_booking)
+            db.session.flush()
+
+            # Create tickets for seats
+            for sid in pending.get('seat_ids') or []:
+                ticket = Ticket(
+                    event_id=pending['event_id'],
+                    seat_id=sid,
+                    customer_id=current_user.id,
+                    ticket_status='Booked',
+                    booking=new_booking
+                )
+                db.session.add(ticket)
+
+            # Record payment
+            payment = Payment(
+                amount=pending['amount'],
+                payment_method='PayPal',
+                transaction_id=transaction_id,
+                booking=new_booking
+            )
+            db.session.add(payment)
+
+            # Optional parking booking record
+            if pending.get('parking_id') and pending.get('parking_hours', 0) > 0:
+                parking_booking = ParkingBooking(
+                    parking_id=pending['parking_id'],
+                    customer_id=current_user.id,
+                    vehicle_number='N/A',
+                    amount_paid=pending['amount']  # simplistic; could split amounts
+                )
+                db.session.add(parking_booking)
+
+        # Clear pending
+        session.pop('pending_booking', None)
+
+        return jsonify({"success": True, "booking_id": new_booking.id})
+
+    except Exception as e:
+        print(f"Capture order error: {e}")
+        return jsonify({"success": False, "error": "Failed to capture order"}), 500
+
+
+@app.route('/my-bookings')
+@login_required
+def my_bookings():
+    """Return current user's bookings with items."""
+    try:
+        bookings = Booking.query.filter_by(customer_id=current_user.id).order_by(Booking.booking_date.desc()).all()
+        result = []
+        for b in bookings:
+            tickets = Ticket.query.filter_by(booking_id=b.id).all()
+            result.append({
+                'id': b.id,
+                'date': b.booking_date.isoformat() if b.booking_date else None,
+                'total_amount': b.total_amount,
+                'items': [
+                    {
+                        'ticket_id': t.id,
+                        'event_id': t.event_id,
+                        'seat_id': t.seat_id,
+                        'status': t.ticket_status,
+                    } for t in tickets
+                ]
+            })
+        return jsonify({"success": True, "bookings": result})
+    except Exception as e:
+        print(f"My bookings error: {e}")
+        return jsonify({"success": False, "error": "Failed to fetch bookings"}), 500
+
 @app.route('/place_order', methods=['POST'])
 @login_required
 @customer_required
@@ -1801,6 +2462,11 @@ def ai_assistant():
 def ai_options():
     """AI Assistant options page"""
     return render_template('ai_options.html')
+
+@app.route('/api/csrf-token')
+def get_csrf_token():
+    """Get CSRF token for API requests"""
+    return jsonify({'csrf_token': generate_csrf()})
 
 @app.route('/api/chat', methods=['POST'])
 def enhanced_chat_api():
@@ -2337,17 +3003,462 @@ def verify_pass_qr(verification_code):
                              verification_result={'valid': False, 'error': str(e)},
                              data_type='pass')
 
+# ==========================================
+# PRODUCTION PAYMENT ENDPOINTS
+# ==========================================
+
+@app.route('/api/create-payment-intent', methods=['POST'])
+@login_required
+@require_csrf
+@validate_json_input(PaymentValidationModel)
+@limiter.limit("5 per minute", key_func=rate_limit_by_user)
+def create_payment_intent():
+    """Create payment order with unified PayPal + Indian gateways"""
+    try:
+        # Get validated data
+        payment_data = request.validated_data
+        payment_data['customer_id'] = current_user.id
+        
+        # Create payment order using unified processor
+        result = create_unified_payment_order(payment_data)
+        
+        if isinstance(result, tuple):
+            return jsonify(result[0]), result[1]
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Payment order creation failed: {e}")
+        return jsonify({'error': 'Payment setup failed'}), 500
+
+@app.route('/api/unified-payment-webhook', methods=['POST'])
+@limiter.exempt  # Webhooks should not be rate limited
+def unified_payment_webhook():
+    """Handle payment gateway webhook events (PayPal + Indian gateways)"""
+    try:
+        payload = request.get_data()
+        
+        # Get gateway from headers or form data
+        gateway = request.headers.get('X-Gateway-Type', 'paypal')
+        
+        # Process webhook based on gateway
+        result = handle_unified_payment_webhook(payload, gateway)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Payment webhook processing failed: {e}")
+        return jsonify({'error': 'Webhook processing failed'}), 500
+
+@app.route('/api/booking/create', methods=['POST'])
+@login_required
+@require_csrf
+@validate_json_input(BookingValidationModel)
+@limiter.limit("10 per minute", key_func=rate_limit_by_user)
+def create_secure_booking():
+    """Create booking with enhanced security validation"""
+    try:
+        booking_data = request.validated_data
+        booking_data['customer_id'] = current_user.id
+        
+        # Additional server-side validation
+        from app import Event, Seat, Ticket
+        
+        # Verify event exists and is bookable
+        event = Event.query.get(booking_data['event_id'])
+        if not event:
+            return jsonify({'error': 'Event not found'}), 400
+        
+        if event.event_date < datetime.now().date():
+            return jsonify({'error': 'Cannot book past events'}), 400
+        
+        # Verify seats are available
+        seat_ids = booking_data['seat_ids']
+        booked_seats = Ticket.query.filter(
+            Ticket.seat_id.in_(seat_ids),
+            Ticket.event_id == event.id,
+            Ticket.ticket_status == 'Booked'
+        ).all()
+        
+        if booked_seats:
+            return jsonify({'error': 'Some seats are no longer available'}), 400
+        
+        # Calculate and verify total amount server-side
+        seats = Seat.query.filter(Seat.id.in_(seat_ids)).all()
+        calculated_total = sum(seat.price for seat in seats)
+        calculated_total += calculated_total * 0.05  # Service fee
+        calculated_total += 2.50  # Processing fee
+        
+        if abs(calculated_total - booking_data['total_amount']) > 0.01:
+            return jsonify({'error': 'Amount mismatch detected'}), 400
+        
+        # Create payment order
+        payment_result = create_unified_payment_order(booking_data)
+        
+        if isinstance(payment_result, tuple):
+            return jsonify(payment_result[0]), payment_result[1]
+        
+        return jsonify(payment_result)
+        
+    except Exception as e:
+        logger.error(f"Secure booking creation failed: {e}")
+        return jsonify({'error': 'Booking creation failed'}), 500
+
+@app.route('/booking/confirmation')
+@login_required
+def booking_confirmation():
+    booking_id = request.args.get('booking_id')
+    try:
+        booking = Booking.query.get(int(booking_id)) if booking_id else None
+    except Exception:
+        booking = None
+    return render_template('payment_success.html', payment_data={
+        'booking_id': booking.id if booking else None,
+        'amount': getattr(booking, 'total_amount', None)
+    })
+
+# BBL Action Hub API Routes
+@app.route('/api/bbl/live-scores')
+def get_live_scores():
+    """Get live match scores and fixtures"""
+    try:
+        # Sample live data - in production, this would come from Supabase
+        live_scores = [
+            {
+                'id': 1,
+                'home_team': 'Melbourne Stars',
+                'away_team': 'Sydney Sixers',
+                'home_score': '156/4',
+                'away_score': '132/6',
+                'status': 'LIVE',
+                'overs': '15.3',
+                'venue': 'Melbourne Cricket Ground',
+                'date': 'Today, 7:15 PM',
+                'home_logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'away_logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png')
+            },
+            {
+                'id': 2,
+                'home_team': 'Perth Scorchers',
+                'away_team': 'Brisbane Heat',
+                'home_score': None,
+                'away_score': None,
+                'status': 'UPCOMING',
+                'overs': None,
+                'venue': 'Optus Stadium, Perth',
+                'date': 'Tomorrow, 6:30 PM',
+                'home_logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'away_logo': url_for('static', filename='img/teams/Brisbane Heat.png')
+            },
+            {
+                'id': 3,
+                'home_team': 'Hobart Hurricanes',
+                'away_team': 'Adelaide Strikers',
+                'home_score': None,
+                'away_score': None,
+                'status': 'UPCOMING',
+                'overs': None,
+                'venue': 'Bellerive Oval, Hobart',
+                'date': 'Dec 18, 7:15 PM',
+                'home_logo': url_for('static', filename='img/teams/Hobart Hurricanes.png'),
+                'away_logo': url_for('static', filename='img/teams/Adelaide Striker.png')
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'matches': live_scores
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/bbl/standings')
+def get_standings():
+    """Get current BBL standings/points table"""
+    try:
+        standings = [
+            {
+                'position': 1,
+                'team': 'Melbourne Stars',
+                'played': 8,
+                'won': 6,
+                'lost': 2,
+                'nrr': '+0.85',
+                'points': 16,
+                'logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'is_playoff': True
+            },
+            {
+                'position': 2,
+                'team': 'Sydney Sixers',
+                'played': 8,
+                'won': 5,
+                'lost': 3,
+                'nrr': '+0.42',
+                'points': 14,
+                'logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png'),
+                'is_playoff': True
+            },
+            {
+                'position': 3,
+                'team': 'Perth Scorchers',
+                'played': 7,
+                'won': 4,
+                'lost': 3,
+                'nrr': '+0.18',
+                'points': 12,
+                'logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'is_playoff': True
+            },
+            {
+                'position': 4,
+                'team': 'Brisbane Heat',
+                'played': 8,
+                'won': 4,
+                'lost': 4,
+                'nrr': '-0.15',
+                'points': 10,
+                'logo': url_for('static', filename='img/teams/Brisbane Heat.png'),
+                'is_playoff': True
+            },
+            {
+                'position': 5,
+                'team': 'Hobart Hurricanes',
+                'played': 7,
+                'won': 3,
+                'lost': 4,
+                'nrr': '-0.28',
+                'points': 8,
+                'logo': url_for('static', filename='img/teams/Hobart Hurricanes.png'),
+                'is_playoff': False
+            },
+            {
+                'position': 6,
+                'team': 'Adelaide Strikers',
+                'played': 8,
+                'won': 3,
+                'lost': 5,
+                'nrr': '-0.35',
+                'points': 8,
+                'logo': url_for('static', filename='img/teams/Adelaide Striker.png'),
+                'is_playoff': False
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'standings': standings
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/bbl/top-performers')
+def get_top_performers():
+    """Get top performing players"""
+    try:
+        top_runs = [
+            {
+                'id': 1,
+                'name': 'Marcus Stoinis',
+                'team': 'Melbourne Stars',
+                'runs': 485,
+                'avatar': 'MS',
+                'logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'headshot': url_for('static', filename='img/players/marcus_stoinis.jpg')
+            },
+            {
+                'id': 2,
+                'name': 'Josh Inglis',
+                'team': 'Perth Scorchers',
+                'runs': 423,
+                'avatar': 'JI',
+                'logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'headshot': url_for('static', filename='img/players/josh_inglis.jpg')
+            },
+            {
+                'id': 3,
+                'name': 'Alex Hales',
+                'team': 'Sydney Sixers',
+                'runs': 395,
+                'avatar': 'AH',
+                'logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png'),
+                'headshot': url_for('static', filename='img/players/alex_hales.jpg')
+            },
+            {
+                'id': 4,
+                'name': 'Chris Lynn',
+                'team': 'Brisbane Heat',
+                'runs': 367,
+                'avatar': 'CL',
+                'logo': url_for('static', filename='img/teams/Brisbane Heat.png'),
+                'headshot': url_for('static', filename='img/players/chris_lynn.jpg')
+            }
+        ]
+        
+        top_wickets = [
+            {
+                'id': 1,
+                'name': 'Trent Boult',
+                'team': 'Hobart Hurricanes',
+                'wickets': 24,
+                'avatar': 'TB',
+                'logo': url_for('static', filename='img/teams/Hobart Hurricanes.png'),
+                'headshot': url_for('static', filename='img/players/trent_boult.jpg')
+            },
+            {
+                'id': 2,
+                'name': 'Jhye Richardson',
+                'team': 'Perth Scorchers',
+                'wickets': 22,
+                'avatar': 'JR',
+                'logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'headshot': url_for('static', filename='img/players/jhye_richardson.jpg')
+            },
+            {
+                'id': 3,
+                'name': 'Adam Zampa',
+                'team': 'Melbourne Stars',
+                'wickets': 21,
+                'avatar': 'AZ',
+                'logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'headshot': url_for('static', filename='img/players/adam_zampa.jpg')
+            },
+            {
+                'id': 4,
+                'name': 'Sean Abbott',
+                'team': 'Sydney Sixers',
+                'wickets': 19,
+                'avatar': 'SA',
+                'logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png'),
+                'headshot': url_for('static', filename='img/players/sean_abbott.jpg')
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'top_runs': top_runs,
+            'top_wickets': top_wickets
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/bbl/teams')
+def get_teams():
+    """Get all BBL teams data"""
+    try:
+        teams = [
+            {
+                'id': 1,
+                'name': 'Adelaide Strikers',
+                'short_name': 'STR',
+                'position': 6,
+                'points': 8,
+                'logo': url_for('static', filename='img/teams/Adelaide Striker.png'),
+                'color': '#003DA5',
+                'subtitle': 'The Strike Force'
+            },
+            {
+                'id': 2,
+                'name': 'Brisbane Heat',
+                'short_name': 'HEA',
+                'position': 4,
+                'points': 10,
+                'logo': url_for('static', filename='img/teams/Brisbane Heat.png'),
+                'color': '#FF6B35',
+                'subtitle': 'Feel the Heat'
+            },
+            {
+                'id': 3,
+                'name': 'Hobart Hurricanes',
+                'short_name': 'HUR',
+                'position': 5,
+                'points': 8,
+                'logo': url_for('static', filename='img/teams/Hobart Hurricanes.png'),
+                'color': '#6B2C91',
+                'subtitle': 'Hurricane Force'
+            },
+            {
+                'id': 4,
+                'name': 'Melbourne Renegades',
+                'short_name': 'REN',
+                'position': 7,
+                'points': 6,
+                'logo': url_for('static', filename='img/teams/Melbourne Renegades.png'),
+                'color': '#E40613',
+                'subtitle': 'Rebel Spirit'
+            },
+            {
+                'id': 5,
+                'name': 'Melbourne Stars',
+                'short_name': 'STA',
+                'position': 1,
+                'points': 16,
+                'logo': url_for('static', filename='img/teams/Melbourne_Stars_logo.png'),
+                'color': '#00A651',
+                'subtitle': 'Shine Bright'
+            },
+            {
+                'id': 6,
+                'name': 'Perth Scorchers',
+                'short_name': 'SCO',
+                'position': 3,
+                'points': 12,
+                'logo': url_for('static', filename='img/teams/Perth Scorchers.png'),
+                'color': '#FF8800',
+                'subtitle': 'Desert Fire'
+            },
+            {
+                'id': 7,
+                'name': 'Sydney Sixers',
+                'short_name': 'SIX',
+                'position': 2,
+                'points': 14,
+                'logo': url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png'),
+                'color': '#FF1493',
+                'subtitle': 'Six Appeal'
+            },
+            {
+                'id': 8,
+                'name': 'Sydney Thunder',
+                'short_name': 'THU',
+                'position': 8,
+                'points': 4,
+                'logo': url_for('static', filename='img/teams/Sydney Thunder.png'),
+                'color': '#FFED00',
+                'subtitle': 'Thunder Strike'
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'teams': teams
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 if __name__ == '__main__':
     with app.app_context():
         try:
             # Create all basic tables
             db.create_all()
-            print("✅ Basic database tables created")
+            print("[PASS] Basic database tables created")
             
             # Create enhanced tables with better error handling
             # Temporarily disabled to avoid circular import issues
-            print("⚠️ Enhanced tables creation temporarily disabled")
-            print("📝 Application will continue with basic functionality")
+            print("[WARN] Enhanced tables creation temporarily disabled")
+            print("[NOTE] Application will continue with basic functionality")
             # try:
             #     # Import enhanced models only within app context to avoid circular imports
             #     import sys
@@ -2358,20 +3469,27 @@ if __name__ == '__main__':
             #     
             #     success = enhanced_models._create_tables_internal(db)
             #     if success:
-            #         print("✅ Enhanced database tables created")
+            #         print("[PASS] Enhanced database tables created")
             #     else:
-            #         print("⚠️ Enhanced tables creation skipped (likely already exist)")
+            #         print("[WARN] Enhanced tables creation skipped (likely already exist)")
             # except Exception as e:
-            #     print(f"⚠️ Could not create enhanced tables: {e}")
-            #     print("📝 Application will continue with basic functionality")
+            #     print(f"[WARN] Could not create enhanced tables: {e}")
+            #     print("[NOTE] Application will continue with basic functionality")
                 
         except Exception as e:
-            print(f"❌ Database initialization failed: {e}")
-            print("📝 Check your database connection and try again")
+            print(f"[FAIL] Database initialization failed: {e}")
+            print("[NOTE] Check your database connection and try again")
+    
+    # Initialize Flask-Admin
+    try:
+        admin = init_admin(app, db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking)
+        print("[PASS] Flask-Admin initialized")
+    except Exception as e:
+        print(f"[WARN] Flask-Admin initialization failed: {e}")
     
     # Start the application with optimized settings
-    print("🚀 Starting CricVerse Stadium System...")
-    print(f"🌐 Server will be available at: http://localhost:5000")
+    print("[START] Starting CricVerse Stadium System...")
+    print(f"[WEB] Server will be available at: http://localhost:5000")
     
     # Use production-like settings even in development for better performance
     socketio.run(app, 

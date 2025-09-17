@@ -480,15 +480,12 @@
               <option value="Hospitality">Hospitality</option>
             </select>
           </div>
-          <div class="mb-4">
-            <label class="form-label text-muted small fw-medium">Payment Method</label>
-            <select name="payment_method" class="form-select" required>
-              <option value="Credit Card">Credit Card</option>
-              <option value="Debit Card">Debit Card</option>
-              <option value="UPI">UPI</option>
-              <option value="PayPal">PayPal</option>
-            </select>
+          <div class="mb-3 payment-choice">
+            <label class="form-label text-muted small fw-medium d-block">Payment Method</label>
+            <label class="me-3"><input type="radio" name="paymentMethod" value="stripe" checked> Pay with Card</label>
+            <label><input type="radio" name="paymentMethod" value="paypal"> Pay with PayPal</label>
           </div>
+          <div id="paypal-buttons" class="mb-3"></div>
           <button type="submit" class="btn btn-success btn-lg w-100 fw-semibold" id="book-btn" disabled>
             <i class="fas fa-ticket-alt me-2"></i>Book Selected Seats
           </button>

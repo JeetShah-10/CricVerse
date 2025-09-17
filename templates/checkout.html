@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}Checkout • CricVerse{% endblock %}
+{% block head %}
+    {{ super() }}
+    <link href="{{ url_for('static', filename='css/checkout.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="checkout-container">
+                <!-- Stepper -->
+                <div class="checkout-stepper mb-5">
+                    <div class="stepper-wrapper">
+                        <div class="stepper-item active" id="step1">
+                            <div class="step-counter">1</div>
+                            <div class="step-name">Order Summary</div>
+                        </div>
+                        <div class="stepper-item" id="step2">
+                            <div class="step-counter">2</div>
+                            <div class="step-name">Payment</div>
+                        </div>
+                        <div class="stepper-item" id="step3">
+                            <div class="step-counter">3</div>
+                            <div class="step-name">Confirmation</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Checkout Content -->
+                <div class="checkout-content">
+                    <!-- Step 1: Order Summary -->
+                    <div class="checkout-step active" id="order-summary-step">
+                        <div class="card shadow-lg border-0">
+                            <div class="card-header bg-gradient-primary text-white">
+                                <h3 class="mb-0"><i class="bi bi-cart-check me-2"></i>Order Summary</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="order-items">
+                                    <!-- Order items will be populated by JavaScript -->
+                                </div>
+                                
+                                <div class="order-total mt-4 p-3 bg-light rounded">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Subtotal:</span>
+                                        <span id="subtotal-amount">$0.00</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Service Fee:</span>
+                                        <span id="fee-amount">$0.00</span>
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold fs-5">
+                                        <span>Total:</span>
+                                        <span id="total-amount">$0.00</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4 text-center">
+                                    <button class="btn btn-primary btn-lg px-5" id="proceed-to-payment">
+                                        <i class="bi bi-arrow-right-circle me-2"></i>Proceed to Payment
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Payment Selection -->
+                    <div class="checkout-step" id="payment-step">
+                        <div class="card shadow-lg border-0">
+                            <div class="card-header bg-gradient-primary text-white">
+                                <h3 class="mb-0"><i class="bi bi-credit-card me-2"></i>Payment Method</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="unified-payment-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" id="amount-input" name="amount" value="0">
+                                    <input type="hidden" id="booking-type-input" name="booking_type" value="ticket">
+                                    <input type="hidden" id="event-id-input" name="event_id" value="">
+                                    <input type="hidden" id="seat-ids-input" name="seat_ids" value="[]">
+                                    <input type="hidden" id="description-input" name="description" value="Big Bash League Booking">
+                                    
+                                    <!-- Currency Selector -->
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">Currency</label>
+                                        <select class="form-select form-select-lg" id="currency-select" name="currency">
+                                            <option value="USD">USD - US Dollar</option>
+                                            <option value="AUD">AUD - Australian Dollar</option>
+                                            <option value="INR">INR - Indian Rupee</option>
+                                            <option value="EUR">EUR - Euro</option>
+                                            <option value="GBP">GBP - British Pound</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <!-- Payment Methods Container -->
+                                    <div id="payment-methods-container" class="mb-4">
+                                        <!-- Payment methods will be loaded dynamically -->
+                                    </div>
+                                    
+                                    <!-- Payment Details -->
+                                    <div id="payment-details" class="mb-4">
+                                        <!-- Payment details will be shown based on selection -->
+                                    </div>
+                                    
+                                    <!-- Payment Button -->
+                                    <div id="payment-button-container" class="text-center mt-4">
+                                        <!-- Payment button will be shown here -->
+                                    </div>
+                                    
+                                    <!-- Payment Message -->
+                                    <div id="payment-message" class="mt-3" style="display: none;"></div>
+                                </form>
+                                
+                                <div class="mt-4 text-center">
+                                    <button class="btn btn-outline-secondary" id="back-to-order">
+                                        <i class="bi bi-arrow-left-circle me-2"></i>Back to Order
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Confirmation -->
+                    <div class="checkout-step" id="confirmation-step">
+                        <div class="card shadow-lg border-0">
+                            <div class="card-header bg-gradient-success text-white">
+                                <h3 class="mb-0"><i class="bi bi-check-circle me-2"></i>Payment Successful!</h3>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="confirmation-icon mb-4">
+                                    <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                                </div>
+                                
+                                <h4 class="mb-3">Your booking is confirmed!</h4>
+                                <p class="lead mb-4">A receipt and your e-ticket have been sent to your email.</p>
+                                
+                                <div class="confirmation-details mb-4">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="detail-item p-3 bg-light rounded">
+                                                <small class="text-muted">Booking ID</small>
+                                                <div class="fw-bold" id="confirmation-booking-id">BK-000000</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="detail-item p-3 bg-light rounded">
+                                                <small class="text-muted">Amount Paid</small>
+                                                <div class="fw-bold" id="confirmation-amount">$0.00</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="detail-item p-3 bg-light rounded">
+                                                <small class="text-muted">Payment Method</small>
+                                                <div class="fw-bold" id="confirmation-method">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="detail-item p-3 bg-light rounded">
+                                                <small class="text-muted">Date</small>
+                                                <div class="fw-bold" id="confirmation-date">{{ moment().format('MMM DD, YYYY') }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg me-2">
+                                        <i class="bi bi-speedometer2 me-2"></i>Go to Dashboard
+                                    </a>
+                                    <a href="{{ url_for('events') }}" class="btn btn-outline-primary btn-lg">
+                                        <i class="bi bi-calendar-event me-2"></i>Book More Tickets
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/checkout.js') }}"></script>
+{% endblock %}

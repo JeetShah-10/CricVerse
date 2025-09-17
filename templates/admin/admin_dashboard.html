@@ -1,0 +1,156 @@
+{% extends 'admin_base.html' %}
+{% block title %}Admin Dashboard • CricVerse{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">Admin Dashboard</h1>
+        <div class="text-muted">Welcome, {{ current_user.name }}</div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-sm-6 col-lg-2">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-primary mb-2" style="font-size: 2rem;"><i class="bi bi-people"></i></div>
+                    <div class="h4 fw-bold mb-0">{{ total_users }}</div>
+                    <div class="text-muted small">Users</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2" style="font-size: 2rem;"><i class="bi bi-calendar-event"></i></div>
+                    <div class="h4 fw-bold mb-0">{{ total_events }}</div>
+                    <div class="text-muted small">Events</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-warning mb-2" style="font-size: 2rem;"><i class="bi bi-ticket-perforated"></i></div>
+                    <div class="h4 fw-bold mb-0">{{ total_bookings }}</div>
+                    <div class="text-muted small">Bookings</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-info mb-2" style="font-size: 2rem;"><i class="bi bi-ticket-detailed"></i></div>
+                    <div class="h4 fw-bold mb-0">{{ total_tickets }}</div>
+                    <div class="text-muted small">Tickets</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-danger mb-2" style="font-size: 2rem;"><i class="bi bi-building"></i></div>
+                    <div class="h4 fw-bold mb-0">{{ total_stadiums }}</div>
+                    <div class="text-muted small">Stadiums</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-2">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-secondary mb-2" style="font-size: 2rem;"><i class="bi bi-currency-dollar"></i></div>
+                    <div class="h4 fw-bold mb-0">0</div>
+                    <div class="text-muted small">Revenue</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Bookings -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Bookings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Booking ID</th>
+                                    <th>Customer</th>
+                                    <th>Event</th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in recent_bookings %}
+                                <tr>
+                                    <td>{{ booking.id }}</td>
+                                    <td>{{ booking.customer.name }}</td>
+                                    <td>{{ booking.event.name }}</td>
+                                    <td>{{ booking.booking_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>${{ "%.2f"|format(booking.total_amount) }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if booking.booking_status == 'Confirmed' %}bg-success
+                                            {% elif booking.booking_status == 'Pending' %}bg-warning
+                                            {% elif booking.booking_status == 'Cancelled' %}bg-danger
+                                            {% else %}bg-secondary
+                                            {% endif %}">
+                                            {{ booking.booking_status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No bookings found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-3">
+                            <a href="{{ url_for('admin.user_list') }}" class="btn btn-primary w-100">
+                                <i class="bi bi-people me-2"></i>Manage Users
+                            </a>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <a href="{{ url_for('admin.event_list') }}" class="btn btn-success w-100">
+                                <i class="bi bi-calendar-event me-2"></i>Manage Events
+                            </a>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <a href="{{ url_for('admin.stadium_list') }}" class="btn btn-warning w-100">
+                                <i class="bi bi-building me-2"></i>Manage Stadiums
+                            </a>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <a href="{{ url_for('admin.booking_list') }}" class="btn btn-info w-100">
+                                <i class="bi bi-ticket-perforated me-2"></i>Manage Bookings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
