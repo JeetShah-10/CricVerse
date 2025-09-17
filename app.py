@@ -9,10 +9,10 @@ from dotenv import load_dotenv
 from functools import wraps
 from flask_socketio import SocketIO
 from chatbot import handle_chat_message
-from paypal_config import paypal_create_order, paypal_capture_order
 import razorpay
 import hmac
 import hashlib
+import json
 
 # Import our utility functions
 from utils import (
@@ -21,6 +21,28 @@ from utils import (
     handle_form_errors, REGISTRATION_VALIDATION_RULES, STADIUM_VALIDATION_RULES,
     EVENT_VALIDATION_RULES, get_upcoming_events
 )
+
+# Import unified payment processor (PayPal + Indian gateways)
+from unified_payment_processor import (
+    unified_payment_processor,
+    UnifiedPaymentResponse,
+    PaymentGateway,
+    Currency
+)
+
+# Import admin module
+from admin import init_admin
+
+# Import security framework components
+try:
+    from security_framework import (
+        require_csrf, validate_json_input, limiter, rate_limit_by_user,
+        PaymentValidationModel, BookingValidationModel
+    )
+    SECURITY_FRAMEWORK_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Security framework components not available: {e}")
+    SECURITY_FRAMEWORK_AVAILABLE = False
 
 # Load environment variables (prefer local cricverse.env, fallback to .env)
 if os.path.exists('cricverse.env'):
@@ -90,6 +112,16 @@ login_manager.login_view = 'login'
 from realtime_simple import init_socketio
 socketio = init_socketio(app)
 
+# Initialize production security framework
+try:
+    from security_framework import init_security
+    init_security(app)
+    print("✅ Production security framework initialized")
+except ImportError as e:
+    print(f"⚠️ Security framework not available: {e}")
+except Exception as e:
+    print(f"❌ Security framework initialization failed: {e}")
+
 # Database connection info
 if 'postgresql' in database_url:
     # Mask password in PostgreSQL URL for display
@@ -106,12 +138,254 @@ else:
     
 print(f"[DATABASE] Database configured: {display_url}")
 
+# Unified Payment Processing Functions
+def create_unified_payment_order(payment_data):
+    """Create payment order using unified processor (PayPal + Indian gateways)"""
+    try:
+        # Extract payment details
+        amount = payment_data.get('amount', 0)
+        customer_email = current_user.email
+        payment_method = payment_data.get('payment_method', 'paypal')
+        currency = payment_data.get('currency', 'USD')
+        
+        # Auto-detect currency based on payment method
+        if payment_method in ['upi', 'card', 'netbanking', 'wallet']:
+            currency = 'INR'
+        elif payment_method == 'paypal':
+            currency = payment_data.get('currency', 'USD')
+        
+        # Prepare metadata
+        metadata = {
+            'customer_id': str(payment_data['customer_id']),
+            'customer_email': customer_email,
+            'customer_name': current_user.name,
+            'phone': getattr(current_user, 'phone', ''),
+            'booking_type': payment_data.get('booking_type', 'ticket'),
+            'description': f"Big Bash League - {payment_data.get('description', 'Booking')}",
+            'base_url': request.host_url
+        }
+        
+        # Add booking-specific metadata
+        if 'event_id' in payment_data:
+            metadata['event_id'] = str(payment_data['event_id'])
+        if 'seat_ids' in payment_data:
+            metadata['seat_ids'] = json.dumps(payment_data['seat_ids'])
+        
+        # Create payment order using unified processor
+        payment_response = unified_payment_processor.create_payment(
+            amount=amount,
+            currency=currency,
+            payment_method=payment_method,
+            customer_email=customer_email,
+            metadata=metadata
+        )
+        
+        if payment_response.success:
+            result = {
+                'success': True,
+                'payment_id': payment_response.payment_id,
+                'gateway': payment_response.gateway.value,
+                'amount': payment_response.amount,
+                'currency': payment_response.currency.value,
+                'payment_data': payment_response.metadata
+            }
+            
+            # Add PayPal-specific fields
+            if payment_response.approval_url:
+                result['approval_url'] = payment_response.approval_url
+                result['redirect_required'] = True
+            
+            return result
+        else:
+            return {
+                'error': payment_response.error_message or 'Payment order creation failed'
+            }, 400
+            
+    except Exception as e:
+        logger.error(f"Unified payment order creation failed: {e}")
+        return {'error': 'Payment setup failed'}, 500
+
+@app.route('/api/get-payment-methods', methods=['GET'])
+@login_required
+def get_payment_methods():
+    """Get available payment methods based on currency"""
+    try:
+        currency = request.args.get('currency', 'USD')
+        country = request.args.get('country', 'US')
+        
+        # Auto-detect currency if not provided
+        if not currency or currency == 'auto':
+            currency = unified_payment_processor.get_currency_for_country(country)
+        
+        methods = unified_payment_processor.get_supported_methods(currency)
+        
+        return jsonify({
+            'success': True,
+            'currency': currency,
+            'methods': methods
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to get payment methods: {e}")
+        return jsonify({'error': 'Failed to load payment methods'}), 500
+
+def handle_unified_payment_webhook(payload, gateway):
+    """Handle payment webhook events from unified gateways"""
+    try:
+        if gateway == 'paypal':
+            # PayPal webhook handling
+            data = json.loads(payload)
+            
+            if data.get('event_type') == 'PAYMENT.CAPTURE.COMPLETED':
+                payment_data = data.get('resource', {})
+                
+                # Process PayPal payment
+                payment_response = unified_payment_processor.verify_payment({
+                    'gateway': 'paypal',
+                    'payment_id': payment_data.get('id'),
+                    'payer_id': payment_data.get('payer', {}).get('payer_id')
+                })
+                
+                if payment_response.success:
+                    # Get metadata from PayPal payment
+                    metadata = payment_response.metadata or {}
+                    
+                    # Process the booking
+                    success = unified_payment_processor.process_successful_payment(payment_response, metadata)
+                    
+                    if success:
+                        return {'status': 'success', 'message': 'PayPal payment processed'}
+                    else:
+                        return {'status': 'error', 'message': 'PayPal payment processing failed'}
+                else:
+                    return {'status': 'error', 'message': 'PayPal payment verification failed'}
+        
+        elif gateway == 'razorpay':
+            # Razorpay webhook handling
+            data = json.loads(payload)
+            
+            if data.get('event') == 'payment.captured':
+                payment_data = data.get('payload', {}).get('payment', {}).get('entity', {})
+                
+                # Verify and process payment
+                payment_response = unified_payment_processor.verify_payment({
+                    'gateway': 'razorpay',
+                    'razorpay_order_id': payment_data.get('order_id'),
+                    'razorpay_payment_id': payment_data.get('id'),
+                    'razorpay_signature': data.get('payload', {}).get('payment', {}).get('entity', {}).get('signature', ''),
+                    'amount': payment_data.get('amount', 0)
+                })
+                
+                if payment_response.success:
+                    # Get metadata from order
+                    metadata = payment_data.get('notes', {})
+                    
+                    # Process the booking
+                    success = unified_payment_processor.process_successful_payment(payment_response, metadata)
+                    
+                    if success:
+                        return {'status': 'success', 'message': 'Razorpay payment processed'}
+                    else:
+                        return {'status': 'error', 'message': 'Razorpay payment processing failed'}
+                else:
+                    return {'status': 'error', 'message': 'Razorpay payment verification failed'}
+        
+        return {'status': 'ignored', 'message': 'Event not handled'}
+        
+    except Exception as e:
+        logger.error(f"Unified webhook processing failed: {e}")
+        return {'status': 'error', 'message': 'Webhook processing failed'}
+
+@app.route('/payment/paypal/success')
+def paypal_success():
+    """Handle PayPal payment success redirect"""
+    try:
+        payment_id = request.args.get('paymentId')
+        payer_id = request.args.get('PayerID')
+        
+        if not payment_id or not payer_id:
+            flash('Payment information missing', 'error')
+            return redirect(url_for('index'))
+        
+        # Execute PayPal payment
+        payment_response = unified_payment_processor.verify_payment({
+            'gateway': 'paypal',
+            'payment_id': payment_id,
+            'payer_id': payer_id
+        })
+        
+        if payment_response.success:
+            flash('Payment successful! Your booking is confirmed.', 'success')
+            return redirect(url_for('booking_confirmation', payment_id=payment_id))
+        else:
+            flash('Payment verification failed', 'error')
+            return redirect(url_for('index'))
+            
+    except Exception as e:
+        logger.error(f"PayPal success handling failed: {e}")
+        flash('Payment processing error', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/verify-ticket')
+def verify_ticket():
+    """Verify ticket validity"""
+    ticket_id = request.args.get('id')
+    token = request.args.get('token')
+    
+    if not ticket_id:
+        flash('Invalid ticket verification request', 'error')
+        return redirect(url_for('index'))
+    
+    try:
+        # In a real implementation, you would verify the token and check ticket validity
+        # For now, we'll just show a verification page
+        from app import Booking, Ticket, Event, Stadium, Customer, Seat
+        
+        booking = Booking.query.get(int(ticket_id)) if ticket_id else None
+        if not booking:
+            flash('Ticket not found', 'error')
+            return redirect(url_for('index'))
+        
+        event = Event.query.get(booking.event_id)
+        stadium = Stadium.query.get(event.stadium_id) if event else None
+        customer = Customer.query.get(booking.customer_id)
+        tickets = Ticket.query.filter_by(booking_id=booking.id).all()
+        
+        # Get seat information for the first ticket
+        seat_info = None
+        if tickets:
+            seat = Seat.query.get(tickets[0].seat_id)
+            if seat:
+                seat_info = f"Section {seat.section}, Row {seat.row}, Seat {seat.number}"
+        
+        return render_template('ticket_verification.html', 
+                             booking=booking, 
+                             event=event, 
+                             stadium=stadium,
+                             customer=customer,
+                             seat_info=seat_info,
+                             is_valid=True)
+    except Exception as e:
+        logger.error(f"Ticket verification failed: {e}")
+        flash('Ticket verification error', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/payment/paypal/cancel')
+def paypal_cancel():
+    """Handle PayPal payment cancellation"""
+    flash('Payment was cancelled', 'warning')
+    return redirect(url_for('index'))
+
 # Expose payment client IDs to templates
 @app.context_processor
 def inject_payment_public_keys():
     return {
-        'PAYPAL_CLIENT_ID': os.getenv('PAYPAL_CLIENT_ID')
+        'PAYPAL_CLIENT_ID': os.getenv('PAYPAL_CLIENT_ID'),
+        'RAZORPAY_KEY_ID': os.getenv('RAZORPAY_KEY_ID'),
+        'UNIFIED_PAYMENT_ENABLED': True
     }
+
+
 
 # Razorpay client init
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID')
@@ -1742,8 +2016,24 @@ def booking_create_order():
         if total_amount <= 0:
             return jsonify({"success": False, "error": "Cart is empty"}), 400
 
-        # Create PayPal order via HTTP API
-        order_id, _ = paypal_create_order(f"{total_amount:.2f}")
+        # Create payment order using unified processor
+        payment_response = unified_payment_processor.create_payment(
+            amount=total_amount,
+            currency='USD',
+            payment_method='paypal',
+            customer_email=current_user.email,
+            metadata={
+                'customer_id': str(current_user.id),
+                'customer_email': current_user.email,
+                'booking_type': 'ticket',
+                'description': f"Big Bash League Booking"
+            }
+        )
+        
+        if not payment_response.success:
+            return jsonify({"success": False, "error": payment_response.error_message or "Payment setup failed"}), 400
+        
+        order_id = payment_response.payment_id
 
         # Stash a lightweight pending context in session for capture step
         session['pending_booking'] = {
@@ -1920,8 +2210,20 @@ def booking_capture_order():
         if not pending:
             return jsonify({"success": False, "error": "No pending booking found in session"}), 400
 
-        # Capture via HTTP API
-        capture_data = paypal_capture_order(order_id)
+        # Verify payment using unified processor
+        payment_verification = unified_payment_processor.verify_payment({
+            'gateway': 'paypal',
+            'payment_id': order_id,
+            'payer_id': data.get('payerID', '')
+        })
+        
+        if not payment_verification.success:
+            return jsonify({"success": False, "error": "Payment verification failed"}), 400
+        
+        capture_data = {
+            'status': 'COMPLETED',
+            'id': payment_verification.payment_id
+        }
         status = capture_data.get('status')
         if status != 'COMPLETED':
             return jsonify({"success": False, "error": f"Capture failed: {status}"}), 400
@@ -2622,6 +2924,107 @@ def verify_pass_qr(verification_code):
                              verification_result={'valid': False, 'error': str(e)},
                              data_type='pass')
 
+# ==========================================
+# PRODUCTION PAYMENT ENDPOINTS
+# ==========================================
+
+@app.route('/api/create-payment-intent', methods=['POST'])
+@login_required
+@require_csrf
+@validate_json_input(PaymentValidationModel)
+@limiter.limit("5 per minute", key_func=rate_limit_by_user)
+def create_payment_intent():
+    """Create payment order with unified PayPal + Indian gateways"""
+    try:
+        # Get validated data
+        payment_data = request.validated_data
+        payment_data['customer_id'] = current_user.id
+        
+        # Create payment order using unified processor
+        result = create_unified_payment_order(payment_data)
+        
+        if isinstance(result, tuple):
+            return jsonify(result[0]), result[1]
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Payment order creation failed: {e}")
+        return jsonify({'error': 'Payment setup failed'}), 500
+
+@app.route('/api/unified-payment-webhook', methods=['POST'])
+@limiter.exempt  # Webhooks should not be rate limited
+def unified_payment_webhook():
+    """Handle payment gateway webhook events (PayPal + Indian gateways)"""
+    try:
+        payload = request.get_data()
+        
+        # Get gateway from headers or form data
+        gateway = request.headers.get('X-Gateway-Type', 'paypal')
+        
+        # Process webhook based on gateway
+        result = handle_unified_payment_webhook(payload, gateway)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Payment webhook processing failed: {e}")
+        return jsonify({'error': 'Webhook processing failed'}), 500
+
+@app.route('/api/booking/create', methods=['POST'])
+@login_required
+@require_csrf
+@validate_json_input(BookingValidationModel)
+@limiter.limit("10 per minute", key_func=rate_limit_by_user)
+def create_secure_booking():
+    """Create booking with enhanced security validation"""
+    try:
+        booking_data = request.validated_data
+        booking_data['customer_id'] = current_user.id
+        
+        # Additional server-side validation
+        from app import Event, Seat, Ticket
+        
+        # Verify event exists and is bookable
+        event = Event.query.get(booking_data['event_id'])
+        if not event:
+            return jsonify({'error': 'Event not found'}), 400
+        
+        if event.event_date < datetime.now().date():
+            return jsonify({'error': 'Cannot book past events'}), 400
+        
+        # Verify seats are available
+        seat_ids = booking_data['seat_ids']
+        booked_seats = Ticket.query.filter(
+            Ticket.seat_id.in_(seat_ids),
+            Ticket.event_id == event.id,
+            Ticket.ticket_status == 'Booked'
+        ).all()
+        
+        if booked_seats:
+            return jsonify({'error': 'Some seats are no longer available'}), 400
+        
+        # Calculate and verify total amount server-side
+        seats = Seat.query.filter(Seat.id.in_(seat_ids)).all()
+        calculated_total = sum(seat.price for seat in seats)
+        calculated_total += calculated_total * 0.05  # Service fee
+        calculated_total += 2.50  # Processing fee
+        
+        if abs(calculated_total - booking_data['total_amount']) > 0.01:
+            return jsonify({'error': 'Amount mismatch detected'}), 400
+        
+        # Create payment order
+        payment_result = create_unified_payment_order(booking_data)
+        
+        if isinstance(payment_result, tuple):
+            return jsonify(payment_result[0]), payment_result[1]
+        
+        return jsonify(payment_result)
+        
+    except Exception as e:
+        logger.error(f"Secure booking creation failed: {e}")
+        return jsonify({'error': 'Booking creation failed'}), 500
+
 @app.route('/booking/confirmation')
 @login_required
 def booking_confirmation():
@@ -2666,6 +3069,13 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"❌ Database initialization failed: {e}")
             print("📝 Check your database connection and try again")
+    
+    # Initialize Flask-Admin
+    try:
+        admin = init_admin(app, db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking)
+        print("✅ Flask-Admin initialized")
+    except Exception as e:
+        print(f"⚠️ Flask-Admin initialization failed: {e}")
     
     # Start the application with optimized settings
     print("🚀 Starting CricVerse Stadium System...")

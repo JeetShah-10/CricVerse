@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Payment Successful • CricVerse{% endblock %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white text-center py-4">
+                    <i class="bi bi-check-circle-fill" style="font-size: 4rem;"></i>
+                    <h1 class="mt-3 mb-0">Payment Successful!</h1>
+                    <p class="lead mb-0">Your booking is confirmed</p>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <p class="lead">A receipt and your e-ticket have been sent to your email.</p>
+                    </div>
+                    
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-6">
+                            <div class="border rounded-3 p-3 h-100">
+                                <h5 class="text-primary mb-3"><i class="bi bi-ticket-perforated me-2"></i>Booking Details</h5>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Booking ID:</span>
+                                    <strong>#{{ payment_data.booking_id or 'BK-000000' }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Amount Paid:</span>
+                                    <strong>{{ payment_data.currency or 'USD' }} {{ "%.2f"|format(payment_data.amount or 0) }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Payment Method:</span>
+                                    <strong>{{ payment_data.payment_method or 'Credit Card' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded-3 p-3 h-100">
+                                <h5 class="text-primary mb-3"><i class="bi bi-calendar-event me-2"></i>Event Details</h5>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Event:</span>
+                                    <strong>{{ payment_data.event_name or 'Big Bash League Match' }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Date:</span>
+                                    <strong>{{ payment_data.event_date or 'TBD' }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Venue:</span>
+                                    <strong>{{ payment_data.venue or 'TBD' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <h5 class="mb-3">What's Next?</h5>
+                        <div class="row g-3 justify-content-center">
+                            <div class="col-12 col-sm-4">
+                                <div class="p-3 bg-light rounded">
+                                    <i class="bi bi-envelope-check text-success fs-3 mb-2"></i>
+                                    <p class="mb-0 small">Check your email for e-ticket</p>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <div class="p-3 bg-light rounded">
+                                    <i class="bi bi-calendar-plus text-primary fs-3 mb-2"></i>
+                                    <p class="mb-0 small">Add to your calendar</p>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <div class="p-3 bg-light rounded">
+                                    <i class="bi bi-share text-info fs-3 mb-2"></i>
+                                    <p class="mb-0 small">Share with friends</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-5">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg me-2">
+                            <i class="bi bi-speedometer2 me-2"></i>Go to Dashboard
+                        </a>
+                        <a href="{{ url_for('events') }}" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-calendar-event me-2"></i>Book More Tickets
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

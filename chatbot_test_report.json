@@ -1,18 +1,18 @@
 {
   "test_run": {
-    "timestamp": "2025-09-15T18:16:33.313558",
+    "timestamp": "2025-09-17T09:32:45.890087",
     "total_tests": 9,
-    "passed": 9,
-    "failed": 0
+    "passed": 2,
+    "failed": 7
   },
   "results": [
     {
       "test": "OpenAI API Key",
-      "status": "\u2705 PASS",
-      "success": true,
-      "message": "API key is configured",
+      "status": "\u274c FAIL",
+      "success": false,
+      "message": "API key not found or invalid",
       "details": null,
-      "timestamp": "2025-09-15T18:16:12.379306"
+      "timestamp": "2025-09-17T09:31:56.948204"
     },
     {
       "test": "Chatbot Import",
@@ -20,7 +20,7 @@
       "success": true,
       "message": "Chatbot module imported successfully",
       "details": null,
-      "timestamp": "2025-09-15T18:16:14.071244"
+      "timestamp": "2025-09-17T09:32:07.206015"
     },
     {
       "test": "Realtime Import",
@@ -28,55 +28,55 @@
       "success": true,
       "message": "Realtime module imported successfully",
       "details": null,
-      "timestamp": "2025-09-15T18:16:14.407629"
+      "timestamp": "2025-09-17T09:32:09.256775"
     },
     {
       "test": "App Startup",
-      "status": "\u2705 PASS",
-      "success": true,
-      "message": "Flask app is running",
+      "status": "\u274c FAIL",
+      "success": false,
+      "message": "Cannot connect to Flask app - is it running?",
       "details": null,
-      "timestamp": "2025-09-15T18:16:16.883460"
+      "timestamp": "2025-09-17T09:32:13.327075"
     },
     {
       "test": "Chat Interface",
-      "status": "\u2705 PASS",
-      "success": true,
-      "message": "Chat page loads successfully",
+      "status": "\u274c FAIL",
+      "success": false,
+      "message": "Error: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /chat (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001DB9A390910>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))",
       "details": null,
-      "timestamp": "2025-09-15T18:16:18.945371"
+      "timestamp": "2025-09-17T09:32:17.434003"
     },
     {
       "test": "Chat Endpoint",
-      "status": "\u2705 PASS",
-      "success": true,
-      "message": "Chat API working correctly",
+      "status": "\u274c FAIL",
+      "success": false,
+      "message": "Error testing chat endpoint: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/chat (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001DB9A390E10>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))",
       "details": null,
-      "timestamp": "2025-09-15T18:16:20.998382"
+      "timestamp": "2025-09-17T09:32:21.522228"
     },
     {
       "test": "Chat Suggestions",
-      "status": "\u2705 PASS",
-      "success": true,
-      "message": "Got 5 suggestions",
+      "status": "\u274c FAIL",
+      "success": false,
+      "message": "Error: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/chat/suggestions (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001DB9A31E780>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))",
       "details": null,
-      "timestamp": "2025-09-15T18:16:23.043178"
+      "timestamp": "2025-09-17T09:32:25.589610"
     },
     {
       "test": "Realtime Stats",
-      "status": "\u2705 PASS",
-      "success": true,
-      "message": "Real-time stats working",
+      "status": "\u274c FAIL",
+      "success": false,
+      "message": "Error: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /api/realtime/stats (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001DB9A31EB10>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))",
       "details": null,
-      "timestamp": "2025-09-15T18:16:25.102555"
+      "timestamp": "2025-09-17T09:32:29.655573"
     },
     {
       "test": "Chatbot Functionality",
-      "status": "\u2705 PASS",
-      "success": true,
-      "message": "4/4 scenarios passed (100.0%)",
+      "status": "\u274c FAIL",
+      "success": false,
+      "message": "Only 0/4 scenarios passed (0.0%)",
       "details": null,
-      "timestamp": "2025-09-15T18:16:33.312919"
+      "timestamp": "2025-09-17T09:32:45.889130"
     }
   ]
 }
