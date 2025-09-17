@@ -11,7 +11,17 @@ import logging
 from dotenv import load_dotenv
 from functools import wraps
 from flask_socketio import SocketIO
-from chatbot import handle_chat_message
+# Import simplified chatbot for better reliability
+try:
+    from chatbot_simplified import get_chatbot_response, detect_user_intent, get_intent_actions, get_chat_suggestions
+    CHATBOT_AVAILABLE = True
+except ImportError:
+    try:
+        from chatbot import get_chatbot_response, detect_user_intent, get_intent_actions, get_chat_suggestions
+        CHATBOT_AVAILABLE = True
+    except ImportError:
+        CHATBOT_AVAILABLE = False
+        print("[WARN] No chatbot module available")
 import razorpay
 import hmac
 import hashlib
@@ -3479,87 +3489,57 @@ def enhanced_chat_api():
             session_id = str(uuid.uuid4())
             session['chat_session_id'] = session_id
         
-        # Import and use the chatbot with proper error handling
-        from chatbot import get_chatbot_response, detect_user_intent, get_intent_actions
-        
-        try:
-            # Get AI response with timeout protection
-            import signal
-            import threading
-            import queue
-            
-            result_queue = queue.Queue()
-            exception_queue = queue.Queue()
-            
-            def get_response_worker():
-                try:
-                    result = get_chatbot_response(message, customer_id, session_id)
-                    result_queue.put(result)
-                except Exception as e:
-                    print(f"Chatbot response error: {e}")
-                    exception_queue.put(e)
-                    # Put a fallback response
-                    fallback_response = {
-                        'response': f"I understand you're asking about '{message}'. While I'm having some technical difficulties with my advanced features, I can tell you that CricVerse offers comprehensive BBL ticket booking, stadium information, and customer support. Please try asking something specific like 'Tell me about MCG' or 'Book tickets'.",
-                        'confidence': 0.7,
-                        'tokens_used': 0,
-                        'model': 'fallback-error'
-                    }
-                    result_queue.put(fallback_response)
-            
-            # Run with timeout
-            worker_thread = threading.Thread(target=get_response_worker)
-            worker_thread.daemon = True
-            worker_thread.start()
-            worker_thread.join(timeout=15)  # 15 second timeout
-            
-            if worker_thread.is_alive():
-                # Timeout occurred
-                print("Chatbot response timed out")
+        # Use simplified chatbot with improved error handling
+        if CHATBOT_AVAILABLE:
+            try:
+                ai_response = get_chatbot_response(message, customer_id, session_id)
+            except Exception as e:
+                print(f"Chatbot error: {e}")
                 ai_response = {
-                    'response': f"Thanks for your message about '{message}'. I'm processing your request but it's taking longer than expected. CricVerse offers comprehensive BBL ticket booking, stadium information, and customer support. Please try a more specific question.",
+                    'response': f"I understand you're asking about '{message}'. While I'm having some technical difficulties, I can help you with CricVerse services like BBL ticket booking, stadium information, and customer support. Please try asking something specific like 'Show me stadium information' or 'Help me book tickets'.",
                     'confidence': 0.7,
                     'tokens_used': 0,
-                    'model': 'fallback-timeout'
+                    'model': 'fallback-error'
                 }
-            else:
-                try:
-                    ai_response = result_queue.get_nowait()
-                except queue.Empty:
-                    ai_response = {
-                        'response': f"I apologize, but I encountered an issue processing your request about '{message}'. CricVerse is your destination for BBL cricket experiences. Please try asking about specific topics like stadiums, tickets, or match information.",
-                        'confidence': 0.7,
-                        'tokens_used': 0,
-                        'model': 'fallback-empty'
-                    }
-            
-        except ImportError as e:
-            print(f"Chatbot import error: {e}")
-            # Fallback if chatbot module has issues
+        else:
+            # Fallback if chatbot module is not available
             ai_response = {
-                'response': f"Hello! I'm experiencing some technical difficulties with my advanced AI features, but I can still help you with CricVerse services. You asked about '{message}' - please try asking specific questions about BBL ticket booking, stadium information, or match schedules.",
+                'response': f"Hello! Thank you for asking about '{message}'. I'm currently operating in basic mode. For BBL ticket booking, stadium information, or customer support, please contact us at 1800-CRICKET or visit cricverse.com. How else can I assist you?",
                 'confidence': 0.6,
                 'tokens_used': 0,
-                'model': 'fallback-import-error'
+                'model': 'basic-fallback'
             }
         
         # Detect intent and get quick actions with error handling
-        try:
-            intent = detect_user_intent(message)
-            quick_actions = get_intent_actions(intent)
-        except Exception as e:
-            print(f"Intent detection error: {e}")
-            # Simple fallback intent detection
+        if CHATBOT_AVAILABLE:
+            try:
+                intent = detect_user_intent(message)
+                quick_actions = get_intent_actions(intent)
+            except Exception as e:
+                print(f"Intent detection error: {e}")
+                # Simple fallback intent detection
+                message_lower = message.lower()
+                if any(word in message_lower for word in ['book', 'buy', 'ticket', 'reserve']):
+                    intent = 'booking'
+                    quick_actions = [{"text": "Browse Matches", "action": "browse_matches"}]
+                elif any(word in message_lower for word in ['stadium', 'venue', 'ground']):
+                    intent = 'venue_info'
+                    quick_actions = [{"text": "Stadium Guide", "action": "stadium_guide"}]
+                else:
+                    intent = 'general'
+                    quick_actions = [{"text": "Help me book tickets", "action": "booking_help"}]
+        else:
+            # Basic intent detection without imports
             message_lower = message.lower()
-            if any(word in message_lower for word in ['book', 'buy', 'ticket', 'reserve']):
+            if any(word in message_lower for word in ['book', 'buy', 'ticket']):
                 intent = 'booking'
-                quick_actions = [{"text": "Browse Matches", "action": "browse_matches"}]
-            elif any(word in message_lower for word in ['stadium', 'venue', 'ground']):
+                quick_actions = [{"text": "Contact Support", "action": "contact_support"}]
+            elif any(word in message_lower for word in ['stadium', 'venue']):
                 intent = 'venue_info'
-                quick_actions = [{"text": "Stadium Guide", "action": "stadium_guide"}]
+                quick_actions = [{"text": "View Stadiums", "action": "view_stadiums"}]
             else:
                 intent = 'general'
-                quick_actions = [{"text": "Help me book tickets", "action": "booking_help"}]
+                quick_actions = [{"text": "Get Help", "action": "get_help"}]
         
         return jsonify({
             'success': True,
@@ -3590,8 +3570,24 @@ def chat_suggestions():
         customer_id = current_user.id if current_user.is_authenticated else None
         query_type = request.args.get('type', 'general')
         
-        from chatbot import get_chat_suggestions
-        suggestions = get_chat_suggestions(customer_id, query_type)
+        if CHATBOT_AVAILABLE:
+            try:
+                suggestions = get_chat_suggestions(customer_id, query_type)
+            except Exception as e:
+                print(f"Error getting suggestions: {e}")
+                suggestions = [
+                    "Help me book tickets",
+                    "Show me stadium information",
+                    "What food options are available?",
+                    "How do I reserve parking?"
+                ]
+        else:
+            suggestions = [
+                "Help me book tickets",
+                "Show me stadium information",
+                "What food options are available?",
+                "How do I reserve parking?"
+            ]
         
         return jsonify({
             'success': True,

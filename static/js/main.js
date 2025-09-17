@@ -70,19 +70,34 @@ function initializeChatbot() {
             },
             body: JSON.stringify({ message: message })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             hideTypingIndicator();
-            if (data.success) {
+            if (data.success && data.response) {
+                addMessageToChat(data.response, 'bot');
+                
+                // Add quick actions if available
+                if (data.quick_actions && data.quick_actions.length > 0) {
+                    setTimeout(() => {
+                        addQuickActions(data.quick_actions);
+                    }, 500);
+                }
+            } else if (data.response) {
+                // Even if success is false, show response if available
                 addMessageToChat(data.response, 'bot');
             } else {
-                addMessageToChat(data.error || 'Sorry, I\'m having trouble right now. Please try again later!', 'bot');
+                addMessageToChat(data.error || 'I apologize, but I\'m having technical difficulties. Please try again or contact support at 1800-CRICKET.', 'bot');
             }
         })
         .catch(error => {
             hideTypingIndicator();
-            addMessageToChat('Sorry, I\'m having trouble right now. Please try again later!', 'bot');
-            console.error('Chatbot error:', error);
+            console.error('Chatbot API error:', error);
+            addMessageToChat('I\'m sorry, but I\'m experiencing connection issues. Please check your internet connection and try again, or contact support at 1800-CRICKET.', 'bot');
         });
     }
 
@@ -110,6 +125,62 @@ function initializeChatbot() {
     function hideTypingIndicator() {
         const typingIndicator = document.getElementById('typing-indicator');
         typingIndicator?.remove();
+    }
+    
+    function addQuickActions(actions) {
+        if (!actions || actions.length === 0) return;
+        
+        const quickActionsDiv = document.createElement('div');
+        quickActionsDiv.className = 'quick-actions fade-in';
+        quickActionsDiv.innerHTML = '<div class="quick-actions-title">Quick Actions:</div>';
+        
+        const actionsContainer = document.createElement('div');
+        actionsContainer.className = 'actions-container';
+        
+        actions.forEach(action => {
+            const actionBtn = document.createElement('button');
+            actionBtn.className = 'quick-action-btn';
+            actionBtn.textContent = action.text;
+            actionBtn.onclick = () => {
+                handleQuickAction(action.action);
+                quickActionsDiv.remove();
+            };
+            actionsContainer.appendChild(actionBtn);
+        });
+        
+        quickActionsDiv.appendChild(actionsContainer);
+        chatbotBody?.appendChild(quickActionsDiv);
+        chatbotBody?.scrollTo(0, chatbotBody.scrollHeight);
+    }
+    
+    function handleQuickAction(actionType) {
+        let message = '';
+        
+        switch(actionType) {
+            case 'browse_matches':
+                message = 'Show me upcoming matches';
+                break;
+            case 'check_availability':
+                message = 'Check ticket availability';
+                break;
+            case 'stadium_guide':
+                message = 'Tell me about the stadiums';
+                break;
+            case 'view_menu':
+                message = 'What food options are available?';
+                break;
+            case 'book_parking':
+                message = 'How do I book parking?';
+                break;
+            default:
+                message = actionType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        // Send the quick action message
+        if (userInput) {
+            userInput.value = message;
+            sendMessage();
+        }
     }
 }
 
