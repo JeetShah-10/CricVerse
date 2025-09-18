@@ -4,8 +4,10 @@ Test user registration and authentication functionality
 
 import sys
 import os
-from app import app, db
-from models import Customer
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from app import create_app, db
+from app.models import Customer
 from werkzeug.security import generate_password_hash
 
 def test_user_registration():
@@ -13,6 +15,8 @@ def test_user_registration():
     print("=" * 50)
     print("Testing User Registration and Authentication")
     print("=" * 50)
+    
+    app = create_app('testing')
     
     with app.app_context():
         try:

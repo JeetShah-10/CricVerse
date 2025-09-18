@@ -16,7 +16,7 @@
             <div class="mb-3">{{ event.home_team.team_name }} vs {{ event.away_team.team_name }}</div>
             <div class="d-flex justify-content-between align-items-center">
               <span class="badge bg-primary">{{ event.match_status }}</span>
-              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('select_seats', event_id=event.id) }}">Select Seats</a>
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('ticketing.select_seats', event_id=event.id) }}">Select Seats</a>
             </div>
           </div>
         </div>

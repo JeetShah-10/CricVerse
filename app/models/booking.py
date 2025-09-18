@@ -81,3 +81,16 @@ class Seat(db.Model):
     
     def __repr__(self):
         return f'<Seat {self.section}-{self.row_number}-{self.seat_number}>'
+
+class CustomerProfile(db.Model):
+    __tablename__ = 'customer_profile'
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), unique=True, nullable=False)
+    bio = db.Column(db.Text)
+    profile_picture_url = db.Column(db.String(200))
+    address = db.Column(db.String(200))
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(100))
+    country = db.Column(db.String(100))
+    zip_code = db.Column(db.String(20))
+    customer = db.relationship('Customer', backref=db.backref('profile', uselist=False))

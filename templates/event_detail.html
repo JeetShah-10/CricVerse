@@ -18,7 +18,7 @@
     <div class="bg-light-card dark:bg-dark-card shadow-lg rounded-xl p-6">
       <div class="flex justify-between items-center mb-4">
         <span class="px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-100">{{ event.match_status }}</span>
-        <a class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-300" href="{{ url_for('select_seats', event_id=event.id) }}">Select Seats</a>
+        <a class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors duration-300" href="{{ url_for('ticketing.select_seats', event_id=event.id) }}">Select Seats</a>
       </div>
       <h6 class="text-lg font-bold text-light-text dark:text-dark-text mb-2">Umpires</h6>
       <ul class="list-none p-0 m-0 text-sm text-light-subtext dark:text-dark-subtext">

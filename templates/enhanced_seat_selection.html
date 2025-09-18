@@ -350,6 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeSeatSelection();
     initializeZoomControls();
     initializeFilters();
+    initializeBookingForm(); // New function
 });
 
 function initializeSeatSelection() {
@@ -481,13 +482,66 @@ function initializeFilters() {
     });
 }
 
-// Form submission
-document.getElementById('booking-form').addEventListener('submit', function(e) {
-    if (selectedSeats.length === 0) {
+function initializeBookingForm() {
+    const bookingForm = document.getElementById('booking-form');
+    const eventId = document.querySelector('.event-detail-page').dataset.eventId;
+
+    bookingForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        alert('Please select at least one seat.');
-        return;
-    }
-});
+
+        if (selectedSeats.length === 0) {
+            alert('Please select at least one seat.');
+            return;
+        }
+
+        const bookBtn = document.getElementById('book-btn');
+        bookBtn.disabled = true;
+        bookBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating Order...';
+
+        try {
+            const createOrderResponse = await fetch('/api/booking/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    event_id: eventId,
+                    seat_ids: selectedSeats.map(s => s.id)
+                })
+            });
+
+            const orderData = await createOrderResponse.json();
+            if (!orderData.success) throw new Error(orderData.message);
+
+            const paymentApproved = confirm(`Order ID: ${orderData.orderID}
+Total: ₹${orderData.amount}
+Approve payment?`);
+            if (!paymentApproved) {
+                alert('Payment cancelled.');
+                bookBtn.disabled = false;
+                bookBtn.innerHTML = '<i class="fas fa-ticket-alt me-2"></i>Book Selected Seats';
+                return;
+            }
+
+            bookBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Finalizing...';
+
+            const captureOrderResponse = await fetch('/api/booking/capture-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderID: orderData.orderID })
+            });
+
+            const captureData = await captureOrderResponse.json();
+            if (captureData.success) {
+                alert(`Booking successful! Your booking ID is ${captureData.booking_id}.`);
+                window.location.href = '/dashboard';
+            } else {
+                throw new Error(captureData.message);
+            }
+        } catch (error) {
+            alert(`Error: ${error.message}`);
+            bookBtn.disabled = false;
+            bookBtn.innerHTML = '<i class="fas fa-ticket-alt me-2"></i>Book Selected Seats';
+        }
+    });
+}
 </script>
 {% endblock %}

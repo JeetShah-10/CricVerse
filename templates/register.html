@@ -8,7 +8,7 @@
                 <h3 class="h3 fw-bold mb-0">Create Your Fan Account</h3>
             </div>
             <div class="card-body p-4 p-md-5">
-                <form method="post">
+                <form method="post" action="{{ url_for('auth.register') }}">
                     <div class="mb-3">
                         <label for="name" class="form-label fw-medium">Name</label>
                         <input type="text" class="form-control form-control-lg" id="name" name="name" placeholder="Enter your full name" required>
@@ -37,7 +37,7 @@
                     </div>
                 </form>
                 <div class="text-center mt-4">
-                    <p class="text-muted">Already have an account? <a href="{{ url_for('login') }}" class="text-decoration-none">Login here</a></p>
+                    <p class="text-muted">Already have an account? <a href="{{ url_for('auth.login') }}" class="text-decoration-none">Login here</a></p>
                     <hr class="my-3">
                     <p class="text-muted">Want to manage a stadium?</p>
                     <a href="{{ url_for('apply_stadium_owner') }}" class="btn btn-outline-secondary">Apply to be a Stadium Owner</a>

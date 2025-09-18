@@ -45,6 +45,9 @@ class TestBookingService(unittest.TestCase):
         self.mock_session.add.side_effect = [mock_booking, mock_ticket]
         self.mock_session.flush.return_value = None
         
+        # Mock the commit method
+        self.mock_session.commit.return_value = None
+        
         # Mock the context manager
         mock_context_manager = MagicMock()
         mock_context_manager.__enter__ = MagicMock(return_value=None)
@@ -53,6 +56,9 @@ class TestBookingService(unittest.TestCase):
         
         # Call the function
         result = book_seat(1, 1, 1)
+        
+        # Print result for debugging
+        print(f"Booking result: {result}")
         
         # Assert the result
         self.assertTrue(result['success'])
@@ -108,6 +114,9 @@ class TestBookingService(unittest.TestCase):
         # Mock the seat query to raise an exception
         self.mock_session.query.return_value.with_for_update.return_value.get.side_effect = Exception("Database error")
         
+        # Mock the rollback method
+        self.mock_session.rollback.return_value = None
+        
         # Mock the context manager
         mock_context_manager = MagicMock()
         mock_context_manager.__enter__ = MagicMock(return_value=None)
@@ -120,6 +129,30 @@ class TestBookingService(unittest.TestCase):
         # Assert the result
         self.assertFalse(result['success'])
         self.assertIn('An error occurred', result['message'])
+
+    def test_book_seat_with_invalid_parameters(self):
+        """Test booking with invalid parameters."""
+        # Mock the context manager
+        mock_context_manager = MagicMock()
+        mock_context_manager.__enter__ = MagicMock(return_value=None)
+        mock_context_manager.__exit__ = MagicMock(return_value=None)
+        self.mock_session.begin.return_value = mock_context_manager
+        
+        # Test with negative seat_id
+        result = book_seat(-1, 1, 1)
+        # The function doesn't validate parameters, so it will proceed to the database query
+        # which will return None for a negative ID, leading to "Seat not found"
+        self.assertFalse(result['success'])
+        
+        # Test with negative event_id
+        result = book_seat(1, -1, 1)
+        # The function doesn't validate parameters, so it will proceed to the database query
+        self.assertFalse(result['success'])
+        
+        # Test with negative customer_id
+        result = book_seat(1, 1, -1)
+        # The function doesn't validate parameters, so it will proceed to the database query
+        self.assertFalse(result['success'])
 
 if __name__ == '__main__':
     unittest.main()

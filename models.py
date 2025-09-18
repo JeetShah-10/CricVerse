@@ -459,21 +459,7 @@ class WebSocketConnection(db.Model):
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.String(500))
 
-class TicketTransfer(db.Model):
-    __tablename__ = 'ticket_transfer'
-    id = db.Column(db.Integer, primary_key=True)
-    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
-    from_customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    to_customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
-    to_email = db.Column(db.String(100))
-    transfer_status = db.Column(db.String(20), default='pending')
-    transfer_code = db.Column(db.String(32), unique=True, nullable=False)
-    transfer_fee = db.Column(db.Float, default=0.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    expires_at = db.Column(db.DateTime, nullable=False)
-    completed_at = db.Column(db.DateTime)
-    verification_code = db.Column(db.String(6))
-    is_verified = db.Column(db.Boolean, default=False)
+
 
 class ResaleMarketplace(db.Model):
     __tablename__ = 'resale_marketplace'

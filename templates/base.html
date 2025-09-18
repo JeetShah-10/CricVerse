@@ -48,7 +48,7 @@
                 <i class="bi bi-robot me-1"></i>AI ASSISTANT
               </a>
               <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                <li><a class="dropdown-item" href="{{ url_for('ai_options') }}"><i class="bi bi-grid me-1"></i>Choose Interface</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('main.ai_options') }}"><i class="bi bi-grid me-1"></i>Choose Interface</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{{ url_for('chat_interface') }}"><i class="bi bi-chat me-1"></i>Classic Chat</a></li>
                 <li><a class="dropdown-item" href="{{ url_for('ai_assistant') }}"><i class="bi bi-stars me-1"></i>Command Center</a></li>
@@ -63,13 +63,13 @@
                 {% elif current_user.role == 'stadium_owner' %}
                     <li class="nav-item"><a href="{{ url_for('stadium_owner_dashboard') }}" class="btn btn-outline-primary me-2">Stadium Owner</a></li>
                 {% else %}
-                    <li class="nav-item"><a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary me-2">Dashboard</a></li>
-                    <li class="nav-item"><a href="{{ url_for('profile') }}" class="btn btn-outline-info me-2">Profile</a></li>
+                    <li class="nav-item"><a href="{{ url_for('user.dashboard') }}" class="btn btn-outline-primary me-2">Dashboard</a></li>
+                    <li class="nav-item"><a href="{{ url_for('user.profile') }}" class="btn btn-outline-info me-2">Profile</a></li>
                 {% endif %}
-                <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a></li>
+                <li class="nav-item"><a href="{{ url_for('auth.logout') }}" class="btn btn-primary">Logout</a></li>
             {% else %}
-                <li class="nav-item"><a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-auth me-2">Login</a></li>
-                <li class="nav-item"><a href="{{ url_for('register') }}" class="btn btn-primary btn-auth">Register</a></li>
+                <li class="nav-item"><a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-auth me-2">Login</a></li>
+                <li class="nav-item"><a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-auth">Register</a></li>
             {% endif %}
           </ul>
         </div>

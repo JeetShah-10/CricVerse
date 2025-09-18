@@ -444,3 +444,68 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Script to fix all syntax errors and configure database properly
+
+import os
+import re
+
+def fix_chatbot_service():
+    """Fix syntax errors in chatbot_service.py"""
+    file_path = r'c:\Users\shahj\OneDrive\Desktop\Stadium System\app\services\chatbot_service.py'
+    
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Fix the broken line
+    # Replace the broken line with correct syntax
+    fixed_content = re.sub(
+        r"elif any\(word in message_lower for \n\s*word in \['park', 'parking', 'car', 'drive', 'vehicle'\]\):",
+        "elif any(word in message_lower for word in ['park', 'parking', 'car', 'drive', 'vehicle'])):",
+        content
+    )
+    
+    # Also fix any other potential line break issues
+    fixed_content = fixed_content.replace("any(word in message_lower for \n word", "any(word in message_lower for word")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(fixed_content)
+    
+    print("✅ Fixed syntax errors in chatbot_service.py")
+
+def check_imports():
+    """Check if all imports work correctly"""
+    try:
+        from app.services.chatbot_service import CricVerseChatbot
+        print("✅ Chatbot service imported successfully")
+        return True
+    except Exception as e:
+        print(f"❌ Error importing chatbot service: {e}")
+        return False
+
+def configure_database():
+    """Configure database connection"""
+    print("🔧 Configuring database connection...")
+    # This would typically involve checking the database URL and connection
+    # For now, we'll just verify the environment configuration
+    env_path = r'c:\Users\shahj\OneDrive\Desktop\Stadium System\.env'
+    if os.path.exists(env_path):
+        print("✅ Found .env file")
+        with open(env_path, 'r') as f:
+            content = f.read()
+            if 'DATABASE_URL' in content:
+                print("✅ DATABASE_URL found in .env")
+            else:
+                print("⚠️ DATABASE_URL not found in .env")
+    else:
+        print("⚠️ .env file not found")
+
+if __name__ == "__main__":
+    print("🔧 Starting error fixes and database configuration...")
+    fix_chatbot_service()
+    configure_database()
+    
+    if check_imports():
+        print("✅ All fixes applied successfully!")
+    else:
+        print("❌ There are still issues to resolve")

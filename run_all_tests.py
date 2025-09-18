@@ -10,6 +10,7 @@ import subprocess
 import time
 from datetime import datetime
 from dotenv import load_dotenv
+from app import create_app, db
 
 # Load environment variables
 if os.path.exists('cricverse.env'):
@@ -219,8 +220,8 @@ class CricVerseTestRunner:
         
         # Fix 3: Check database connection
         try:
-            from app import app, db
-            with app.app_context():
+            app_instance = create_app() # Create app instance
+            with app_instance.app_context():
                 db.create_all()
                 self.log_fix("Database", True, "Database tables created/verified")
         except Exception as e:

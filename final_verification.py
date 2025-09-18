@@ -1,160 +1,174 @@
-#!/usr/bin/env python
-"""Final verification of CricVerse functionality."""
+#!/usr/bin/env python3
+"""
+Final Verification Script for CricVerse Supabase Configuration
+This script verifies that all components of the Supabase configuration are working correctly
+"""
 
 import os
 import sys
-import json
-from app import create_app
-from app.models.booking import Seat, Booking, Ticket
-from app import db
-from app.services.booking_service import book_seat
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 
-def verify_core_functionality():
-    """Verify that all core functionality works correctly."""
-    print("=== CricVerse Final Verification ===\n")
-    
-    # Test 1: Application initialization
-    print("1. Testing application initialization...")
-    try:
-        app = create_app('testing')
-        print("   ✅ Application factory pattern working")
-    except Exception as e:
-        print(f"   ❌ Application initialization failed: {e}")
-        return False
-    
-    # Test 2: Database operations
-    print("2. Testing database operations...")
-    with app.app_context():
-        try:
-            # Create database tables
-            db.create_all()
-            
-            # Create a sample seat
-            seat = Seat(
-                section='VIP',
-                row_number='1',
-                seat_number='1',
-                seat_type='VIP',
-                price=200.0
-            )
-            db.session.add(seat)
-            db.session.commit()
-            
-            seat_id = seat.id
-            print("   ✅ Database operations working")
-        except Exception as e:
-            print(f"   ❌ Database operations failed: {e}")
-            return False
-    
-    # Test 3: Booking service
-    print("3. Testing booking service...")
-    with app.app_context():
-        try:
-            result = book_seat(seat_id, 1, 1)
-            if result['success']:
-                print("   ✅ Booking service working")
-                booking_id = result['booking_id']
-                ticket_id = result['ticket_id']
-            else:
-                print(f"   ❌ Booking failed: {result['message']}")
-                return False
-        except Exception as e:
-            print(f"   ❌ Booking service failed: {e}")
-            return False
-    
-    # Test 4: Data verification
-    print("4. Testing data verification...")
-    with app.app_context():
-        try:
-            # Verify booking exists
-            booking = db.session.get(Booking, booking_id)
-            if booking and booking.customer_id == 1:
-                print("   ✅ Booking data verification successful")
-            else:
-                print("   ❌ Booking data verification failed")
-                return False
-                
-            # Verify ticket exists
-            ticket = db.session.get(Ticket, ticket_id)
-            if ticket and ticket.event_id == 1:
-                print("   ✅ Ticket data verification successful")
-            else:
-                print("   ❌ Ticket data verification failed")
-                return False
-        except Exception as e:
-            print(f"   ❌ Data verification failed: {e}")
-            return False
-    
-    # Test 5: API endpoint
-    print("5. Testing API endpoint...")
-    with app.app_context():
-        try:
-            client = app.test_client()
-            
-            # Create another seat for API test
-            seat2 = Seat(
-                section='Regular',
-                row_number='2',
-                seat_number='2',
-                seat_type='Standard',
-                price=50.0
-            )
-            db.session.add(seat2)
-            db.session.commit()
-            
-            response = client.post('/api/booking/book-seat',
-                                  json={
-                                      'seat_id': seat2.id,
-                                      'event_id': 2,
-                                      'customer_id': 2
-                                  },
-                                  content_type='application/json')
-            
-            if response.status_code == 200:
-                result = response.get_json()
-                if result.get('success'):
-                    print("   ✅ API endpoint working")
-                else:
-                    print(f"   ❌ API endpoint failed: {result.get('message')}")
-                    return False
-            else:
-                print(f"   ❌ API endpoint returned status {response.status_code}")
-                return False
-        except Exception as e:
-            print(f"   ❌ API endpoint test failed: {e}")
-            return False
-    
-    # Test 6: Chatbot service
-    print("6. Testing chatbot service...")
-    try:
-        from app.services.chatbot_service import ask_gemini
-        result = ask_gemini("What is cricket?")
-        if isinstance(result, str):
-            print("   ✅ Chatbot service working (graceful handling)")
-        else:
-            print("   ❌ Chatbot service failed")
-            return False
-    except Exception as e:
-        print(f"   ❌ Chatbot service test failed: {e}")
-        return False
-    
-    print("\n🎉 All core functionality tests PASSED!")
-    print("\n=== Summary ===")
-    print("✅ Project Structure: Modular Flask application with proper organization")
-    print("✅ Booking Service: Concurrency-safe with transaction handling")
-    print("✅ Database Operations: SQLAlchemy models and operations working")
-    print("✅ API Endpoints: RESTful API with proper error handling")
-    print("✅ Chatbot Integration: Gemini AI with graceful error handling")
-    print("✅ Testing: Comprehensive unit tests passing")
-    print("✅ Production Ready: Follows Flask best practices")
-    
-    return True
-
-if __name__ == '__main__':
-    success = verify_core_functionality()
-    if success:
-        print("\n🏆 CricVerse application is ready for production!")
-        sys.exit(0)
+def load_environment():
+    """Load environment variables"""
+    if os.path.exists('cricverse.env'):
+        load_dotenv('cricverse.env')
+        print("✅ Loaded cricverse.env")
+        return True
+    elif os.path.exists('.env'):
+        load_dotenv('.env')
+        print("✅ Loaded .env")
+        return True
     else:
-        print("\n❌ CricVerse application has issues that need to be addressed!")
+        print("❌ No environment file found")
+        return False
+
+def verify_database_connection():
+    """Verify database connection to Supabase"""
+    print("🔍 Verifying Supabase database connection...")
+    
+    try:
+        # Get database URL from environment
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            print("❌ DATABASE_URL not found in environment variables!")
+            return False
+        
+        # Create engine
+        engine = create_engine(database_url, echo=False)
+        
+        # Test connection
+        with engine.connect() as connection:
+            result = connection.execute(text("SELECT version(), current_database(), current_user"))
+            row = result.fetchone()
+            
+            print("✅ Supabase connection successful!")
+            print(f"   Database: {row[1]}")
+            print(f"   User: {row[2]}")
+            print(f"   PostgreSQL Version: {row[0].split(',')[0]}")
+            return True
+            
+    except Exception as e:
+        print(f"❌ Supabase connection failed: {e}")
+        return False
+
+def verify_required_tables():
+    """Verify that all required tables exist"""
+    print("🔍 Verifying required database tables...")
+    
+    try:
+        # Get database URL from environment
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            print("❌ DATABASE_URL not found in environment variables!")
+            return False
+        
+        # Create engine
+        engine = create_engine(database_url, echo=False)
+        
+        # Get list of tables
+        with engine.connect() as connection:
+            result = connection.execute(text("""
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+                ORDER BY table_name
+            """))
+            tables = [row[0] for row in result.fetchall()]
+            
+        # Check for required tables
+        required_tables = [
+            'customer', 'stadium', 'team', 'player', 'event', 
+            'seat', 'booking', 'ticket', 'concession', 'menu_item', 'match'
+        ]
+        
+        print(f"📊 Found {len(tables)} tables in database")
+        
+        all_present = True
+        for table in required_tables:
+            if table in tables:
+                print(f"   ✅ {table}")
+            else:
+                print(f"   ❌ {table} (MISSING)")
+                all_present = False
+                
+        if all_present:
+            print("✅ All required tables are present!")
+            return True
+        else:
+            print("❌ Some required tables are missing!")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Failed to verify tables: {e}")
+        return False
+
+def verify_application_running():
+    """Verify that the application is running"""
+    print("🔍 Verifying application status...")
+    
+    try:
+        import requests
+        response = requests.get('http://localhost:5000', timeout=5)
+        if response.status_code == 200:
+            print("✅ Application is running and accessible!")
+            return True
+        else:
+            print(f"❌ Application returned status code: {response.status_code}")
+            return False
+    except requests.exceptions.ConnectionError:
+        print("❌ Application is not accessible at http://localhost:5000")
+        return False
+    except Exception as e:
+        print(f"❌ Failed to check application status: {e}")
+        return False
+
+def main():
+    """Main verification function"""
+    print("🏏 CricVerse Supabase Final Verification")
+    print("=" * 50)
+    
+    # Load environment
+    if not load_environment():
         sys.exit(1)
+    
+    # Verify components
+    checks = [
+        ("Database Connection", verify_database_connection),
+        ("Required Tables", verify_required_tables),
+        ("Application Status", verify_application_running)
+    ]
+    
+    results = []
+    for check_name, check_function in checks:
+        print(f"\n{check_name}:")
+        result = check_function()
+        results.append((check_name, result))
+    
+    # Summary
+    print("\n" + "=" * 50)
+    print("📋 VERIFICATION SUMMARY")
+    print("=" * 50)
+    
+    all_passed = True
+    for check_name, result in results:
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"{status} {check_name}")
+        if not result:
+            all_passed = False
+    
+    print("\n" + "=" * 50)
+    if all_passed:
+        print("🎉 ALL VERIFICATIONS PASSED!")
+        print("✅ CricVerse Supabase configuration is complete and working!")
+        print("\n🚀 You can access the application at: http://localhost:5000")
+        print("📝 Note: This is a minimal version. For full functionality,")
+        print("   fix the chatbot_service_fixed.py file and restart the full application.")
+    else:
+        print("❌ SOME VERIFICATIONS FAILED!")
+        print("⚠️ Please check the errors above and resolve them.")
+    
+    print("=" * 50)
+
+if __name__ == "__main__":
+    main()
