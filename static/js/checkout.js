@@ -1,7 +1,14 @@
 /**
- * Professional Checkout System for CricVerse Stadium System
+ * Enhanced Professional Checkout System for CricVerse Stadium System
  * Multi-step checkout with unified payment processing
  * Big Bash League Cricket Platform
+ * 
+ * Features:
+ * - Enhanced loading states and animations
+ * - Improved error messaging with retry mechanisms
+ * - Mobile-responsive design optimizations
+ * - Progressive enhancement for offline scenarios
+ * - Accessibility improvements
  */
 
 class CheckoutManager {
@@ -12,12 +19,22 @@ class CheckoutManager {
         this.selectedMethod = null;
         this.selectedGateway = null;
         this.isLoading = false;
+        this.isOnline = navigator.onLine;
+        this.retryCount = 0;
+        this.maxRetries = 3;
+        this.loadingAnimations = new Map();
+        this.touchStartX = 0;
+        this.touchStartY = 0;
         
         this.initializeElements();
         this.bindEvents();
+        this.setupOfflineHandling();
+        this.setupMobileOptimizations();
         this.loadOrderData();
+        this.setupAccessibility();
         
-        console.log('🏏 CricVerse Checkout Manager initialized');
+        console.log('🏏 Enhanced CricVerse Checkout Manager initialized');
+        this.logDeviceInfo();
     }
     
     initializeElements() {
@@ -53,6 +70,14 @@ class CheckoutManager {
         this.subtotalAmount = document.getElementById('subtotal-amount');
         this.feeAmount = document.getElementById('fee-amount');
         this.totalAmount = document.getElementById('total-amount');
+        
+        // Enhanced UI elements
+        this.loadingOverlay = this.createLoadingOverlay();
+        this.errorContainer = this.createErrorContainer();
+        this.offlineIndicator = this.createOfflineIndicator();
+        
+        // Create mobile-specific elements
+        this.createMobileElements();
     }
     
     bindEvents() {
@@ -77,6 +102,18 @@ class CheckoutManager {
         if (this.paymentForm) {
             this.paymentForm.addEventListener('submit', (e) => this.handlePayment(e));
         }
+        
+        // Enhanced mobile touch events
+        this.bindTouchEvents();
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => this.handleKeyNavigation(e));
+        
+        // Window resize for responsive adjustments
+        window.addEventListener('resize', this.debounce(() => this.handleResize(), 250));
+        
+        // Form validation events
+        this.bindFormValidation();
     }
     
     loadOrderData() {
@@ -350,10 +387,26 @@ class CheckoutManager {
             return;
         }
         
-        // Show loading state
+        // Check if online for real payment processing
+        if (!this.isOnline) {
+            this.showError('Payment requires an internet connection. Please check your connection and try again.', 
+                          () => this.initiatePayment());
+            return;
+        }
+        
+        // Show enhanced loading state
         this.showPaymentLoading(true);
+        this.showLoadingOverlay('Initializing payment...', 10);
         
         try {
+            // Validate form first
+            if (!this.validateForm()) {
+                throw new Error('Please fill in all required fields correctly.');
+            }
+            
+            // Update loading progress
+            this.showLoadingOverlay('Preparing payment data...', 25);
+            
             // Get form data
             const formData = new FormData(this.paymentForm);
             
@@ -368,23 +421,42 @@ class CheckoutManager {
                 description: formData.get('description') || 'BBL Booking'
             };
             
+            // Update loading progress
+            this.showLoadingOverlay('Contacting payment gateway...', 50);
+            
             // Create payment order
             const response = await fetch('/api/create-payment-intent', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    'X-CSRFToken': document.querySelector('[name=csrf_token]')?.value || ''
                 },
                 body: JSON.stringify(paymentData)
             });
             
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const result = await response.json();
             
             if (result.success) {
+                this.showLoadingOverlay('Processing payment...', 75);
+                
                 if (result.gateway === 'paypal') {
                     // Redirect to PayPal
                     if (result.approval_url) {
+                        this.showLoadingOverlay('Redirecting to PayPal...', 90);
                         this.showPaymentMessage('Redirecting to PayPal...', 'success');
+                        
+                        // Store payment data for return handling
+                        localStorage.setItem('cricverse_payment_data', JSON.stringify({
+                            orderId: result.order_id,
+                            amount: paymentData.amount,
+                            currency: paymentData.currency,
+                            timestamp: Date.now()
+                        }));
+                        
                         setTimeout(() => {
                             window.location.href = result.approval_url;
                         }, 1500);
@@ -392,7 +464,7 @@ class CheckoutManager {
                         throw new Error('PayPal approval URL not received');
                     }
                 } else {
-                    // Process with Razorpay (simplified for demo)
+                    // Process with Razorpay
                     this.handleRazorpayPayment(result);
                 }
             } else {
@@ -401,27 +473,209 @@ class CheckoutManager {
             
         } catch (error) {
             console.error('Payment error:', error);
-            this.showPaymentMessage(error.message || 'Payment failed. Please try again.', 'error');
+            
+            // Enhanced error handling
+            let errorMessage = 'Payment failed. Please try again.';
+            let retryAction = () => this.initiatePayment();
+            
+            if (error.message.includes('network') || error.message.includes('fetch')) {
+                errorMessage = 'Network error. Please check your connection and try again.';
+            } else if (error.message.includes('400')) {
+                errorMessage = 'Invalid payment data. Please check your details and try again.';
+            } else if (error.message.includes('401')) {
+                errorMessage = 'Session expired. Please refresh the page and try again.';
+                retryAction = () => window.location.reload();
+            } else if (error.message.includes('500')) {
+                errorMessage = 'Server error. Our team has been notified. Please try again later.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            this.showError(errorMessage, retryAction);
+            this.showPaymentMessage(errorMessage, 'error');
+            
+            // Add to pending operations if offline
+            if (!this.isOnline) {
+                this.pendingOperations.push(() => this.initiatePayment());
+                this.showMessage('Payment will be processed when connection is restored.', 'info');
+            }
+            
         } finally {
             this.showPaymentLoading(false);
+            this.hideLoadingOverlay();
         }
     }
     
     handleRazorpayPayment(paymentData) {
         // In a real implementation, this would integrate with Razorpay
-        // For demo purposes, we'll simulate a successful payment
+        // For demo purposes, we'll simulate a payment process with enhanced loading states
+        
+        this.showLoadingOverlay('Connecting to Razorpay...', 80);
+        
+        // Simulate payment processing steps
+        const steps = [
+            { message: 'Verifying payment details...', progress: 85, delay: 1000 },
+            { message: 'Processing payment...', progress: 90, delay: 1500 },
+            { message: 'Confirming transaction...', progress: 95, delay: 1000 },
+            { message: 'Payment successful!', progress: 100, delay: 500 }
+        ];
+        
+        let currentStep = 0;
+        
+        const processNextStep = () => {
+            if (currentStep < steps.length) {
+                const step = steps[currentStep];
+                this.showLoadingOverlay(step.message, step.progress);
+                
+                setTimeout(() => {
+                    currentStep++;
+                    processNextStep();
+                }, step.delay);
+            } else {
+                // Payment completed
+                this.hideLoadingOverlay();
+                this.showPaymentMessage('Payment processed successfully!', 'success');
+                
+                // Show success animation
+                this.showPaymentSuccess();
+                
+                setTimeout(() => {
+                    this.goToStep(3);
+                    this.showConfirmation({
+                        bookingId: 'BK-' + Math.floor(100000 + Math.random() * 900000),
+                        amount: this.orderData.total,
+                        method: this.selectedMethod,
+                        date: new Date().toLocaleDateString(),
+                        transactionId: 'TXN-' + Math.floor(1000000 + Math.random() * 9000000)
+                    });
+                }, 2000);
+            }
+        };
+        
+        processNextStep();
+    }
+    
+    showPaymentSuccess() {
+        // Create success animation overlay
+        const successOverlay = document.createElement('div');
+        successOverlay.className = 'payment-success-overlay';
+        successOverlay.innerHTML = `
+            <div class="success-content">
+                <div class="success-icon">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <h3>Payment Successful!</h3>
+                <p>Your booking has been confirmed</p>
+                <div class="success-animation">
+                    <div class="checkmark">
+                        <svg viewBox="0 0 52 52">
+                            <circle cx="26" cy="26" r="25" fill="none" stroke="#28a745" stroke-width="2"/>
+                            <path fill="none" stroke="#28a745" stroke-width="3" stroke-linecap="round" 
+                                  stroke-linejoin="round" d="M14 27l8 8 16-16"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add styles for success animation
+        const successStyle = document.createElement('style');
+        successStyle.textContent = `
+            .payment-success-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10001;
+                animation: fadeIn 0.3s ease;
+            }
+            
+            .success-content {
+                background: white;
+                padding: 3rem 2rem;
+                border-radius: 16px;
+                text-align: center;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                max-width: 400px;
+                width: 90%;
+                animation: slideUp 0.5s ease;
+            }
+            
+            .success-icon {
+                font-size: 4rem;
+                color: #28a745;
+                margin-bottom: 1rem;
+                animation: bounceIn 0.6s ease 0.2s both;
+            }
+            
+            .success-content h3 {
+                color: #28a745;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+            }
+            
+            .success-content p {
+                color: #6c757d;
+                margin-bottom: 2rem;
+            }
+            
+            .checkmark {
+                width: 60px;
+                height: 60px;
+                margin: 0 auto;
+            }
+            
+            .checkmark svg {
+                width: 100%;
+                height: 100%;
+            }
+            
+            .checkmark circle {
+                stroke-dasharray: 166;
+                stroke-dashoffset: 166;
+                animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.5s forwards;
+            }
+            
+            .checkmark path {
+                stroke-dasharray: 48;
+                stroke-dashoffset: 48;
+                animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            
+            @keyframes slideUp {
+                from { transform: translateY(30px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            
+            @keyframes bounceIn {
+                0% { transform: scale(0); }
+                50% { transform: scale(1.2); }
+                100% { transform: scale(1); }
+            }
+            
+            @keyframes stroke {
+                100% { stroke-dashoffset: 0; }
+            }
+        `;
+        
+        document.head.appendChild(successStyle);
+        document.body.appendChild(successOverlay);
+        
+        // Remove overlay after animation
         setTimeout(() => {
-            this.showPaymentMessage('Payment processed successfully!', 'success');
-            setTimeout(() => {
-                this.goToStep(3);
-                this.showConfirmation({
-                    bookingId: 'BK-' + Math.floor(100000 + Math.random() * 900000),
-                    amount: this.orderData.total,
-                    method: this.selectedMethod,
-                    date: new Date().toLocaleDateString()
-                });
-            }, 1500);
-        }, 2000);
+            successOverlay.remove();
+            successStyle.remove();
+        }, 3000);
     }
     
     showPaymentLoading(show) {
@@ -485,8 +739,35 @@ class CheckoutManager {
         // Update current step
         this.currentStep = step;
         
+        // Update mobile step indicator
+        this.updateMobileStepIndicator();
+        
+        // Announce step change for accessibility
+        const stepNames = {
+            1: 'Order Summary',
+            2: 'Payment Method Selection', 
+            3: 'Confirmation'
+        };
+        
+        if (this.announceToScreenReader) {
+            this.announceToScreenReader(`Navigated to ${stepNames[step] || 'step ' + step}`);
+        }
+        
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Focus management for accessibility
+        setTimeout(() => {
+            const stepContainer = this.stepContainers[step];
+            if (stepContainer) {
+                const firstFocusable = stepContainer.querySelector(
+                    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+                );
+                if (firstFocusable) {
+                    firstFocusable.focus();
+                }
+            }
+        }, 100);
     }
     
     showConfirmation(data) {
@@ -534,6 +815,722 @@ class CheckoutManager {
         };
         
         return methodNames[methodId] || methodId;
+    }
+    
+    // Enhanced UI Creation Methods
+    createLoadingOverlay() {
+        const overlay = document.createElement('div');
+        overlay.id = 'checkout-loading-overlay';
+        overlay.className = 'loading-overlay';
+        overlay.innerHTML = `
+            <div class="loading-content">
+                <div class="spinner-container">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div class="loading-text">Processing your request...</div>
+                <div class="loading-progress">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add styles
+        const style = document.createElement('style');
+        style.textContent = `
+            .loading-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: none;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                backdrop-filter: blur(2px);
+            }
+            
+            .loading-content {
+                background: white;
+                padding: 2rem;
+                border-radius: 12px;
+                text-align: center;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                max-width: 300px;
+                width: 90%;
+            }
+            
+            .spinner-container {
+                margin-bottom: 1rem;
+            }
+            
+            .loading-text {
+                font-weight: 500;
+                color: #333;
+                margin-bottom: 1rem;
+            }
+            
+            .loading-progress {
+                width: 100%;
+            }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(overlay);
+        
+        return overlay;
+    }
+    
+    createErrorContainer() {
+        const container = document.createElement('div');
+        container.id = 'checkout-error-container';
+        container.className = 'error-container';
+        container.innerHTML = `
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <div class="error-content">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <span class="error-message"></span>
+                </div>
+                <div class="error-actions mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger retry-btn">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Retry
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2 dismiss-btn">
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        container.style.display = 'none';
+        
+        // Bind events
+        const retryBtn = container.querySelector('.retry-btn');
+        const dismissBtn = container.querySelector('.dismiss-btn');
+        
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => this.retryLastAction());
+        }
+        
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', () => this.hideError());
+        }
+        
+        return container;
+    }
+    
+    createOfflineIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'offline-indicator';
+        indicator.className = 'offline-indicator';
+        indicator.innerHTML = `
+            <div class="alert alert-warning mb-0">
+                <i class="bi bi-wifi-off me-2"></i>
+                <strong>You're offline.</strong> Some features may not be available.
+                <button type="button" class="btn btn-sm btn-outline-warning ms-2 refresh-btn">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Try Again
+                </button>
+            </div>
+        `;
+        
+        indicator.style.display = 'none';
+        
+        const refreshBtn = indicator.querySelector('.refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                if (navigator.onLine) {
+                    this.hideOfflineIndicator();
+                    this.loadPaymentMethods();
+                }
+            });
+        }
+        
+        return indicator;
+    }
+    
+    createMobileElements() {
+        // Create mobile-specific navigation
+        const mobileNav = document.createElement('div');
+        mobileNav.className = 'mobile-nav d-md-none';
+        mobileNav.innerHTML = `
+            <div class="mobile-step-indicator">
+                <div class="step-dots">
+                    <span class="dot active" data-step="1"></span>
+                    <span class="dot" data-step="2"></span>
+                    <span class="dot" data-step="3"></span>
+                </div>
+                <div class="step-title">Order Summary</div>
+            </div>
+        `;
+        
+        // Add mobile styles
+        const mobileStyle = document.createElement('style');
+        mobileStyle.textContent = `
+            .mobile-nav {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                padding: 1rem;
+                border-bottom: 1px solid #dee2e6;
+                z-index: 1000;
+            }
+            
+            .mobile-step-indicator {
+                text-align: center;
+            }
+            
+            .step-dots {
+                display: flex;
+                justify-content: center;
+                gap: 0.5rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .dot {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: #dee2e6;
+                display: inline-block;
+                transition: all 0.3s ease;
+            }
+            
+            .dot.active {
+                background: #0d6efd;
+            }
+            
+            .step-title {
+                font-size: 0.9rem;
+                font-weight: 500;
+                color: #6c757d;
+            }
+            
+            @media (max-width: 767px) {
+                .container {
+                    padding-top: 80px;
+                }
+                
+                .payment-method-card {
+                    margin-bottom: 0.5rem;
+                }
+                
+                .btn-lg {
+                    padding: 0.75rem 1rem;
+                    font-size: 1rem;
+                }
+            }
+        `;
+        document.head.appendChild(mobileStyle);
+        
+        // Insert mobile nav at the beginning of body
+        document.body.insertBefore(mobileNav, document.body.firstChild);
+        
+        this.mobileNav = mobileNav;
+    }
+    
+    // Enhanced Event Handling Methods
+    bindTouchEvents() {
+        // Swipe navigation for mobile
+        let startX = 0;
+        let startY = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+        
+        document.addEventListener('touchend', (e) => {
+            if (!startX || !startY) return;
+            
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            
+            const diffX = startX - endX;
+            const diffY = startY - endY;
+            
+            // Only process horizontal swipes that are significant
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                if (diffX > 0 && this.currentStep < 3) {
+                    // Swipe left - next step
+                    this.goToStep(this.currentStep + 1);
+                } else if (diffX < 0 && this.currentStep > 1) {
+                    // Swipe right - previous step
+                    this.goToStep(this.currentStep - 1);
+                }
+            }
+            
+            startX = 0;
+            startY = 0;
+        }, { passive: true });
+        
+        // Enhanced touch feedback for buttons
+        document.addEventListener('touchstart', (e) => {
+            if (e.target.matches('.btn, .payment-method-card')) {
+                e.target.style.transform = 'scale(0.95)';
+            }
+        }, { passive: true });
+        
+        document.addEventListener('touchend', (e) => {
+            if (e.target.matches('.btn, .payment-method-card')) {
+                setTimeout(() => {
+                    e.target.style.transform = '';
+                }, 150);
+            }
+        }, { passive: true });
+    }
+    
+    handleKeyNavigation(e) {
+        // Escape key to close overlays
+        if (e.key === 'Escape') {
+            this.hideLoadingOverlay();
+            this.hideError();
+        }
+        
+        // Arrow keys for step navigation
+        if (e.altKey) {
+            if (e.key === 'ArrowLeft' && this.currentStep > 1) {
+                e.preventDefault();
+                this.goToStep(this.currentStep - 1);
+            } else if (e.key === 'ArrowRight' && this.currentStep < 3) {
+                e.preventDefault();
+                this.goToStep(this.currentStep + 1);
+            }
+        }
+        
+        // Enter key to proceed
+        if (e.key === 'Enter' && e.target.matches('.payment-method-card')) {
+            e.target.click();
+        }
+    }
+    
+    bindFormValidation() {
+        const form = this.paymentForm;
+        if (!form) return;
+        
+        // Real-time validation
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('blur', () => this.validateField(input));
+            input.addEventListener('input', () => this.clearFieldError(input));
+        });
+        
+        // Form submission validation
+        form.addEventListener('submit', (e) => {
+            if (!this.validateForm()) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+    
+    validateField(field) {
+        let isValid = true;
+        let errorMessage = '';
+        
+        // Remove existing error styling
+        field.classList.remove('is-invalid');
+        
+        // Required field validation
+        if (field.hasAttribute('required') && !field.value.trim()) {
+            isValid = false;
+            errorMessage = 'This field is required.';
+        }
+        
+        // Email validation
+        if (field.type === 'email' && field.value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(field.value)) {
+                isValid = false;
+                errorMessage = 'Please enter a valid email address.';
+            }
+        }
+        
+        // Amount validation
+        if (field.name === 'amount' && field.value) {
+            const amount = parseFloat(field.value);
+            if (isNaN(amount) || amount <= 0) {
+                isValid = false;
+                errorMessage = 'Please enter a valid amount.';
+            }
+        }
+        
+        // Show/hide error
+        if (!isValid) {
+            field.classList.add('is-invalid');
+            this.showFieldError(field, errorMessage);
+        } else {
+            this.clearFieldError(field);
+        }
+        
+        return isValid;
+    }
+    
+    validateForm() {
+        const form = this.paymentForm;
+        if (!form) return true;
+        
+        let isValid = true;
+        const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+        
+        inputs.forEach(input => {
+            if (!this.validateField(input)) {
+                isValid = false;
+            }
+        });
+        
+        return isValid;
+    }
+    
+    showFieldError(field, message) {
+        let errorDiv = field.parentNode.querySelector('.invalid-feedback');
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback';
+            field.parentNode.appendChild(errorDiv);
+        }
+        errorDiv.textContent = message;
+    }
+    
+    clearFieldError(field) {
+        field.classList.remove('is-invalid');
+        const errorDiv = field.parentNode.querySelector('.invalid-feedback');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+    
+    // Progressive Enhancement Methods
+    setupOfflineHandling() {
+        // Online/offline event listeners
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.hideOfflineIndicator();
+            this.showMessage('Connection restored!', 'success');
+            // Retry any pending operations
+            if (this.pendingOperations && this.pendingOperations.length > 0) {
+                this.processPendingOperations();
+            }
+        });
+        
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.showOfflineIndicator();
+            this.showMessage('You are currently offline. Some features may be limited.', 'warning');
+        });
+        
+        // Initialize offline indicator if needed
+        if (!navigator.onLine) {
+            this.isOnline = false;
+            this.showOfflineIndicator();
+        }
+        
+        // Initialize pending operations array
+        this.pendingOperations = [];
+    }
+    
+    setupMobileOptimizations() {
+        // Viewport meta tag for mobile
+        let viewport = document.querySelector('meta[name="viewport"]');
+        if (!viewport) {
+            viewport = document.createElement('meta');
+            viewport.name = 'viewport';
+            viewport.content = 'width=device-width, initial-scale=1, user-scalable=no';
+            document.head.appendChild(viewport);
+        }
+        
+        // Prevent zoom on input focus (iOS)
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            document.querySelectorAll('input, select, textarea').forEach(input => {
+                input.addEventListener('focus', () => {
+                    if (parseFloat(input.style.fontSize) < 16) {
+                        input.style.fontSize = '16px';
+                    }
+                });
+            });
+        }
+        
+        // Handle screen orientation changes
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                this.handleResize();
+            }, 100);
+        });
+        
+        // Add mobile-specific CSS classes
+        if (window.innerWidth <= 768) {
+            document.body.classList.add('mobile-device');
+        }
+    }
+    
+    setupAccessibility() {
+        // Add ARIA labels and roles
+        const steppers = document.querySelectorAll('.stepper-item');
+        steppers.forEach((stepper, index) => {
+            stepper.setAttribute('role', 'tab');
+            stepper.setAttribute('aria-label', `Step ${index + 1}`);
+        });
+        
+        // Add focus management
+        document.addEventListener('keydown', (e) => {
+            // Tab key navigation enhancement
+            if (e.key === 'Tab') {
+                const focusableElements = this.getFocusableElements();
+                const currentIndex = focusableElements.indexOf(document.activeElement);
+                
+                if (e.shiftKey) {
+                    // Shift + Tab (backward)
+                    if (currentIndex === 0) {
+                        e.preventDefault();
+                        focusableElements[focusableElements.length - 1].focus();
+                    }
+                } else {
+                    // Tab (forward)
+                    if (currentIndex === focusableElements.length - 1) {
+                        e.preventDefault();
+                        focusableElements[0].focus();
+                    }
+                }
+            }
+        });
+        
+        // Announce step changes to screen readers
+        this.announceToScreenReader = (message) => {
+            const announcement = document.createElement('div');
+            announcement.setAttribute('aria-live', 'polite');
+            announcement.setAttribute('aria-atomic', 'true');
+            announcement.className = 'sr-only';
+            announcement.textContent = message;
+            document.body.appendChild(announcement);
+            
+            setTimeout(() => {
+                document.body.removeChild(announcement);
+            }, 1000);
+        };
+    }
+    
+    getFocusableElements() {
+        return Array.from(document.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => {
+            return el.offsetWidth > 0 && el.offsetHeight > 0;
+        });
+    }
+    
+    // Utility Methods
+    handleResize() {
+        // Update mobile nav visibility
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+            document.body.classList.add('mobile-device');
+            if (this.mobileNav) {
+                this.mobileNav.style.display = 'block';
+            }
+        } else {
+            document.body.classList.remove('mobile-device');
+            if (this.mobileNav) {
+                this.mobileNav.style.display = 'none';
+            }
+        }
+        
+        // Update step indicator for mobile
+        this.updateMobileStepIndicator();
+    }
+    
+    updateMobileStepIndicator() {
+        if (!this.mobileNav) return;
+        
+        const dots = this.mobileNav.querySelectorAll('.dot');
+        const title = this.mobileNav.querySelector('.step-title');
+        
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('active', index + 1 === this.currentStep);
+        });
+        
+        const stepTitles = {
+            1: 'Order Summary',
+            2: 'Payment Method',
+            3: 'Confirmation'
+        };
+        
+        if (title) {
+            title.textContent = stepTitles[this.currentStep] || 'Checkout';
+        }
+    }
+    
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    showLoadingOverlay(message = 'Processing...', progress = 0) {
+        if (this.loadingOverlay) {
+            const loadingText = this.loadingOverlay.querySelector('.loading-text');
+            const progressBar = this.loadingOverlay.querySelector('.progress-bar');
+            
+            if (loadingText) loadingText.textContent = message;
+            if (progressBar) progressBar.style.width = `${progress}%`;
+            
+            this.loadingOverlay.style.display = 'flex';
+        }
+    }
+    
+    hideLoadingOverlay() {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.style.display = 'none';
+        }
+    }
+    
+    showError(message, retryAction = null) {
+        if (this.errorContainer) {
+            const errorMessage = this.errorContainer.querySelector('.error-message');
+            const retryBtn = this.errorContainer.querySelector('.retry-btn');
+            
+            if (errorMessage) errorMessage.textContent = message;
+            
+            // Store retry action
+            this.lastRetryAction = retryAction;
+            
+            if (retryBtn) {
+                retryBtn.style.display = retryAction ? 'inline-block' : 'none';
+            }
+            
+            this.errorContainer.style.display = 'block';
+            
+            // Insert error container at appropriate location
+            const currentStepContainer = this.stepContainers[this.currentStep];
+            if (currentStepContainer && !currentStepContainer.contains(this.errorContainer)) {
+                currentStepContainer.insertBefore(this.errorContainer, currentStepContainer.firstChild);
+            }
+        }
+    }
+    
+    hideError() {
+        if (this.errorContainer) {
+            this.errorContainer.style.display = 'none';
+        }
+    }
+    
+    retryLastAction() {
+        if (this.lastRetryAction && typeof this.lastRetryAction === 'function') {
+            this.hideError();
+            this.retryCount++;
+            
+            if (this.retryCount <= this.maxRetries) {
+                this.showLoadingOverlay('Retrying...', 25);
+                setTimeout(() => {
+                    this.lastRetryAction();
+                }, 1000);
+            } else {
+                this.showError('Maximum retry attempts reached. Please refresh the page and try again.');
+                this.retryCount = 0;
+            }
+        }
+    }
+    
+    showOfflineIndicator() {
+        if (this.offlineIndicator) {
+            this.offlineIndicator.style.display = 'block';
+            
+            // Insert at top of current step
+            const currentStepContainer = this.stepContainers[this.currentStep];
+            if (currentStepContainer && !currentStepContainer.contains(this.offlineIndicator)) {
+                currentStepContainer.insertBefore(this.offlineIndicator, currentStepContainer.firstChild);
+            }
+        }
+    }
+    
+    hideOfflineIndicator() {
+        if (this.offlineIndicator) {
+            this.offlineIndicator.style.display = 'none';
+        }
+    }
+    
+    showMessage(message, type = 'info', duration = 5000) {
+        // Create or update message element
+        let messageEl = document.getElementById('global-message');
+        if (!messageEl) {
+            messageEl = document.createElement('div');
+            messageEl.id = 'global-message';
+            messageEl.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 10000;
+                max-width: 300px;
+            `;
+            document.body.appendChild(messageEl);
+        }
+        
+        messageEl.innerHTML = `
+            <div class="alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        // Auto-hide after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                if (messageEl.parentNode) {
+                    messageEl.remove();
+                }
+            }, duration);
+        }
+    }
+    
+    processPendingOperations() {
+        if (!this.pendingOperations || this.pendingOperations.length === 0) return;
+        
+        this.showLoadingOverlay('Processing pending operations...', 50);
+        
+        // Process operations one by one
+        const processNext = () => {
+            if (this.pendingOperations.length > 0) {
+                const operation = this.pendingOperations.shift();
+                operation().then(() => {
+                    setTimeout(processNext, 500);
+                }).catch((error) => {
+                    console.error('Pending operation failed:', error);
+                    setTimeout(processNext, 500);
+                });
+            } else {
+                this.hideLoadingOverlay();
+                this.showMessage('All pending operations completed!', 'success');
+            }
+        };
+        
+        processNext();
+    }
+    
+    logDeviceInfo() {
+        const deviceInfo = {
+            userAgent: navigator.userAgent,
+            screenWidth: window.screen.width,
+            screenHeight: window.screen.height,
+            windowWidth: window.innerWidth,
+            windowHeight: window.innerHeight,
+            pixelRatio: window.devicePixelRatio,
+            online: navigator.onLine,
+            language: navigator.language,
+            platform: navigator.platform,
+            touchSupport: 'ontouchstart' in window
+        };
+        
+        console.log('🏏 CricVerse Checkout - Device Info:', deviceInfo);
     }
 }
 
