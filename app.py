@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_wtf import CSRFProtect
-from flask_sqlalchemy import SQLAlchemy
+from models import db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking, Player, Match, TicketTransfer, ResaleMarketplace, SeasonTicket, SeasonTicketMatch, AccessibilityAccommodation, AccessibilityBooking, VerificationSubmission, StadiumAdmin, EventUmpire, Payment, CustomerProfile, PaymentTransaction, QRCode, Notification, MatchUpdate, ChatConversation, ChatMessage, BookingAnalytics, SystemLog, WebSocketConnection, MenuItem, Order, ParkingBooking, Photo
+
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -248,7 +249,7 @@ if 'postgresql' in database_url:
     }
 
 # Initialize extensions
-db = SQLAlchemy(app)
+db.init_app(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'  # type: ignore
 
@@ -483,7 +484,7 @@ def verify_ticket():
     try:
         # In a real implementation, you would verify the token and check ticket validity
         # For now, we'll just show a verification page
-        from app import Booking, Ticket, Event, Stadium, Customer, Seat
+        
         
         booking = Booking.query.get(int(ticket_id)) if ticket_id else None
         if not booking:
@@ -542,347 +543,7 @@ if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
     except Exception as e:
         print(f"[PAYMENTS] Razorpay init failed: {e}")
 
-# Models
-class Stadium(db.Model):
-    __tablename__ = 'stadium'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    location = db.Column(db.String(100), nullable=False)
-    capacity = db.Column(db.Integer, nullable=False)
-    contact_number = db.Column(db.String(20))
-    opening_year = db.Column(db.Integer)
-    pitch_type = db.Column(db.String(50))
-    boundary_length = db.Column(db.Integer)
-    floodlight_quality = db.Column(db.String(20))
-    has_dressing_rooms = db.Column(db.Boolean, default=True)
-    has_practice_nets = db.Column(db.Boolean, default=True)
-    description = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.String(200), nullable=True)
-    latitude = db.Column(db.Float, nullable=True)
-    longitude = db.Column(db.Float, nullable=True)
-    open_hour = db.Column(db.Time, nullable=True)
-    close_hour = db.Column(db.Time, nullable=True)
-    
-    # Relationships
-    events = db.relationship('Event', backref='stadium', lazy=True)
-    seats = db.relationship('Seat', backref='stadium', lazy=True)
-    concessions = db.relationship('Concession', backref='stadium', lazy=True)
-    parkings = db.relationship('Parking', backref='stadium', lazy=True)
-    photos = db.relationship('Photo', backref='stadium', lazy=True)
 
-    @property
-    def upcoming_matches(self):
-        from datetime import datetime, timezone
-        return Event.query.filter(
-            Event.stadium_id == self.id,
-            Event.event_date >= datetime.now(timezone.utc).date()
-        ).order_by(Event.event_date).all()
-
-class Team(db.Model):
-    __tablename__ = 'team'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    team_name = db.Column(db.String(100), nullable=False)
-    tagline = db.Column(db.String(200))
-    about = db.Column(db.Text)
-    founding_year = db.Column(db.Integer)
-    championships_won = db.Column(db.Integer, default=0)
-    home_ground = db.Column(db.String(100))
-    team_color = db.Column(db.String(50))
-    color1 = db.Column(db.String(20))
-    color2 = db.Column(db.String(20))
-    coach_name = db.Column(db.String(100))
-    manager = db.Column(db.String(100))
-    owner_name = db.Column(db.String(100))
-    fun_fact = db.Column(db.Text)
-    team_logo = db.Column(db.String(200))
-    home_city = db.Column(db.String(100))
-    team_type = db.Column(db.String(50))
-    
-    # Relationships
-    players = db.relationship('Player', backref='team', lazy=True)
-    home_events = db.relationship('Event', foreign_keys='Event.home_team_id', backref='home_team', lazy=True)
-    away_events = db.relationship('Event', foreign_keys='Event.away_team_id', backref='away_team', lazy=True)
-
-class Player(db.Model):
-    __tablename__ = 'player'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
-    player_name = db.Column(db.String(100), nullable=False)
-    age = db.Column(db.Integer)
-    batting_style = db.Column(db.String(50))
-    bowling_style = db.Column(db.String(50))
-    player_role = db.Column(db.String(50))
-    is_captain = db.Column(db.Boolean, default=False)
-    is_wicket_keeper = db.Column(db.Boolean, default=False)
-    nationality = db.Column(db.String(50))
-    jersey_number = db.Column(db.Integer)
-    market_value = db.Column(db.Float)
-    photo_url = db.Column(db.String(200))
-
-class Event(db.Model):
-    __tablename__ = 'event'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'))
-    event_name = db.Column(db.String(100), nullable=False)
-    event_type = db.Column(db.String(50))
-    tournament_name = db.Column(db.String(100))
-    event_date = db.Column(db.Date, nullable=False)
-    start_time = db.Column(db.Time, nullable=False)
-    end_time = db.Column(db.Time)
-    home_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    away_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    match_status = db.Column(db.String(50), default='Scheduled')
-    attendance = db.Column(db.Integer, default=0)
-    
-    # Relationships
-    match = db.relationship('Match', backref='event', uselist=False)
-    tickets = db.relationship('Ticket', backref='event', lazy=True)
-    umpires = db.relationship('EventUmpire', backref='event', lazy=True)
-
-class Match(db.Model):
-    __tablename__ = 'match'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), unique=True)
-    home_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    away_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    toss_winner_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    toss_decision = db.Column(db.String(10))
-    home_score = db.Column(db.Integer, default=0)
-    away_score = db.Column(db.Integer, default=0)
-    home_wickets = db.Column(db.Integer, default=0)
-    away_wickets = db.Column(db.Integer, default=0)
-    home_overs = db.Column(db.Float, default=0.0)
-    away_overs = db.Column(db.Float, default=0.0)
-    result_type = db.Column(db.String(20))
-    winning_margin = db.Column(db.String(20))
-
-class Seat(db.Model):
-    __tablename__ = 'seat'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'))
-    url = db.Column(db.String(200), nullable=False)
-    caption = db.Column(db.String(200))
-
-class TicketTransfer(db.Model):
-    """Ticket transfer between customers"""
-    __tablename__ = 'ticket_transfer'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
-    from_customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    to_customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
-    to_email = db.Column(db.String(100))  # For transfers to new users
-    
-    # Transfer details
-    transfer_status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected, expired
-    transfer_code = db.Column(db.String(32), unique=True, nullable=False)
-    transfer_fee = db.Column(db.Float, default=0.0)
-    
-    # Timing
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    expires_at = db.Column(db.DateTime, nullable=False)
-    completed_at = db.Column(db.DateTime)
-    
-    # Security
-    verification_code = db.Column(db.String(6))  # SMS/Email verification
-    is_verified = db.Column(db.Boolean, default=False)
-    
-    # Relationships
-    ticket = db.relationship('Ticket', backref='transfers')
-    from_customer = db.relationship('Customer', foreign_keys=[from_customer_id], backref='sent_transfers')
-    to_customer = db.relationship('Customer', foreign_keys=[to_customer_id], backref='received_transfers')
-
-class ResaleMarketplace(db.Model):
-    """Resale marketplace for tickets"""
-    __tablename__ = 'resale_marketplace'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
-    seller_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    buyer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
-    
-    # Pricing
-    original_price = db.Column(db.Float, nullable=False)
-    listing_price = db.Column(db.Float, nullable=False)
-    final_price = db.Column(db.Float)
-    platform_fee = db.Column(db.Float, default=0.0)
-    seller_fee = db.Column(db.Float, default=0.0)
-    
-    # Listing details
-    listing_status = db.Column(db.String(20), default='active')  # active, sold, cancelled, expired
-    listing_description = db.Column(db.Text)
-    is_negotiable = db.Column(db.Boolean, default=False)
-    
-    # Timing
-    listed_at = db.Column(db.DateTime, default=datetime.utcnow)
-    sold_at = db.Column(db.DateTime)
-    expires_at = db.Column(db.DateTime)
-    
-    # Verification
-    is_verified = db.Column(db.Boolean, default=False)
-    verification_status = db.Column(db.String(20), default='pending')  # pending, verified, rejected
-    
-    # Relationships
-    ticket = db.relationship('Ticket', backref='marketplace_listings')
-    seller = db.relationship('Customer', foreign_keys=[seller_id], backref='selling_tickets')
-    buyer = db.relationship('Customer', foreign_keys=[buyer_id], backref='bought_tickets')
-
-class SeasonTicket(db.Model):
-    """Season ticket management"""
-    __tablename__ = 'season_ticket'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False)
-    seat_id = db.Column(db.Integer, db.ForeignKey('seat.id'), nullable=False)
-    
-    # Season details
-    season_name = db.Column(db.String(100), nullable=False)  # e.g., "BBL 2024-25"
-    season_start_date = db.Column(db.Date, nullable=False)
-    season_end_date = db.Column(db.Date, nullable=False)
-    
-    # Package details
-    total_matches = db.Column(db.Integer, nullable=False)
-    matches_used = db.Column(db.Integer, default=0)
-    matches_transferred = db.Column(db.Integer, default=0)
-    
-    # Pricing
-    total_price = db.Column(db.Float, nullable=False)
-    price_per_match = db.Column(db.Float, nullable=False)
-    
-    # Status
-    ticket_status = db.Column(db.String(20), default='active')  # active, suspended, cancelled, expired
-    
-    # Benefits
-    priority_booking = db.Column(db.Boolean, default=True)
-    transfer_limit = db.Column(db.Integer, default=5)  # Max transfers per season
-    
-    # Timing
-    purchased_at = db.Column(db.DateTime, default=datetime.utcnow)
-    activated_at = db.Column(db.DateTime)
-    
-    # Relationships
-    customer = db.relationship('Customer', backref='season_tickets')
-    stadium = db.relationship('Stadium', backref='season_tickets')
-    seat = db.relationship('Seat', backref='season_tickets')
-    matches = db.relationship('SeasonTicketMatch', backref='season_ticket', lazy='dynamic')
-
-class SeasonTicketMatch(db.Model):
-    """Individual matches in a season ticket"""
-    __tablename__ = 'season_ticket_match'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    season_ticket_id = db.Column(db.Integer, db.ForeignKey('season_ticket.id'), nullable=False)
-    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
-    
-    # Usage status
-    is_used = db.Column(db.Boolean, default=False)
-    used_at = db.Column(db.DateTime)
-    
-    # Transfer details
-    is_transferred = db.Column(db.Boolean, default=False)
-    transferred_to_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
-    transferred_at = db.Column(db.DateTime)
-    transfer_price = db.Column(db.Float, default=0.0)
-    
-    # Relationships
-    event = db.relationship('Event', backref='season_ticket_matches')
-    transferred_to = db.relationship('Customer', backref='received_season_matches')
-
-class AccessibilityAccommodation(db.Model):
-    """Accessibility accommodations tracking"""
-    __tablename__ = 'accessibility_accommodation'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    
-    # Accommodation details
-    accommodation_type = db.Column(db.String(50), nullable=False)  # wheelchair, hearing, visual, mobility, other
-    description = db.Column(db.Text)
-    severity_level = db.Column(db.String(20))  # mild, moderate, severe
-    
-    # Requirements
-    requires_wheelchair_access = db.Column(db.Boolean, default=False)
-    requires_companion_seat = db.Column(db.Boolean, default=False)
-    requires_aisle_access = db.Column(db.Boolean, default=False)
-    requires_hearing_loop = db.Column(db.Boolean, default=False)
-    requires_sign_language = db.Column(db.Boolean, default=False)
-    requires_braille = db.Column(db.Boolean, default=False)
-    
-    # Equipment needs
-    mobility_equipment = db.Column(db.String(100))  # wheelchair, crutches, walker, etc.
-    service_animal = db.Column(db.Boolean, default=False)
-    service_animal_type = db.Column(db.String(50))
-    
-    # Communication preferences
-    preferred_communication = db.Column(db.String(50))  # email, sms, phone, sign_language
-    emergency_contact_name = db.Column(db.String(100))
-    emergency_contact_phone = db.Column(db.String(20))
-    
-    # Verification
-    is_verified = db.Column(db.Boolean, default=False)
-    verification_document = db.Column(db.String(200))  # Path to uploaded document
-    verified_at = db.Column(db.DateTime)
-    verified_by = db.Column(db.Integer, db.ForeignKey('customer.id'))
-    
-    # Timing
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    customer = db.relationship('Customer', foreign_keys=[customer_id], backref='accessibility_needs')
-    verified_by_user = db.relationship('Customer', foreign_keys=[verified_by])
-    bookings = db.relationship('AccessibilityBooking', backref='accommodation', lazy='dynamic')
-
-class AccessibilityBooking(db.Model):
-    """Bookings with accessibility accommodations"""
-    __tablename__ = 'accessibility_booking'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    booking_id = db.Column(db.Integer, db.ForeignKey('booking.id'), nullable=False)
-    accommodation_id = db.Column(db.Integer, db.ForeignKey('accessibility_accommodation.id'), nullable=False)
-    
-    # Specific accommodations for this booking
-    requested_accommodations = db.Column(db.Text)  # JSON array of requested accommodations
-    provided_accommodations = db.Column(db.Text)  # JSON array of provided accommodations
-    
-    # Staff notes
-    staff_notes = db.Column(db.Text)
-    special_instructions = db.Column(db.Text)
-    
-    # Status
-    accommodation_status = db.Column(db.String(20), default='requested')  # requested, confirmed, fulfilled, not_available
-    
-    # Fulfillment
-    assigned_staff_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
-    fulfillment_notes = db.Column(db.Text)
-    fulfilled_at = db.Column(db.DateTime)
-    
-    # Timing
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    booking = db.relationship('Booking', backref='accessibility_bookings')
-    assigned_staff = db.relationship('Customer', backref='assigned_accessibility_tasks')
-
-class VerificationSubmission(db.Model):
-    __tablename__ = 'verification_submission'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    document_urls = db.Column(db.Text) # JSON array of URLs
-    notes = db.Column(db.Text)
-    submission_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    user = db.relationship('Customer', backref='verification_submissions')
 
 # Authentication decorators
 def admin_required(f):
@@ -972,7 +633,7 @@ def prevent_role_modification(f):
             
             # Log security incident
             try:
-                from enhanced_models import SystemLog
+                from models import SystemLog
                 log_entry = SystemLog(
                     customer_id=current_user.id,
                     log_level='CRITICAL',
@@ -1010,7 +671,7 @@ def validate_role_permissions(allowed_roles=None):
             
             if current_user.role not in allowed_roles:
                 try:
-                    from enhanced_models import SystemLog
+                    from models import SystemLog
                     log_entry = SystemLog(
                         customer_id=current_user.id,
                         log_level='WARNING',
@@ -2076,7 +1737,7 @@ def login():
         if customer and password_valid:
             # Log successful login attempt
             try:
-                from enhanced_models import SystemLog
+                from models import SystemLog
                 log_entry = SystemLog(
                     customer_id=customer.id,
                     log_level='INFO',
@@ -2179,7 +1840,7 @@ def login():
         else:
             # Log failed login attempt
             try:
-                from enhanced_models import SystemLog
+                from models import SystemLog
                 log_entry = SystemLog(
                     customer_id=customer.id if customer else None,
                     log_level='WARNING',
@@ -2277,7 +1938,7 @@ def profile():
         if suspicious_fields:
             # Security violation detected - log and reject
             try:
-                from enhanced_models import SystemLog
+                from models import SystemLog
                 log_entry = SystemLog(
                     customer_id=current_user.id,
                     log_level='CRITICAL',
@@ -2310,7 +1971,7 @@ def profile():
             current_user.verification_status = original_verification_status
             
             try:
-                from enhanced_models import SystemLog
+                from models import SystemLog
                 log_entry = SystemLog(
                     customer_id=current_user.id,
                     log_level='CRITICAL',
@@ -3611,7 +3272,7 @@ def chat_suggestions():
 def chat_history():
     """Get user's chat history"""
     try:
-        from enhanced_models import ChatConversation, ChatMessage
+        from models import ChatConversation, ChatMessage
         
         conversations = ChatConversation.query.filter_by(
             customer_id=current_user.id
@@ -4046,7 +3707,7 @@ def create_secure_booking():
         booking_data['customer_id'] = current_user.id
         
         # Additional server-side validation
-        from app import Event, Seat, Ticket
+        
         
         # Verify event exists and is bookable
         event = Event.query.get(booking_data['event_id'])
@@ -5115,18 +4776,7 @@ if __name__ == '__main__':
             db.create_all()
             print("[PASS] Basic database tables created")
             
-            # Create enhanced tables with better error handling
-            try:
-                # Import and initialize enhanced models
-                from enhanced_models import init_enhanced_models
-                success = init_enhanced_models(app, db)
-                if success:
-                    print("[PASS] Enhanced database tables created")
-                else:
-                    print("[WARN] Enhanced tables creation completed with warnings")
-            except Exception as e:
-                print(f"[WARN] Could not create enhanced tables: {e}")
-                print("[NOTE] Application will continue with basic functionality")
+            
                 
         except Exception as e:
             print(f"[FAIL] Database initialization failed: {e}")
@@ -5134,7 +4784,7 @@ if __name__ == '__main__':
     
     # Initialize Flask-Admin
     try:
-        admin = init_admin(app, db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking)
+        admin = init_admin(app, db, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking, VerificationSubmission)
         print("[PASS] Flask-Admin initialized")
     except Exception as e:
         print(f"[WARN] Flask-Admin initialization failed: {e}")
