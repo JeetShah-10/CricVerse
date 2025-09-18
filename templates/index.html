@@ -7,8 +7,58 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home-enhanced.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-action-hub.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stadium_enhanced.css') }}">
+    <!-- Supabase data widget styles (scoped to .home-page to avoid global overrides) -->
+    <style>
+      /* ==== Layout fixes (scoped to .home-page) ==== */
+      .home-page .page-background { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+      .home-page .floating-particles { position: absolute; inset: 0; pointer-events: none; }
+      .home-page .hero-banner, .home-page .highlights-section, .home-page .action-hub-section, .home-page .teams-carousel-section, .home-page .membership-section { position: relative; z-index: 2; }
+
+      .home-page .hero-banner { margin-top: 0; }
+      .home-page .highlights-section, .home-page .action-hub-section, .home-page .teams-carousel-section, .home-page .membership-section { margin-top: 32px; }
+      @media (max-width: 768px) {
+        .home-page .highlights-section, .home-page .action-hub-section, .home-page .teams-carousel-section, .home-page .membership-section { margin-top: 24px; }
+      }
+
+      .home-page .hero-background, .home-page .highlights-cricket-action, .home-page .teams-carousel-container { overflow: hidden; }
+      .home-page .energy-elements, .home-page .celebration-gif, .home-page .crowd-energy, .home-page .logo-glow { z-index: auto; }
+
+      /* Buttons alignment in hero */
+      .home-page .hero-buttons .btn { margin-right: 10px; margin-bottom: 10px; }
+
+      /* Action hub cards stable heights */
+      .home-page .action-hub-section .fixture-card { min-height: 180px; }
+      .home-page .action-hub-section .teams-matchup { align-items: center; }
+      .home-page .action-hub-section .team-logo { width: 48px; height: 48px; object-fit: contain; }
+
+      /* Carousel fixes */
+      .home-page .teams-carousel-wrapper { overflow: hidden; }
+      .home-page .teams-carousel { display: flex; will-change: transform; }
+      .home-page .team-carousel-card { transform: none; transition: transform .25s ease, box-shadow .25s ease; }
+      .home-page .team-carousel-card:hover { z-index: 3; }
+
+      @media (max-width: 768px) {
+        .home-page .floating-particles, .home-page .energy-elements, .home-page .player-reveal, .home-page .logo-glow { display: none !important; }
+        .home-page .team-carousel-card:hover { transform: none !important; }
+      }
+
+      .home-page .hero-gradient-overlay { position: absolute; inset: 0; z-index: 1; }
+      .home-page .hero-content { position: relative; z-index: 2; }
+
+      /* ==== Supabase widget (scoped) ==== */
+      .home-page .supabase-widget { margin: 16px 0; padding: 12px 14px; border:1px solid #e5e7eb; border-radius:10px; background:#0b0f14; color:#e5e7eb; }
+      .supabase-widget h5 { margin:0 0 8px; font-weight:600; }
+      .home-page .supabase-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-top:8px; }
+      .home-page .sup-card { border:1px solid #1f2937; border-radius:8px; padding:10px; background:#0f1720; }
+      .sup-key { color:#9ca3af; font-size:12px; }
+      .sup-val { font-size:14px; font-weight:600; }
+      .sup-ok { color:#34d399; }
+      .sup-err { color:#f87171; }
+      .sup-muted { color:#9ca3af; font-size:12px; }
+    </style>
 {% endblock %}
 {% block content %}
+<div class="home-page">
 <!-- Enhanced Background Elements -->
 <div class="page-background">
     <div class="floating-particles" id="particles-container"></div>
@@ -22,6 +72,20 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 {% endif %}
+
+<!-- Supabase Live Data (direct from browser via supabase-js) -->
+<div class="supabase-widget">
+  <h5>Live Data (Supabase)</h5>
+  <div id="sup-status" class="sup-muted">Initializing…</div>
+  <div class="supabase-grid">
+    <div class="sup-card"><div class="sup-key">Events</div><div id="sup-events" class="sup-val">–</div></div>
+    <div class="sup-card"><div class="sup-key">Teams</div><div id="sup-teams" class="sup-val">–</div></div>
+    <div class="sup-card"><div class="sup-key">Stadiums</div><div id="sup-stadiums" class="sup-val">–</div></div>
+  </div>
+  <div style="margin-top:8px">
+    <button class="btn btn-sm btn-secondary" id="sup-refresh">Refresh</button>
+  </div>
+</div>
 
 <script>
 // Enhanced Interactive JavaScript for Home Page
@@ -332,6 +396,106 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 </script>
+
+<!-- Supabase browser client (module) -->
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+  const SUPABASE_URL = 'https://tiyokcstdmlhpswurelh.supabase.co'
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpeW9rY3N0ZG1saHBzd3VyZWxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2OTkxOTMsImV4cCI6MjA3MzI3NTE5M30.60sud90R8o7elSLmt7AuYK7lYb_F8mIKp04UsCfa0Lo'
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  const $ = (id) => document.getElementById(id)
+  const set = (id, text) => { const el = $(id); if (el) el.textContent = text }
+
+  async function count(table) {
+    const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true })
+    if (error) throw new Error(`${table}: ${error.message}`)
+    return count ?? 0
+  }
+
+  async function refresh() {
+    try {
+      set('sup-status', 'Loading…')
+      const [events, teams, stadiums] = await Promise.all([
+        count('event'), count('team'), count('stadium')
+      ])
+      set('sup-events', String(events))
+      set('sup-teams', String(teams))
+      set('sup-stadiums', String(stadiums))
+      const status = `OK — events=${events} teams=${teams} stadiums=${stadiums}`
+      const el = $('sup-status');
+      if (el) { el.textContent = status; el.className = 'sup-ok' }
+    } catch (e) {
+      const el = $('sup-status');
+      if (el) { el.textContent = e.message || String(e); el.className = 'sup-err' }
+      console.error(e)
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = $('sup-refresh');
+    if (btn) btn.addEventListener('click', refresh)
+    refresh()
+    renderFixtures()
+    enableRealtime()
+  })
+
+  async function renderFixtures() {
+    try {
+      const grid = $('fixturesGrid');
+      if (!grid) return;
+      const [{ data: teams }, { data: events }] = await Promise.all([
+        supabase.from('team').select('id,team_name,team_logo'),
+        supabase.from('event').select('*').order('event_date').order('start_time').limit(6)
+      ])
+      const map = new Map((teams||[]).map(t => [t.id, t]))
+      const fmtTime = (t) => (t||'').slice(0,5)
+      const cards = (events||[]).map(ev => {
+        const home = map.get(ev.home_team_id) || { team_name: `Team ${ev.home_team_id}`, team_logo: '' }
+        const away = map.get(ev.away_team_id) || { team_name: `Team ${ev.away_team_id}`, team_logo: '' }
+        const status = (ev.match_status||'Upcoming').toLowerCase()
+        return `
+        <div class="fixture-card">
+          <div class="fixture-header">
+            <span class="match-status ${status==='live'?'live':'upcoming'}">${ev.match_status||'Upcoming'}</span>
+            <span class="match-date">${ev.event_date}, ${fmtTime(ev.start_time)}</span>
+          </div>
+          <div class="teams-matchup">
+            <div class="team-side home">
+              ${home.team_logo ? `<img src="${home.team_logo}" alt="${home.team_name}" class="team-logo">` : ''}
+              <span class="team-name">${home.team_name}</span>
+            </div>
+            <div class="vs-indicator"><span>VS</span></div>
+            <div class="team-side away">
+              ${away.team_logo ? `<img src="${away.team_logo}" alt="${away.team_name}" class="team-logo">` : ''}
+              <span class="team-name">${away.team_name}</span>
+            </div>
+          </div>
+          <div class="fixture-venue">
+            <i class="bi bi-geo-alt"></i>
+            <span>Match ID #${ev.id}</span>
+          </div>
+        </div>`
+      }).join('')
+      grid.innerHTML = cards || '<div class="sup-muted">No fixtures found</div>'
+    } catch (e) {
+      console.error('renderFixtures error', e)
+    }
+  }
+
+  function enableRealtime() {
+    try {
+      supabase.channel('public-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'event' }, async () => { await refresh(); await renderFixtures() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'team' }, async () => { await refresh(); await renderFixtures() })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'stadium' }, async () => { await refresh() })
+        .subscribe()
+    } catch (e) {
+      console.warn('Realtime not enabled:', e?.message||e)
+    }
+  }
+</script>
 <!-- HERO BANNER -->
 <section class="hero-banner">
   <div class="hero-background">
@@ -434,7 +598,7 @@ document.head.appendChild(style);
           <div class="hub-content">
             <!-- Fixtures Tab -->
             <div class="tab-panel active" id="fixtures-panel">
-              <div class="fixtures-grid">
+              <div class="fixtures-grid" id="fixturesGrid">
                 <div class="fixture-card">
                   <div class="fixture-header">
                     <span class="match-status live">LIVE</span>
@@ -1023,4 +1187,5 @@ document.head.appendChild(style);
 
 <!-- Enhanced BBL JavaScript -->
 <script src="{{ url_for('static', filename='js/bbl-enhanced.js') }}"></script>
+</div>
 {% endblock %}

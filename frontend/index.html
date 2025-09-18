@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CricVerse Supabase Data Test</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
+      h1 { margin: 0 0 8px; }
+      .row { margin: 12px 0; }
+      pre { background:#111; color:#eee; padding:12px; border-radius:8px; overflow:auto; }
+      .ok { color: #0a7c2f; }
+      .err { color: #b00020; }
+      button { padding: 8px 12px; margin-right: 8px; }
+      .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; }
+      .card { border:1px solid #e5e7eb; border-radius:10px; padding:14px; }
+      code { background:#f3f4f6; padding:2px 6px; border-radius:4px; }
+    </style>
+    <script type="module">
+      import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+      const SUPABASE_URL = 'https://tiyokcstdmlhpswurelh.supabase.co'
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpeW9rY3N0ZG1saHBzd3VyZWxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2OTkxOTMsImV4cCI6MjA3MzI3NTE5M30.60sud90R8o7elSLmt7AuYK7lYb_F8mIKp04UsCfa0Lo'
+
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+      const out = (id, text, ok = true) => {
+        const el = document.getElementById(id)
+        el.textContent = text
+        el.className = ok ? 'ok' : 'err'
+      }
+
+      async function loadTable(name, options = {}) {
+        const t0 = performance.now()
+        const query = supabase.from(name).select('*', { count: 'exact', head: false })
+        if (options.order) query.order(options.order)
+        if (options.limit) query.limit(options.limit)
+        const { data, error, count } = await query
+        const ms = Math.round(performance.now() - t0)
+        if (error) throw new Error(`${name}: ${error.message}`)
+        return { name, data, count: count ?? data?.length ?? 0, ms }
+      }
+
+      async function runAll() {
+        try {
+          out('status', 'Running...')
+          const results = await Promise.all([
+            loadTable('event', { order: 'event_date', limit: 50 }),
+            loadTable('team'),
+            loadTable('stadium'),
+          ])
+
+          const events = results[0]
+          const teams = results[1]
+          const stadiums = results[2]
+
+          out('status', `OK — events=${events.count} teams=${teams.count} stadiums=${stadiums.count}`)
+
+          // Render sample
+          document.getElementById('eventsCount').textContent = `${events.count} (loaded ${events.ms}ms)`
+          document.getElementById('teamsCount').textContent = `${teams.count} (loaded ${teams.ms}ms)`
+          document.getElementById('stadiumsCount').textContent = `${stadiums.count} (loaded ${stadiums.ms}ms)`
+
+          const sample = {
+            firstEvent: events.data?.[0] ?? null,
+            firstTeam: teams.data?.[0] ?? null,
+            firstStadium: stadiums.data?.[0] ?? null,
+          }
+          document.getElementById('sample').textContent = JSON.stringify(sample, null, 2)
+        } catch (e) {
+          out('status', e.message || String(e), false)
+          console.error(e)
+        }
+      }
+
+      window.refreshData = runAll
+      window.addEventListener('DOMContentLoaded', runAll)
+    </script>
+  </head>
+  <body>
+    <h1>CricVerse Supabase Data Test</h1>
+    <div class="row">Status: <span id="status" class="ok">Ready</span></div>
+    <div class="row"><button onclick="refreshData()">Refresh</button> <span>Uses supabase-js v2 via CDN</span></div>
+
+    <div class="grid">
+      <div class="card"><strong>Events</strong><div id="eventsCount">-</div></div>
+      <div class="card"><strong>Teams</strong><div id="teamsCount">-</div></div>
+      <div class="card"><strong>Stadiums</strong><div id="stadiumsCount">-</div></div>
+    </div>
+
+    <h3>Sample</h3>
+    <pre id="sample">{}</pre>
+
+    <h3>How to use</h3>
+    <ol>
+      <li>Open this file directly in your browser (no build needed).</li>
+      <li>You should see counts and a sample record from each table.</li>
+      <li>Use the sample code in your app to query Supabase directly.</li>
+    </ol>
+    <p>
+      Supabase URL: <code>https://tiyokcstdmlhpswurelh.supabase.co</code><br/>
+      Auth: <code>anon key (embedded for testing)</code>
+    </p>
+  </body>
+  </html>
+
+

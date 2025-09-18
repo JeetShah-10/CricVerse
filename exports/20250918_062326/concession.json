@@ -1,0 +1,66 @@
+[
+  {
+    "id": 1,
+    "stadium_id": 1,
+    "name": "Food Court 1",
+    "category": "Food & Beverage",
+    "location_zone": "Level 1 Section 1",
+    "opening_hours": "09:00-22:00"
+  },
+  {
+    "id": 2,
+    "stadium_id": 2,
+    "name": "Food Court 2",
+    "category": "Food & Beverage",
+    "location_zone": "Level 1 Section 2",
+    "opening_hours": "09:00-22:00"
+  },
+  {
+    "id": 3,
+    "stadium_id": 3,
+    "name": "Food Court 3",
+    "category": "Food & Beverage",
+    "location_zone": "Level 1 Section 3",
+    "opening_hours": "09:00-22:00"
+  },
+  {
+    "id": 4,
+    "stadium_id": 4,
+    "name": "Food Court 4",
+    "category": "Food & Beverage",
+    "location_zone": "Level 1 Section 4",
+    "opening_hours": "09:00-22:00"
+  },
+  {
+    "id": 5,
+    "stadium_id": 5,
+    "name": "Food Court 5",
+    "category": "Food & Beverage",
+    "location_zone": "Level 1 Section 5",
+    "opening_hours": "09:00-22:00"
+  },
+  {
+    "id": 6,
+    "stadium_id": 6,
+    "name": "Food Court 6",
+    "category": "Food & Beverage",
+    "location_zone": "Level 1 Section 6",
+    "opening_hours": "09:00-22:00"
+  },
+  {
+    "id": 7,
+    "stadium_id": 7,
+    "name": "Food Court 7",
+    "category": "Food & Beverage",
+    "location_zone": "Level 1 Section 7",
+    "opening_hours": "09:00-22:00"
+  },
+  {
+    "id": 8,
+    "stadium_id": 8,
+    "name": "Food Court 8",
+    "category": "Food & Beverage",
+    "location_zone": "Level 1 Section 8",
+    "opening_hours": "09:00-22:00"
+  }
+]
