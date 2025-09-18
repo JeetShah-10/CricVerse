@@ -1,9 +1,9 @@
 {
   "test_run": {
-    "timestamp": "2025-09-17T11:12:54.441430",
+    "timestamp": "2025-09-18T00:23:15.476803",
     "total_tests": 9,
-    "passed": 8,
-    "failed": 1
+    "passed": 6,
+    "failed": 3
   },
   "results": [
     {
@@ -12,7 +12,7 @@
       "success": false,
       "message": "API key not found or invalid",
       "details": null,
-      "timestamp": "2025-09-17T11:12:22.708403"
+      "timestamp": "2025-09-18T00:22:51.107485"
     },
     {
       "test": "Chatbot Import",
@@ -20,7 +20,7 @@
       "success": true,
       "message": "Chatbot module imported successfully",
       "details": null,
-      "timestamp": "2025-09-17T11:12:24.232459"
+      "timestamp": "2025-09-18T00:22:52.763679"
     },
     {
       "test": "Realtime Import",
@@ -28,7 +28,7 @@
       "success": true,
       "message": "Realtime module imported successfully",
       "details": null,
-      "timestamp": "2025-09-17T11:12:24.407261"
+      "timestamp": "2025-09-18T00:22:53.001349"
     },
     {
       "test": "App Startup",
@@ -36,7 +36,7 @@
       "success": true,
       "message": "Flask app is running",
       "details": null,
-      "timestamp": "2025-09-17T11:12:27.811899"
+      "timestamp": "2025-09-18T00:22:55.045783"
     },
     {
       "test": "Chat Interface",
@@ -44,23 +44,23 @@
       "success": true,
       "message": "Chat page loads successfully",
       "details": null,
-      "timestamp": "2025-09-17T11:12:29.851832"
+      "timestamp": "2025-09-18T00:22:57.089059"
     },
     {
       "test": "Chat Endpoint",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "Chat API working correctly",
-      "details": null,
-      "timestamp": "2025-09-17T11:12:36.833693"
+      "status": "[FAIL] FAIL",
+      "success": false,
+      "message": "HTTP 400",
+      "details": "{\n  \"error\": \"CSRF token missing or invalid\",\n  \"message\": \"Please refresh the page and try again\"\n}\n",
+      "timestamp": "2025-09-18T00:23:01.189271"
     },
     {
       "test": "Chat Suggestions",
       "status": "[PASS] PASS",
       "success": true,
-      "message": "Got 3 suggestions",
+      "message": "Got 4 suggestions",
       "details": null,
-      "timestamp": "2025-09-17T11:12:38.869729"
+      "timestamp": "2025-09-18T00:23:03.227147"
     },
     {
       "test": "Realtime Stats",
@@ -68,15 +68,15 @@
       "success": true,
       "message": "Real-time stats working",
       "details": null,
-      "timestamp": "2025-09-17T11:12:40.914306"
+      "timestamp": "2025-09-18T00:23:05.294896"
     },
     {
       "test": "Chatbot Functionality",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "4/4 scenarios passed (100.0%)",
+      "status": "[FAIL] FAIL",
+      "success": false,
+      "message": "Only 0/4 scenarios passed (0.0%)",
       "details": null,
-      "timestamp": "2025-09-17T11:12:54.441430"
+      "timestamp": "2025-09-18T00:23:15.476803"
     }
   ]
 }

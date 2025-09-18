@@ -9,7 +9,6 @@ from datetime import datetime, timezone, timedelta
 from functools import wraps
 from typing import Dict, Any, Optional, List
 from flask import current_app
-from app import db, Ticket
 from threading import Lock
 from collections import OrderedDict
 import qrcode

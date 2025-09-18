@@ -1,9 +1,9 @@
 {
   "test_run": {
-    "timestamp": "2025-09-17T11:13:40.460271",
+    "timestamp": "2025-09-18T00:24:04.697409",
     "total_tests": 6,
-    "passed": 5,
-    "failed": 1,
+    "passed": 3,
+    "failed": 3,
     "fixes_applied": 6
   },
   "test_results": [
@@ -11,9 +11,9 @@
       "test": "Flask App",
       "status": "[FAIL] FAIL",
       "success": false,
-      "message": "App not running: HTTPConnectionPool(host='localhost', port=5000): Read timed out. (read timeout=5)",
+      "message": "App not running: HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002093F032180>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))",
       "details": null,
-      "timestamp": "2025-09-17T11:11:55.231166"
+      "timestamp": "2025-09-18T00:22:40.906833"
     },
     {
       "test": "Flask App",
@@ -21,7 +21,7 @@
       "success": true,
       "message": "App is running",
       "details": null,
-      "timestamp": "2025-09-17T11:12:03.244916"
+      "timestamp": "2025-09-18T00:22:50.041540"
     },
     {
       "test": "Credentials",
@@ -29,23 +29,23 @@
       "success": true,
       "message": "All credentials are valid",
       "details": null,
-      "timestamp": "2025-09-17T11:12:03.794662"
+      "timestamp": "2025-09-18T00:22:50.576919"
     },
     {
       "test": "QR Code",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "QR code generation working",
+      "status": "[FAIL] FAIL",
+      "success": false,
+      "message": "QR code test failed",
       "details": null,
-      "timestamp": "2025-09-17T11:12:22.288797"
+      "timestamp": "2025-09-18T00:22:50.653556"
     },
     {
       "test": "Chatbot",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "Chatbot integration working",
+      "status": "[FAIL] FAIL",
+      "success": false,
+      "message": "Chatbot test failed",
       "details": null,
-      "timestamp": "2025-09-17T11:12:54.746670"
+      "timestamp": "2025-09-18T00:23:15.750449"
     },
     {
       "test": "Performance",
@@ -53,7 +53,7 @@
       "success": true,
       "message": "Performance test completed",
       "details": null,
-      "timestamp": "2025-09-17T11:13:21.115936"
+      "timestamp": "2025-09-18T00:23:34.620321"
     }
   ],
   "fixes_applied": [
@@ -62,42 +62,42 @@
       "status": "[FIX] APPLIED",
       "success": true,
       "message": "Created successfully",
-      "timestamp": "2025-09-17T11:11:31.625697"
+      "timestamp": "2025-09-18T00:22:27.964580"
     },
     {
       "fix": "Directory static/uploads",
       "status": "[FIX] APPLIED",
       "success": true,
       "message": "Created successfully",
-      "timestamp": "2025-09-17T11:11:31.625697"
+      "timestamp": "2025-09-18T00:22:27.964580"
     },
     {
       "fix": "Directory logs",
       "status": "[FIX] APPLIED",
       "success": true,
       "message": "Created successfully",
-      "timestamp": "2025-09-17T11:11:31.625697"
+      "timestamp": "2025-09-18T00:22:27.964580"
     },
     {
       "fix": "Database",
-      "status": "[FIX] APPLIED",
-      "success": true,
-      "message": "Database tables created/verified",
-      "timestamp": "2025-09-17T11:11:48.184058"
+      "status": "[FAIL] FAILED",
+      "success": false,
+      "message": "Error: Foreign key associated with column 'ticket_transfer.to_customer_id' could not find table 'customer' with which to generate a foreign key to target column 'id'",
+      "timestamp": "2025-09-18T00:22:36.813643"
     },
     {
       "fix": "Flask App Startup",
       "status": "[FIX] APPLIED",
       "success": true,
       "message": "App started successfully",
-      "timestamp": "2025-09-17T11:12:03.245269"
+      "timestamp": "2025-09-18T00:22:50.041540"
     },
     {
       "fix": "Performance Optimization",
-      "status": "[FIX] APPLIED",
-      "success": true,
-      "message": "Optimization completed",
-      "timestamp": "2025-09-17T11:13:40.435930"
+      "status": "[FAIL] FAILED",
+      "success": false,
+      "message": "Error running optimization: Command '['C:\\\\Users\\\\DEV\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe', 'performance_optimizer.py']' timed out after 30 seconds",
+      "timestamp": "2025-09-18T00:24:04.662955"
     }
   ]
 }
