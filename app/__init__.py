@@ -7,6 +7,12 @@ from config import config
 db = SQLAlchemy()
 login_manager = LoginManager()
 
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login."""
+    from app.models.booking import Customer
+    return Customer.query.get(int(user_id))
+
 def create_app(config_name='default'):
     """Application factory pattern implementation."""
     app = Flask(__name__)
