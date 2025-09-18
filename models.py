@@ -13,6 +13,7 @@ class Concession(db.Model):
     category = db.Column(db.String(50))
     location_zone = db.Column(db.String(50))
     opening_hours = db.Column(db.String(100))
+    description = db.Column(db.Text)
     menu_items = db.relationship('MenuItem', backref='concession', lazy=True)
     orders = db.relationship('Order', backref='concession', lazy=True)
 
@@ -164,6 +165,7 @@ class MenuItem(db.Model):
     price = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50))
     is_available = db.Column(db.Boolean, default=True)
+    is_vegetarian = db.Column(db.Boolean, default=True)
 
 
 class Parking(db.Model):
