@@ -49,6 +49,31 @@ try:
 except ImportError as e:
     print(f"[WARN] Security framework components not available: {e}")
     SECURITY_FRAMEWORK_AVAILABLE = False
+    # Create dummy decorators to prevent errors
+    def require_csrf(f):
+        return f
+    def validate_json_input(model):
+        def decorator(f):
+            return f
+        return decorator
+    def rate_limit_by_user(limit):
+        def decorator(f):
+            return f
+        return decorator
+    # Create dummy validation models
+    class PaymentValidationModel:
+        pass
+    class BookingValidationModel:
+        pass
+    # Create dummy limiter
+    class DummyLimiter:
+        def limit(self, limit_string, key_func=None):
+            def decorator(f):
+                return f
+            return decorator
+        def exempt(self, f):
+            return f
+    limiter = DummyLimiter()
 
 # Load environment variables (prefer local cricverse.env, fallback to .env)
 if os.path.exists('cricverse.env'):
