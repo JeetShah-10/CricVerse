@@ -27,25 +27,25 @@ def init_admin(app, db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, C
             return current_user.is_authenticated and current_user.is_admin
 
     class EventModelView(ModelView):
-        column_list = ('id', 'name', 'event_date', 'stadium', 'created_at')
-        column_searchable_list = ('name',)
-        column_filters = ('event_date', 'stadium')
+        column_list = ('id', 'event_name', 'event_date', 'stadium_id', 'start_time')
+        column_searchable_list = ('event_name',)
+        column_filters = ('event_date', 'stadium_id')
         
         def is_accessible(self):
             return current_user.is_authenticated and current_user.is_admin
 
     class BookingModelView(ModelView):
-        column_list = ('id', 'customer', 'event', 'booking_date', 'total_amount', 'booking_status')
-        column_searchable_list = ('customer.name', 'event.name')
-        column_filters = ('booking_date', 'booking_status', 'payment_method')
+        column_list = ('id', 'customer', 'booking_date', 'total_amount')
+        column_searchable_list = ('customer.name',)
+        column_filters = ('booking_date', 'total_amount')
         
         def is_accessible(self):
             return current_user.is_authenticated and current_user.is_admin
 
     class TicketModelView(ModelView):
         column_list = ('id', 'customer', 'event', 'seat', 'booking', 'ticket_status')
-        column_searchable_list = ('customer.name', 'event.name')
-        column_filters = ('ticket_status', 'booking_date')
+        column_searchable_list = ('customer.name', 'event.event_name')
+        column_filters = ('ticket_status', 'created_at')
         
         def is_accessible(self):
             return current_user.is_authenticated and current_user.is_admin

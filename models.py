@@ -155,18 +155,6 @@ class Photo(db.Model):
     caption = db.Column(db.String(200))
 
 
-class Concession(db.Model):
-    __tablename__ = 'concession'
-    id = db.Column(db.Integer, primary_key=True)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'))
-    name = db.Column(db.String(100), nullable=False)
-    category = db.Column(db.String(50))
-    location_zone = db.Column(db.String(50))
-    opening_hours = db.Column(db.String(100))
-    menu_items = db.relationship('MenuItem', backref='concession', lazy=True)
-    orders = db.relationship('Order', backref='concession', lazy=True)
-
-
 class MenuItem(db.Model):
     __tablename__ = 'menu_item'
     id = db.Column(db.Integer, primary_key=True)
@@ -199,6 +187,8 @@ class Customer(db.Model, UserMixin):
     membership_level = db.Column(db.String(50))
     verification_status = db.Column(db.String(20), default='not_verified')
     favorite_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     bookings = db.relationship('Booking', backref='customer', lazy=True)
     orders = db.relationship('Order', backref='customer', lazy=True)

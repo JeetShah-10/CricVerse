@@ -1,0 +1,17 @@
+/* Minimal theme variables and light-safe resets. Avoid component overrides. */
+:root {
+  --primary-navy:#1a1b3a; --secondary-orange:#ff6b35; --accent-cyan:#00d4ff;
+  --text-primary:#ffffff; --text-secondary:#b8bcc8; --bg-primary:#1a1b3a;
+}
+
+[data-bs-theme="dark"] {
+  --bs-body-bg:#181a1b; --bs-body-color:#e9ecef; --bs-border-color:#495057;
+}
+
+html,body { background-color: var(--bs-body-bg); color: var(--bs-body-color); }
+
+/* Keep navbar visible */
+.glass-header { z-index:1030; }
+
+/* Do not override .btn, .card, .container globally here. */
+

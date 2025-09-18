@@ -23,7 +23,11 @@ except ImportError:
     except ImportError:
         CHATBOT_AVAILABLE = False
         print("[WARN] No chatbot module available")
-import razorpay
+# Suppress deprecation warnings from razorpay's pkg_resources usage
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', category=UserWarning, module='pkg_resources')
+    import razorpay
 import hmac
 import hashlib
 import json
@@ -200,7 +204,7 @@ def add_security_headers(response):
     
     return response
 
-# Database configuration with PostgreSQL fallback
+# Database configuration with Supabase support
 database_url = os.getenv('DATABASE_URL')
 
 # If no DATABASE_URL is set, try to construct PostgreSQL URL for stadium_db
@@ -232,20 +236,27 @@ if not database_url:
         print(f"[WARNING] PostgreSQL connection failed: {e}")
         print(f"Falling back to SQLite...")
         database_url = 'sqlite:///cricverse.db'
+else:
+    print(f"[DATABASE] Using provided DATABASE_URL: {database_url[:50]}...")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-# Database connection pool settings for PostgreSQL
+# Database connection pool settings for PostgreSQL with Supabase optimization
 if 'postgresql' in database_url:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_pre_ping': True,
-        'pool_recycle': 300,
-        'pool_timeout': 20,
-        'max_overflow': 0,
-        'pool_size': 5,  # Reduced pool size for Supabase
-        'echo': False  # Disable SQL logging for performance
+        'pool_recycle': 280,  # Slightly shorter than Supabase timeout
+        'pool_timeout': 60,   # Increased timeout for Supabase
+        'max_overflow': 3,    # Allow some overflow connections
+        'pool_size': 3,       # Smaller pool for Supabase free tier
+        'echo': False,        # Disable SQL logging for performance
+        'connect_args': {
+            'connect_timeout': 10,     # Shorter connection timeout
+            'application_name': 'CricVerse',
+            'options': '-c statement_timeout=120000'  # 2 minutes for complex queries
+        }
     }
 
 # Initialize extensions
@@ -821,10 +832,58 @@ def load_user(user_id):
 def init_db():
     """Initialize the database with tables only (no sample seeding)."""
     try:
-        db.create_all()
-        print("Database tables ensured.")
+        print(f"[DEBUG] Using database URL: {database_url}")
+        
+        # Test database connection first with timeout
+        try:
+            print("[DEBUG] Testing database connection...")
+            with db.engine.connect() as conn:
+                result = conn.execute(db.text("SELECT 1"))
+                print("[PASS] Database connection test successful")
+        except Exception as e:
+            print(f"[WARN] Database connection test failed: {e}")
+            
+            # If it's a connection timeout, try to fallback to SQLite
+            if "Connection timed out" in str(e) or "timeout" in str(e).lower():
+                print("[INFO] Connection timeout detected. Switching to SQLite for local development...")
+                app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cricverse_local.db'
+                print("[INFO] Database URL updated to SQLite")
+                # Reinitialize the database with new URL
+                db.init_app(app)
+                return init_db()  # Recursive call with SQLite
+        
+        # On managed Supabase, assume schema is migrated and skip create_all
+        if 'supabase.com' in database_url:
+            print("[INFO] Supabase detected - skipping db.create_all() (assume migrations applied)")
+            return True
+
+        # Create all tables locally (SQLite/Postgres dev)
+        max_retries = 1
+        for attempt in range(max_retries):
+            try:
+                print(f"[DEBUG] Creating database tables (attempt {attempt + 1})...")
+                db.create_all()
+                print("[PASS] Database tables created successfully")
+                return True
+            except Exception as e:
+                print(f"[ERROR] Database creation failed: {e}")
+                # Try SQLite fallback for local use
+                if "postgresql" in database_url:
+                    print("[INFO] PostgreSQL failed, switching to SQLite...")
+                    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cricverse_local.db'
+                    db.init_app(app)
+                    try:
+                        db.create_all()
+                        print("[PASS] SQLite database created successfully")
+                        return True
+                    except Exception as sqlite_error:
+                        print(f"[FAIL] SQLite fallback also failed: {sqlite_error}")
+                        raise e
+                else:
+                    raise e
     except Exception as e:
-        print(f"Error initializing database: {e}")
+        print(f"[FAIL] Database initialization failed: {e}")
+        return False
 
 # Admin Routes
 @app.route('/admin/dashboard')
@@ -3996,6 +4055,8 @@ def get_top_performers():
             'error': str(e)
         }), 500
 
+## Removed read-only dump endpoints for direct frontend Supabase access
+
 @app.route('/api/bbl/teams')
 # ===============================
 # TICKET TRANSFER API ENDPOINTS
@@ -4770,33 +4831,74 @@ def get_teams():
         }), 500
 
 if __name__ == '__main__':
-    with app.app_context():
-        try:
-            # Create all basic tables
-            db.create_all()
-            print("[PASS] Basic database tables created")
-            
-            
-                
-        except Exception as e:
-            print(f"[FAIL] Database initialization failed: {e}")
-            print("[NOTE] Check your database connection and try again")
+    print("=" * 60)
+    print("CricVerse Stadium System - Starting Up")
+    print("=" * 60)
     
-    # Initialize Flask-Admin
+    # Initialize database with retry logic
+    print("1. Initializing database...")
+    with app.app_context():
+        db_success = init_db()
+        if not db_success:
+            print("[WARN] Database initialization had issues, but continuing...")
+        else:
+            print("[PASS] Database initialized successfully")
+    
+    # Initialize Flask-Admin (disabled by default to avoid schema mismatches)
+    print("\n2. Initializing Flask-Admin...")
+    if os.getenv('ENABLE_ADMIN', '0') == '1':
+        try:
+            admin = init_admin(app, db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking, VerificationSubmission)
+            print("[PASS] Flask-Admin initialized")
+        except Exception as e:
+            print(f"[WARN] Flask-Admin initialization failed: {e}")
+    else:
+        print("[SKIP] Admin disabled (set ENABLE_ADMIN=1 to enable)")
+    
+    # Test basic functionality
+    print("\n3. Testing basic functionality...")
     try:
-        admin = init_admin(app, db, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking, VerificationSubmission)
-        print("[PASS] Flask-Admin initialized")
+        with app.test_client() as client:
+            # Test home page
+            response = client.get('/')
+            if response.status_code == 200:
+                print(f"[PASS] Home page (Status: {response.status_code})")
+            else:
+                print(f"[WARN] Home page (Status: {response.status_code})")
+            
+            # Test CSRF API
+            response = client.get('/api/csrf-token')
+            if response.status_code == 200:
+                print(f"[PASS] CSRF API (Status: {response.status_code})")
+            else:
+                print(f"[WARN] CSRF API (Status: {response.status_code})")
+                
+            # Test BBL API
+            response = client.get('/api/bbl/live-scores')
+            if response.status_code == 200:
+                print(f"[PASS] BBL API (Status: {response.status_code})")
+            else:
+                print(f"[WARN] BBL API (Status: {response.status_code})")
     except Exception as e:
-        print(f"[WARN] Flask-Admin initialization failed: {e}")
+        print(f"[WARN] Basic functionality test error: {e}")
     
     # Start the application with optimized settings
-    print("[START] Starting CricVerse Stadium System...")
+    print("\n4. Starting CricVerse Stadium System...")
     print(f"[WEB] Server will be available at: http://localhost:5000")
+    print(f"[WEB] Also accessible at: http://127.0.0.1:5000")
+    print("[NOTE] Press CTRL+C to stop the server")
     
-    # Use production-like settings even in development for better performance
-    socketio.run(app, 
-                debug=False,  # Disable debug mode to prevent restarts
-                host='0.0.0.0', 
-                port=5000,
-                use_reloader=False,  # Disable auto-reloader
-                log_output=False)  # Reduce logging for performance
+    try:
+        # Use production-like settings even in development for better performance
+        socketio.run(app, 
+                    debug=False,  # Disable debug mode to prevent restarts
+                    host='0.0.0.0', 
+                    port=5000,
+                    use_reloader=False,  # Disable auto-reloader
+                    log_output=False)  # Reduce logging for performance
+    except KeyboardInterrupt:
+        print("\n[INFO] Server stopped by user")
+    except Exception as e:
+        print(f"\n[ERROR] Server error: {e}")
+        import traceback
+        traceback.print_exc()
