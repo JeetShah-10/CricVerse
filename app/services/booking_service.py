@@ -106,7 +106,7 @@ def book_seat(seat_id, event_id, customer_id):
 
             # Broadcast realtime booking notification (best-effort)
             try:
-                from realtime import notify_new_booking
+                from realtime_server import notify_new_booking
                 stadium_id = getattr(event, 'stadium_id', None)
                 if stadium_id:
                     notify_new_booking(stadium_id, {
@@ -285,7 +285,7 @@ def capture_payment_and_create_booking(order_id, customer_id):
 
             # Broadcast realtime booking notification (best-effort)
             try:
-                from realtime import notify_new_booking
+                from realtime_server import notify_new_booking
                 stadium_id = getattr(event, 'stadium_id', None)
                 if stadium_id:
                     notify_new_booking(stadium_id, {

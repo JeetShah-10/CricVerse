@@ -10,7 +10,7 @@
         <div class="card h-100 shadow-sm">
           <div class="card-body">
             <h5 class="card-title">
-                <a href="{{ url_for('event_detail', event_id=event.id) }}" class="text-decoration-none">{{ event.event_name }}</a>
+                <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="text-decoration-none">{{ event.event_name }}</a>
             </h5>
             <div class="text-muted mb-3">{{ event.event_date }} • {{ event.tournament_name }}</div>
             <div class="mb-3">{{ event.home_team.team_name }} vs {{ event.away_team.team_name }}</div>

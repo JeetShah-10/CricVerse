@@ -533,23 +533,105 @@ Always prioritize database information over general knowledge, use personalizati
                             context_data['seat_availability'] = []
                             for stadium in Stadium.query.all():
                                 seats = Seat.query.filter_by(stadium_id=stadium.id).all()
+                                
+                                # Calculate availability by category
+                                total_seats = len(seats)
+                                available_general = len([s for s in seats if getattr(s, 'seat_category', '') == 'general' and getattr(s, 'is_available', True)])
+                                available_premium = len([s for s in seats if getattr(s, 'seat_category', '') == 'premium' and getattr(s, 'is_available', True)])
+                                available_vip = len([s for s in seats if getattr(s, 'seat_category', '') == 'vip' and getattr(s, 'is_available', True)])
+                                available_family = len([s for s in seats if getattr(s, 'seat_category', '') == 'family' and getattr(s, 'is_available', True)])
+                                
                                 availability_info = {
                                     'stadium_name': stadium.name,
-                                    'total_seats': len(seats),
-                                    'available_seats': len([s for s in seats if getattr(s, 'is_available', True)]),
-                                    'premium_available': len([s for s in seats if getattr(s, 'seat_type', '') == 'premium' and getattr(s, 'is_available', True)]),
-                                    'vip_available': len([s for s in seats if getattr(s, 'seat_type', '') == 'vip' and getattr(s, 'is_available', True)]),
+                                    'stadium_id': stadium.id,
+                                    'total_capacity': total_seats,
+                                    'general_available': available_general,
+                                    'premium_available': available_premium,
+                                    'vip_available': available_vip,
+                                    'family_available': available_family,
                                     'accessibility_available': len([s for s in seats if getattr(s, 'is_accessible', False) and getattr(s, 'is_available', True)]),
-                                    'best_view_sections': getattr(stadium, 'best_view_sections', ['Section A', 'Section B']),
-                                    'family_sections': getattr(stadium, 'family_friendly_sections', ['Family Zone']),
-                                    'party_zones': getattr(stadium, 'party_zones', ['Bay 13 equivalent']),
-                                    'quiet_zones': getattr(stadium, 'quiet_zones', ['Premium areas']),
-                                    'sun_protection': getattr(stadium, 'covered_sections', ['Upper tier']),
-                                    'closest_to_action': getattr(stadium, 'closest_sections', ['Lower tier behind wickets'])
+                                    'occupancy_percentage': round(((total_seats - len([s for s in seats if getattr(s, 'is_available', True)])) / total_seats * 100), 2) if total_seats > 0 else 0,
+                                    'popular_sections': getattr(stadium, 'popular_sections', []),
+                                    'price_ranges': {
+                                        'general': getattr(stadium, 'general_price_range', '₹2,000-2,800'),
+                                        'premium': getattr(stadium, 'premium_price_range', '₹3,600-5,200'),
+                                        'vip': getattr(stadium, 'vip_price_range', '₹6,800-9,600'),
+                                        'family': getattr(stadium, 'family_price_range', '₹6,400-8,000')
+                                    },
+                                    'booking_deadline': getattr(stadium, 'booking_deadline_hours', 2),
+                                    'cancellation_policy': getattr(stadium, 'cancellation_policy', '24 hours before event for full refund'),
+                                    'group_booking_minimum': getattr(stadium, 'group_booking_minimum', 10),
+                                    'season_pass_compatible': getattr(stadium, 'season_pass_venues', True)
                                 }
                                 context_data['seat_availability'].append(availability_info)
+                            
+                            # Get upcoming events with detailed booking info
+                            upcoming_events = Event.query.filter(Event.event_date >= datetime.now()).order_by(Event.event_date).limit(10).all()
+                            context_data['bookable_events'] = []
+                            
+                            for event in upcoming_events:
+                                event_booking_info = {
+                                    'event_id': event.id,
+                                    'event_name': event.name,
+                                    'event_date': event.event_date.strftime('%Y-%m-%d %H:%M') if event.event_date else 'TBD',
+                                    'venue': event.venue,
+                                    'tickets_on_sale': getattr(event, 'tickets_on_sale', True),
+                                    'sale_start_date': getattr(event, 'sale_start_date', datetime.now()).strftime('%Y-%m-%d'),
+                                    'sale_end_date': getattr(event, 'sale_end_date', event.event_date).strftime('%Y-%m-%d') if event.event_date else 'TBD',
+                                    'total_tickets': getattr(event, 'total_tickets', 1000),
+                                    'tickets_sold': getattr(event, 'tickets_sold', 0),
+                                    'tickets_remaining': getattr(event, 'total_tickets', 1000) - getattr(event, 'tickets_sold', 0),
+                                    'min_price': float(event.ticket_price) if event.ticket_price else 2000,
+                                    'max_price': getattr(event, 'max_ticket_price', float(event.ticket_price) * 3 if event.ticket_price else 6000),
+                                    'early_bird_available': getattr(event, 'early_bird_available', True),
+                                    'early_bird_discount': getattr(event, 'early_bird_discount', 20),
+                                    'group_discounts': getattr(event, 'group_discounts', True),
+                                    'vip_packages': getattr(event, 'vip_packages_available', True),
+                                    'accessibility_tickets': getattr(event, 'accessibility_tickets_available', True),
+                                    'payment_methods': getattr(event, 'accepted_payment_methods', ['Credit Card', 'Debit Card', 'UPI', 'Net Banking', 'Wallet']),
+                                    'booking_fee': getattr(event, 'booking_fee_percentage', 3.5),
+                                    'refund_policy': getattr(event, 'refund_policy', 'Full refund up to 24 hours before event'),
+                                    'transfer_policy': getattr(event, 'ticket_transfer_allowed', True),
+                                    'print_at_home': getattr(event, 'print_at_home_available', True),
+                                    'mobile_tickets': getattr(event, 'mobile_tickets_available', True),
+                                    'will_call': getattr(event, 'will_call_available', True)
+                                }
+                                context_data['bookable_events'].append(event_booking_info)
+                            
+                            # Get upcoming matches with booking details
+                            upcoming_matches = Match.query.filter(Match.match_date >= datetime.now()).order_by(Match.match_date).limit(10).all()
+                            context_data['bookable_matches'] = []
+                            
+                            for match in upcoming_matches:
+                                match_booking_info = {
+                                    'match_id': match.id,
+                                    'home_team': match.home_team,
+                                    'away_team': match.away_team,
+                                    'match_date': match.match_date.strftime('%Y-%m-%d %H:%M') if match.match_date else 'TBD',
+                                    'venue': match.venue,
+                                    'tickets_available': getattr(match, 'tickets_available', True),
+                                    'tickets_on_sale': getattr(match, 'tickets_on_sale', True),
+                                    'sale_phase': getattr(match, 'sale_phase', 'general_sale'),  # presale, member_sale, general_sale
+                                    'presale_code_required': getattr(match, 'presale_code_required', False),
+                                    'member_priority_hours': getattr(match, 'member_priority_hours', 24),
+                                    'dynamic_pricing': getattr(match, 'dynamic_pricing_enabled', True),
+                                    'surge_pricing_active': getattr(match, 'surge_pricing_active', False),
+                                    'base_price': float(match.ticket_price) if match.ticket_price else 2000,
+                                    'current_price_multiplier': getattr(match, 'current_price_multiplier', 1.0),
+                                    'predicted_sellout': getattr(match, 'predicted_sellout', False),
+                                    'high_demand_match': getattr(match, 'is_high_demand', False),
+                                    'rivalry_surcharge': getattr(match, 'rivalry_surcharge_percentage', 0),
+                                    'weather_guarantee': getattr(match, 'weather_guarantee', True),
+                                    'rain_policy': getattr(match, 'rain_policy', 'Reschedule or partial refund'),
+                                    'last_minute_deals': getattr(match, 'last_minute_deals_available', True),
+                                    'student_rush_available': getattr(match, 'student_rush_tickets', True),
+                                    'family_packs': getattr(match, 'family_pack_available', True),
+                                    'corporate_boxes': getattr(match, 'corporate_boxes_available', True)
+                                }
+                                context_data['bookable_matches'].append(match_booking_info)
+                            
                         except Exception as e:
-                            logger.warning(f"Could not get seat availability: {e}")
+                            logger.warning(f"Could not get booking data: {e}")
                 
                 # Get customer reviews and ratings
                 if any(word in message_lower for word in ['review', 'rating', 'feedback', 'experience', 'recommend', 'opinion', 'quality']):
@@ -738,37 +820,39 @@ Always prioritize database information over general knowledge, use personalizati
             logger.error(f"Error getting database context: {e}")
             return {}
 
-    def generate_response(self, user_message, customer_id=None, session_id=None):
-        """Generate AI response using Gemini with comprehensive fallback system"""
-        try:
-            # Ensure session_id exists
-            if not session_id:
-                session_id = str(uuid.uuid4())
+    def generate_response(self, user_message, customer_id=None, session_id=None, user_id=None):
+        """Main function to get chatbot response
+        Backward-compatible: accepts user_id and maps it to customer_id if provided.
+        """
+        if user_id is not None and customer_id is None:
+            customer_id = user_id
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        
+        # Check if this is a booking request
+        booking_intent = self.extract_booking_intent(user_message)
+        if any(word in user_message.lower() for word in ['book', 'buy', 'purchase', 'reserve']) and customer_id:
+            # Get database context for booking
+            db_context = self.get_database_context(user_message)
             
-            # Check if this is a booking request
-            booking_intent = self.extract_booking_intent(user_message)
-            if any(word in user_message.lower() for word in ['book', 'buy', 'purchase', 'reserve']) and customer_id:
-                # Get database context for booking
-                db_context = self.get_database_context(user_message)
+            # If we have enough details, process the booking
+            if booking_intent.get('seat_count') and (db_context.get('bookable_events') or db_context.get('bookable_matches')):
+                # Auto-select first available event/match if not specified
+                if not booking_intent.get('event_id') and not booking_intent.get('match_id'):
+                    if db_context.get('bookable_events'):
+                        booking_intent['event_id'] = db_context['bookable_events'][0]['event_id']
+                        booking_intent['stadium_id'] = 1  # Default stadium
+                        booking_intent['base_price'] = db_context['bookable_events'][0]['min_price']
+                    elif db_context.get('bookable_matches'):
+                        booking_intent['match_id'] = db_context['bookable_matches'][0]['match_id']
+                        booking_intent['stadium_id'] = 1  # Default stadium
+                        booking_intent['base_price'] = db_context['bookable_matches'][0]['base_price']
                 
-                # If we have enough details, process the booking
-                if booking_intent.get('seat_count') and (db_context.get('bookable_events') or db_context.get('bookable_matches')):
-                    # Auto-select first available event/match if not specified
-                    if not booking_intent.get('event_id') and not booking_intent.get('match_id'):
-                        if db_context.get('bookable_events'):
-                            booking_intent['event_id'] = db_context['bookable_events'][0]['event_id']
-                            booking_intent['stadium_id'] = 1  # Default stadium
-                            booking_intent['base_price'] = db_context['bookable_events'][0]['min_price']
-                        elif db_context.get('bookable_matches'):
-                            booking_intent['match_id'] = db_context['bookable_matches'][0]['match_id']
-                            booking_intent['stadium_id'] = 1  # Default stadium
-                            booking_intent['base_price'] = db_context['bookable_matches'][0]['base_price']
-                    
-                    # Process the booking
-                    booking_result = self.process_booking_request(user_message, customer_id, booking_intent)
-                    
-                    if booking_result['success']:
-                        response = f"""🎉 **Booking Successful!**
+                # Process the booking
+                booking_result = self.process_booking_request(user_message, customer_id, booking_intent)
+                
+                if booking_result['success']:
+                    response = f"""🎉 **Booking Successful!**
 
 {booking_result['message']}
 
@@ -786,129 +870,125 @@ Always prioritize database information over general knowledge, use personalizati
 [Complete Payment]({booking_result['payment_link']})
 
 Need help with anything else?"""
-                    else:
-                        response = f"""❌ **Booking Issue**
+                else:
+                    response = f"""❌ **Booking Issue**
 
 {booking_result['message']}
 
 **Available Options:**
 """
-                        for alt in booking_result.get('alternatives', []):
-                            response += f"• **{alt['category'].title()}** - {alt['available_count']} seats available ({alt['price_range']})\n"
-                        
-                        response += "\n**What would you like to do?**\n"
-                        for step in booking_result.get('next_steps', []):
-                            response += f"• {step}\n"
+                    for alt in booking_result.get('alternatives', []):
+                        response += f"• **{alt['category'].title()}** - {alt['available_count']} seats available ({alt['price_range']})\n"
                     
-                    # Log the interaction
-                    self.log_interaction(user_message, response, customer_id, session_id, 0)
-                    
-                    return {
-                        'response': response,
-                        'confidence': 0.95,
-                        'tokens_used': 0,
-                        'model': 'booking_system',
-                        'booking_data': booking_result
-                    }
-            
-            # Get enhanced database context for the query with personalization
-            db_context = self.get_enhanced_database_context(user_message, customer_id)
-            
-            # Get user profile for personalization
-            user_profile = self.get_user_profile(customer_id) if customer_id else {}
-            
-            # Get conversation history with enhanced context
-            conversation_history = []
-            if customer_id and session_id:
-                conversation_history = self.get_enhanced_conversation_context(customer_id, session_id)
-            
-            # Build enhanced prompt with personalization
-            prompt_parts = [self.system_prompt]
-            
-            # Add user profile context
-            if user_profile:
-                profile_context = f"\nUser Profile Context:\n"
-                profile_context += f"- Name: {user_profile.get('name', 'Guest')}\n"
-                profile_context += f"- Membership Level: {user_profile.get('membership_level', 'Basic')}\n"
-                if user_profile.get('favorite_team'):
-                    profile_context += f"- Favorite Team: {user_profile['favorite_team']['name']}\n"
-                profile_context += f"- Total Bookings: {user_profile.get('total_bookings', 0)}\n"
-                profile_context += f"- Total Spent: ₹{user_profile.get('total_spent', 0):,.2f}\n"
+                    response += "\n**What would you like to do?**\n"
+                    for step in booking_result.get('next_steps', []):
+                        response += f"• {step}\n"
                 
-                if user_profile.get('booking_patterns'):
-                    bp = user_profile['booking_patterns']
-                    profile_context += f"- Booking Patterns: Avg ₹{bp.get('average_booking_amount', 0):.0f} per booking\n"
+                # Log the interaction
+                self.log_interaction(user_message, response, customer_id, session_id, 0)
                 
-                prompt_parts.append(profile_context)
+                return {
+                    'response': response,
+                    'confidence': 0.95,
+                    'tokens_used': 0,
+                    'model': 'booking_system',
+                    'booking_data': booking_result
+                }
+        
+        # Get enhanced database context for the query with personalization
+        db_context = self.get_enhanced_database_context(user_message, customer_id)
+        
+        # Get user profile for personalization
+        user_profile = self.get_user_profile(customer_id) if customer_id else {}
+        
+        # Get conversation history with enhanced context
+        conversation_history = []
+        if customer_id and session_id:
+            conversation_history = self.get_enhanced_conversation_context(customer_id, session_id)
+        
+        # Build enhanced prompt with personalization
+        prompt_parts = [self.system_prompt]
+        
+        # Add user profile context
+        if user_profile:
+            profile_context = f"\nUser Profile Context:\n"
+            profile_context += f"- Name: {user_profile.get('name', 'Guest')}\n"
+            profile_context += f"- Membership Level: {user_profile.get('membership_level', 'Basic')}\n"
+            if user_profile.get('favorite_team'):
+                profile_context += f"- Favorite Team: {user_profile['favorite_team']['name']}\n"
+            profile_context += f"- Total Bookings: {user_profile.get('total_bookings', 0)}\n"
+            profile_context += f"- Total Spent: ₹{user_profile.get('total_spent', 0):,.2f}\n"
             
-            if db_context:
-                # Add personalized recommendations if available
-                if db_context.get('personalized_recommendations'):
-                    rec_context = "\nPersonalized Recommendations Based on User History:\n"
-                    for rec in db_context['personalized_recommendations'][:3]:
-                        rec_context += f"- {rec['name']}: ₹{rec['price']} (Score: {rec['recommendation_score']:.1f})\n"
-                    prompt_parts.append(rec_context)
+            if user_profile.get('booking_patterns'):
+                bp = user_profile['booking_patterns']
+                profile_context += f"- Booking Patterns: Avg ₹{bp.get('average_booking_amount', 0):.0f} per booking\n"
+            
+            prompt_parts.append(profile_context)
+        
+        if db_context:
+            # Add personalized recommendations if available
+            if db_context.get('personalized_recommendations'):
+                rec_context = "\nPersonalized Recommendations Based on User History:\n"
+                for rec in db_context['personalized_recommendations'][:3]:
+                    rec_context += f"- {rec['name']}: ₹{rec['price']} (Score: {rec['recommendation_score']:.1f})\n"
+                prompt_parts.append(rec_context)
+            
+            # Add user's recent activity if available
+            if db_context.get('user_booking_history'):
+                activity_context = "\nUser's Recent Activity:\n"
+                for booking in db_context['user_booking_history'][:3]:
+                    activity_context += f"- {booking['booking_date']}: ₹{booking['total_amount']} ({booking['seats_count']} seats)\n"
+                prompt_parts.append(activity_context)
+            
+            prompt_parts.append(f"\nRelevant database information for this query:\n{json.dumps(db_context, indent=2)}")
+        
+        # Add conversation history with enhanced analysis
+        if conversation_history:
+            prompt_parts.append("\nRecent conversation with analysis:")
+            for msg in conversation_history[-6:]:  # Include more context
+                role = "User" if msg["role"] == "user" else "Assistant" if msg["role"] == "assistant" else "System"
+                prompt_parts.append(f"{role}: {msg['content']}")
+        
+        prompt_parts.append(f"\nUser: {user_message}")
+        prompt_parts.append("\nAssistant:")
+        
+        prompt_text = "\n".join(prompt_parts)
+        
+        # Generate response using Gemini
+        if gemini_available:
+            try:
+                genai.configure(api_key=self.api_key)
+                model = genai.GenerativeModel(self.model)
+                response = model.generate_content(prompt_text)
+                ai_response = response.text.strip()
+                tokens_used = len(prompt_text.split()) + len(ai_response.split())
                 
-                # Add user's recent activity if available
-                if db_context.get('user_booking_history'):
-                    activity_context = "\nUser's Recent Activity:\n"
-                    for booking in db_context['user_booking_history'][:3]:
-                        activity_context += f"- {booking['booking_date']}: ₹{booking['total_amount']} ({booking['seats_count']} seats)\n"
-                    prompt_parts.append(activity_context)
+                # Enhance AI response with personalized features
+                if customer_id and user_profile:
+                    ai_response = self.add_personalization_to_response(ai_response, user_profile, db_context)
                 
-                prompt_parts.append(f"\nRelevant database information for this query:\n{json.dumps(db_context, indent=2)}")
-            
-            # Add conversation history with enhanced analysis
-            if conversation_history:
-                prompt_parts.append("\nRecent conversation with analysis:")
-                for msg in conversation_history[-6:]:  # Include more context
-                    role = "User" if msg["role"] == "user" else "Assistant" if msg["role"] == "assistant" else "System"
-                    prompt_parts.append(f"{role}: {msg['content']}")
-            
-            prompt_parts.append(f"\nUser: {user_message}")
-            prompt_parts.append("\nAssistant:")
-            
-            prompt_text = "\n".join(prompt_parts)
-            
-            # Generate response using Gemini
-            if gemini_available:
-                try:
-                    genai.configure(api_key=self.api_key)
-                    model = genai.GenerativeModel(self.model)
-                    response = model.generate_content(prompt_text)
-                    ai_response = response.text.strip()
-                    tokens_used = len(prompt_text.split()) + len(ai_response.split())
-                    
-                    # Enhance AI response with personalized features
-                    if customer_id and user_profile:
-                        ai_response = self.add_personalization_to_response(ai_response, user_profile, db_context)
-                    
-                    # Add booking capabilities if relevant
-                    if any(word in user_message.lower() for word in ['book', 'buy', 'purchase', 'reserve', 'ticket']):
-                        ai_response += self.add_booking_suggestions(db_context, customer_id)
-                    
-                    # Log the interaction
-                    self.log_interaction(user_message, ai_response, customer_id, session_id, tokens_used)
-                    
-                    return {
-                        'response': ai_response,
-                        'confidence': 0.9,
-                        'tokens_used': tokens_used,
-                        'model': self.model
-                    }
-                    
-                except Exception as gemini_error:
-                    logger.error(f"Gemini API error: {gemini_error}")
-                    # Fall back to comprehensive hardcoded responses
-                    return self.get_fallback_response(user_message, db_context)
-            else:
-                # Use comprehensive fallback system
+                # Add booking capabilities if relevant
+                if any(word in user_message.lower() for word in ['book', 'buy', 'purchase', 'reserve', 'ticket']):
+                    ai_response += self.add_booking_suggestions(db_context, customer_id)
+                
+                # Log the interaction
+                self.log_interaction(user_message, ai_response, customer_id, session_id, tokens_used)
+                
+                return {
+                    'response': ai_response,
+                    'confidence': 0.9,
+                    'tokens_used': tokens_used,
+                    'model': self.model
+                }
+                
+            except Exception as gemini_error:
+                logger.error(f"Gemini API error: {gemini_error}")
+                # Fall back to comprehensive hardcoded responses
                 return self.get_fallback_response(user_message, db_context)
+        else:
+            # Use comprehensive fallback system
+            return self.get_fallback_response(user_message, db_context)
                 
-        except Exception as e:
-            logger.error(f"Error generating response: {e}")
-            return self.get_fallback_response(user_message, {})
-
     def add_booking_suggestions(self, db_context, customer_id):
         """Add interactive booking suggestions to AI responses"""
         suggestions = "\n\n🎫 **Ready to Book?**\n"
@@ -1537,7 +1617,7 @@ What would you like to know about BBL cricket? I'm here to make your experience 
         message_lower = message.lower()
         
         # Booking related
-        if any(word in message_lower for word in ['book', 'buy', 'purchase', 'reserve', 'ticket']):
+        if any(word in message_lower for word in ['book', 'buy', 'ticket', 'reserve']):
             if any(word in message_lower for word in ['help', 'support', 'problem', 'issue', 'cancel', 'refund', 'change']):
                 return 'support_request'  # Booking support, not new booking
             return 'booking_request'
@@ -1550,9 +1630,9 @@ What would you like to know about BBL cricket? I'm here to make your experience 
         elif any(word in message_lower for word in ['what', 'when', 'where', 'how', 'which']):
             if any(word in message_lower for word in ['match', 'game', 'schedule']):
                 return 'match_inquiry'
-            elif any(word in message_lower for word in ['food', 'menu', 'eat', 'drink']):
+            elif any(word in message_lower for word in ['food', 'menu', 'eat']):
                 return 'food_inquiry'
-            elif any(word in message_lower for word in ['parking', 'drive', 'car', 'park']):
+            elif any(word in message_lower for word in ['parking', 'drive']):
                 return 'parking_inquiry'
             elif any(word in message_lower for word in ['stadium', 'venue', 'location']):
                 return 'venue_inquiry'
@@ -2239,12 +2319,12 @@ What would you like to know about BBL cricket? I'm here to make your experience 
 cricverse_chatbot = CricVerseChatbot()
 
 
-def get_chatbot_response(message, customer_id=None, session_id=None):
+def get_chatbot_response(message, customer_id=None, session_id=None, user_id=None):
     """Main function to get chatbot response"""
     if not session_id:
         session_id = str(uuid.uuid4())
     
-    return cricverse_chatbot.generate_response(message, customer_id, session_id)
+    return cricverse_chatbot.generate_response(message, customer_id, session_id, user_id)
 
 
 # Flask route handlers
@@ -2319,37 +2399,56 @@ def detect_user_intent(message):
     message_lower = message.lower()
     
     if any(word in message_lower for word in ['book', 'buy', 'ticket', 'reserve']):
-        return 'booking'
-    elif any(word in message_lower for word in ['match', 'game', 'score']):
-        return 'match_info'
-    elif any(word in message_lower for word in ['park', 'parking']):
-        return 'parking'
-    elif any(word in message_lower for word in ['food', 'eat', 'menu']):
-        return 'food'
-    elif any(word in message_lower for word in ['help', 'support', 'problem']):
-        return 'support'
+        if any(word in message_lower for word in ['help', 'support', 'problem', 'issue', 'cancel', 'refund', 'change']):
+            return 'support_request'  # Booking support, not new booking
+        return 'booking_request'
+    
+    # Support related (check before general inquiries)
+    elif any(word in message_lower for word in ['help', 'support', 'problem', 'issue', 'cancel', 'refund']):
+        return 'support_request'
+    
+    # Information seeking
+    elif any(word in message_lower for word in ['what', 'when', 'where', 'how', 'which']):
+        if any(word in message_lower for word in ['match', 'game', 'schedule']):
+            return 'match_inquiry'
+        elif any(word in message_lower for word in ['food', 'menu', 'eat']):
+            return 'food_inquiry'
+        elif any(word in message_lower for word in ['parking', 'drive']):
+            return 'parking_inquiry'
+        elif any(word in message_lower for word in ['stadium', 'venue', 'location']):
+            return 'venue_inquiry'
+        else:
+            return 'general_inquiry'
+    
+    # Parking specific
+    elif any(word in message_lower for word in ['parking', 'park', 'car', 'drive', 'vehicle']):
+        return 'parking_inquiry'
+    
+    # Greeting/social
+    elif any(word in message_lower for word in ['hello', 'hi', 'hey', 'thanks', 'thank you']):
+        return 'social_interaction'
+    
     else:
-        return 'general'
-
-
-def get_intent_actions(intent):
-    """Get quick actions for intent"""
-    actions = []
+        return 'general_conversation'
     
-    if intent == 'booking':
-        actions = [
-            {"text": "Browse Matches", "action": "browse_matches"},
-            {"text": "Check Availability", "action": "check_availability"}
-        ]
-    elif intent == 'parking':
-        actions = [
-            {"text": "Book Parking", "action": "book_parking"},
-            {"text": "Parking Info", "action": "parking_info"}
-        ]
-    elif intent == 'food':
-        actions = [
-            {"text": "View Menu", "action": "view_menu"},
-            {"text": "Dietary Options", "action": "dietary_options"}
-        ]
-    
-    return actions
+    def get_intent_actions(intent):
+        """Get quick actions for intent"""
+        actions = []
+        
+        if intent == 'booking':
+            actions = [
+                {"text": "Browse Matches", "action": "browse_matches"},
+                {"text": "Check Availability", "action": "check_availability"}
+            ]
+        elif intent == 'parking':
+            actions = [
+                {"text": "Book Parking", "action": "book_parking"},
+                {"text": "Parking Info", "action": "parking_info"}
+            ]
+        elif intent == 'food':
+            actions = [
+                {"text": "View Menu", "action": "view_menu"},
+                {"text": "Dietary Options", "action": "dietary_options"}
+            ]
+        
+        return actions

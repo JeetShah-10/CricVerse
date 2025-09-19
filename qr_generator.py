@@ -705,3 +705,16 @@ class QRGenerator:
 
 # Create singleton instance
 qr_generator = QRGenerator()
+
+# Module-level convenience wrappers for compatibility with tests
+def generate_ticket_qr(ticket_data, expiry_hours=None):
+    """Compatibility wrapper that delegates to the QRGenerator singleton.
+    Allows `from qr_generator import generate_ticket_qr` in tests.
+    """
+    return qr_generator.generate_ticket_qr(ticket_data, expiry_hours=expiry_hours)
+
+def generate_parking_qr(parking_data, expiry_hours=None):
+    """Compatibility wrapper that delegates to the QRGenerator singleton.
+    Allows `from qr_generator import generate_parking_qr` in tests.
+    """
+    return qr_generator.generate_parking_qr(parking_data, expiry_hours=expiry_hours)

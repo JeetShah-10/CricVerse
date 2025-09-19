@@ -35,10 +35,7 @@ class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_name = db.Column(db.String(100), nullable=False)
     team_logo = db.Column(db.String(200))
-    home_city = db.Column(db.String(100))
-    home_ground = db.Column(db.String(100))
-    coach = db.Column(db.String(100))
-    captain = db.Column(db.String(100))
+    # Removed non-existent columns (coach, captain, home_city, home_ground) to match Supabase
     players = db.relationship('Player', backref='team', lazy=True)
 
 class Player(db.Model):
@@ -50,7 +47,6 @@ class Player(db.Model):
     nationality = db.Column(db.String(50))
     batting_style = db.Column(db.String(50))
     bowling_style = db.Column(db.String(50))
-    date_of_birth = db.Column(db.Date)
     player_image = db.Column(db.String(200))
 
 class EventUmpire(db.Model):

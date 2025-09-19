@@ -268,7 +268,7 @@ class CricVerseEnhancedDeployment:
         # Test real-time features
         total_tests += 1
         try:
-            from realtime import get_realtime_stats
+            from realtime_server import get_realtime_stats
             stats = get_realtime_stats()
             print("✅ Real-time features test passed")
             tests_passed += 1

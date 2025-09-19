@@ -50,12 +50,9 @@ def dashboard():
 def profile():
     teams = Team.query.all()
     if request.method == 'POST':
-        # The Customer model uses 'username', not 'name'. 
-        # We will update the username field from the form's 'name' input.
-        current_user.username = request.form.get('name', '')
+        # Update basic profile fields
+        current_user.first_name = request.form.get('name', '')
         current_user.phone = request.form.get('phone', '')
-        
-        # The new Customer model does not have a favorite_team_id, skipping for now.
 
         try:
             db.session.commit()

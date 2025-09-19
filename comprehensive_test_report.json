@@ -1,88 +1,169 @@
 {
-  "test_run": {
-    "timestamp": "2025-09-19T19:10:03.258291",
-    "total_tests": 5,
-    "passed": 3,
-    "failed": 2,
-    "fixes_applied": 5
+  "summary": {
+    "timestamp": "2025-09-19T21:56:08.566768",
+    "duration_seconds": 64.557125,
+    "total_tests": 6,
+    "passed_tests": 6,
+    "failed_tests": 0,
+    "success_rate": 100.0
   },
-  "test_results": [
-    {
-      "test": "Flask App",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "App is running",
-      "details": null,
-      "timestamp": "2025-09-19T19:09:00.747586"
+  "category_stats": {
+    "chatbot": {
+      "passed": 3,
+      "total": 3,
+      "success_rate": 100.0
     },
-    {
-      "test": "Credentials",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "All credentials are valid",
-      "details": null,
-      "timestamp": "2025-09-19T19:09:01.244405"
-    },
-    {
-      "test": "QR Code",
-      "status": "[FAIL] FAIL",
-      "success": false,
-      "message": "QR code test failed",
-      "details": null,
-      "timestamp": "2025-09-19T19:09:01.295926"
-    },
-    {
-      "test": "Chatbot",
-      "status": "[FAIL] FAIL",
-      "success": false,
-      "message": "Chatbot test failed",
-      "details": null,
-      "timestamp": "2025-09-19T19:09:26.639861"
-    },
-    {
-      "test": "Performance",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "Performance test completed",
-      "details": null,
-      "timestamp": "2025-09-19T19:09:45.624897"
+    "database": {
+      "passed": 3,
+      "total": 3,
+      "success_rate": 100.0
     }
-  ],
-  "fixes_applied": [
-    {
-      "fix": "Directory static/qrcodes",
-      "status": "[FIX] APPLIED",
-      "success": true,
-      "message": "Created successfully",
-      "timestamp": "2025-09-19T19:03:44.833103"
+  },
+  "test_categories": {
+    "chatbot": 19,
+    "database": 14
+  },
+  "detailed_results": {
+    "test_supabase_connection.py": {
+      "test_info": {
+        "file": "test_supabase_connection.py",
+        "framework": "unknown",
+        "category": "database",
+        "size": 3055,
+        "lines": 79,
+        "is_current": false,
+        "last_modified": "2025-09-19T19:17:02.655916",
+        "has_main": true,
+        "test_count_estimate": 1
+      },
+      "result": {
+        "success": true,
+        "output": "\ud83d\ude80 CricVerse Supabase Connection Test\n========================================\n\ud83e\uddea Testing Supabase connection...\n\u2705 Supabase connection successful!\n   PostgreSQL Version: PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 13.2.0, 64-bit\n\n\ud83d\udca1 Tip: Once configured, you can run this test again to verify your connection.\n",
+        "test_count": 0,
+        "passed": 0,
+        "failed": 0,
+        "duration": "3.93s"
+      },
+      "timestamp": "2025-09-19T21:55:08.416020"
     },
-    {
-      "fix": "Directory static/uploads",
-      "status": "[FIX] APPLIED",
-      "success": true,
-      "message": "Created successfully",
-      "timestamp": "2025-09-19T19:03:44.833578"
+    "tests\\test_booking_concurrency.py": {
+      "test_info": {
+        "file": "tests\\test_booking_concurrency.py",
+        "framework": "pytest",
+        "category": "database",
+        "size": 4158,
+        "lines": 124,
+        "is_current": true,
+        "last_modified": "2025-09-19T01:30:23.252156",
+        "has_main": false,
+        "test_count_estimate": 3
+      },
+      "result": {
+        "success": true,
+        "output": "============================= test session starts =============================\nplatform win32 -- Python 3.13.7, pytest-8.4.2, pluggy-1.6.0 -- C:\\Users\\shahj\\AppData\\Local\\Microsoft\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\python.exe\ncachedir: .pytest_cache\nrootdir: C:\\Users\\shahj\\OneDrive\\Desktop\\Stadium System\nplugins: anyio-4.10.0\ncollecting ... collected 3 items\n\ntests/test_booking_concurrency.py::test_concurrent_booking PASSED        [ 33%]\ntests/test_booking_concurrency.py::test_successful_booking PASSED        [ 66%]\ntests/test_booking_concurrency.py::test_booking_nonexistent_seat PASSED  [100%]\n\n============================== warnings summary ===============================\n..\\..\\..\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\flask_admin\\contrib\\__init__.py:2\n  C:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Pyt",
+        "test_count": 31,
+        "passed": 3,
+        "failed": 0,
+        "duration": "24.35s"
+      },
+      "timestamp": "2025-09-19T21:55:32.769338"
     },
-    {
-      "fix": "Directory logs",
-      "status": "[FIX] APPLIED",
-      "success": true,
-      "message": "Created successfully",
-      "timestamp": "2025-09-19T19:03:44.833701"
+    "test_auth.py": {
+      "test_info": {
+        "file": "test_auth.py",
+        "framework": "flask_test",
+        "category": "database",
+        "size": 5243,
+        "lines": 127,
+        "is_current": true,
+        "last_modified": "2025-09-19T00:47:22.113934",
+        "has_main": true,
+        "test_count_estimate": 1
+      },
+      "result": {
+        "success": true,
+        "output": "==================================================\nTesting User Registration and Authentication\n==================================================\n1. Testing user registration...\nERROR: Could not build url for endpoint 'apply_stadium_owner'. Did you mean 'main.stadium_owner_dashboard' instead?\nC:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\flask_admin\\contrib\\__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.\n  __import__('pkg_resources').declare_namespace(__name__)\nINFO:app.services.chatbot_service:\ud83d\udd27 Loading Gemini configuration: Model=gemini-1.5-flash\nINFO:app.services.chatbot_service:\u2705 Gemini client initialized successfully with model: gemini-1.5-flash\nINFO:app:\u2705 BBL API routes registered\nW",
+        "test_count": 0,
+        "passed": 0,
+        "failed": 0,
+        "duration": "14.45s"
+      },
+      "timestamp": "2025-09-19T21:55:47.222108"
     },
-    {
-      "fix": "Database",
-      "status": "[FAIL] FAILED",
-      "success": false,
-      "message": "Error: (pg8000.dbapi.ProgrammingError) {'S': 'ERROR', 'V': 'ERROR', 'C': '57014', 'M': 'canceling statement due to statement timeout', 'F': 'postgres.c', 'L': '3405', 'R': 'ProcessInterrupts'}\n[SQL: \nCREATE TABLE season_ticket (\n\tid SERIAL NOT NULL, \n\tcustomer_id INTEGER NOT NULL, \n\tstadium_id INTEGER NOT NULL, \n\tseat_id INTEGER NOT NULL, \n\tseason_name VARCHAR(100) NOT NULL, \n\tseason_start_date DATE, \n\tseason_end_date DATE, \n\ttotal_matches INTEGER, \n\tmatches_used INTEGER, \n\tmatches_transferred INTEGER, \n\tprice_per_match FLOAT, \n\ttotal_price FLOAT, \n\tticket_status VARCHAR(20), \n\tpriority_booking BOOLEAN, \n\ttransfer_limit INTEGER, \n\tactivated_at TIMESTAMP WITHOUT TIME ZONE, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(customer_id) REFERENCES customer (id), \n\tFOREIGN KEY(stadium_id) REFERENCES stadium (id), \n\tFOREIGN KEY(seat_id) REFERENCES seat (id)\n)\n\n]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
-      "timestamp": "2025-09-19T19:08:58.587504"
+    "test_app_access.py": {
+      "test_info": {
+        "file": "test_app_access.py",
+        "framework": "unknown",
+        "category": "chatbot",
+        "size": 1292,
+        "lines": 41,
+        "is_current": true,
+        "last_modified": "2025-09-19T02:35:36.208218",
+        "has_main": true,
+        "test_count_estimate": 1
+      },
+      "result": {
+        "success": true,
+        "output": "\ud83d\udd0d Testing application access...\n==================================================\nTesting http://localhost:5000/...\n   Status: 200\n   \u2705 Success - Content length: 59683 characters\n\nTesting http://localhost:5000/events...\n   Status: 200\n   \u2705 Success - Content length: 8582 characters\n\nTesting http://localhost:5000/teams...\n   Status: 200\n   \u2705 Success - Content length: 8522 characters\n\nTesting http://localhost:5000/stadiums...\n   Status: 200\n   \u2705 Success - Content length: 12381 characters\n\nTesting http://localhost:5000/players...\n   Status: 200\n   \u2705 Success - Content length: 8630 characters\n\n",
+        "test_count": 0,
+        "passed": 0,
+        "failed": 0,
+        "duration": "10.84s"
+      },
+      "timestamp": "2025-09-19T21:55:58.067405"
     },
-    {
-      "fix": "Performance Optimization",
-      "status": "[FIX] APPLIED",
-      "success": true,
-      "message": "Optimization completed",
-      "timestamp": "2025-09-19T19:10:03.258150"
+    "tests\\test_payment_integration.py": {
+      "test_info": {
+        "file": "tests\\test_payment_integration.py",
+        "framework": "unittest",
+        "category": "chatbot",
+        "size": 3151,
+        "lines": 78,
+        "is_current": true,
+        "last_modified": "2025-09-19T00:47:22.125561",
+        "has_main": true,
+        "test_count_estimate": 4
+      },
+      "result": {
+        "success": true,
+        "output": "\u2705 Capture payment function imported successfully\n\u2705 Payment model creation test passed\n\u2705 Payment models imported successfully\n\u2705 PaymentTransaction model creation test passed\nC:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\flask_admin\\contrib\\__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.\n  __import__('pkg_resources').declare_namespace(__name__)\nC:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\pkg_resources\\__init__.py:3146: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('google')`.\nImplementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.",
+        "test_count": 4,
+        "passed": 4,
+        "failed": 0,
+        "duration": "10.15s"
+      },
+      "timestamp": "2025-09-19T21:56:08.217154"
+    },
+    "tests\\test_ui_components.py": {
+      "test_info": {
+        "file": "tests\\test_ui_components.py",
+        "framework": "unittest",
+        "category": "chatbot",
+        "size": 6394,
+        "lines": 153,
+        "is_current": true,
+        "last_modified": "2025-09-19T00:47:22.125561",
+        "has_main": true,
+        "test_count_estimate": 6
+      },
+      "result": {
+        "success": true,
+        "output": "\u2705 Admin template directory exists\n\u2705 Booking templates exist\n\u2705 CSS files exist\n\u2705 JavaScript files exist\n\u2705 Main templates exist\n\u2705 Template structure checks passed\n......\n----------------------------------------------------------------------\nRan 6 tests in 0.003s\n\nOK\n",
+        "test_count": 6,
+        "passed": 6,
+        "failed": 0,
+        "duration": "0.35s"
+      },
+      "timestamp": "2025-09-19T21:56:08.566288"
     }
+  },
+  "failed_tests": [],
+  "passed_tests": [
+    "test_supabase_connection.py",
+    "tests\\test_booking_concurrency.py",
+    "test_auth.py",
+    "test_app_access.py",
+    "tests\\test_payment_integration.py",
+    "tests\\test_ui_components.py"
   ]
 }

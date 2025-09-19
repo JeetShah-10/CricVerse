@@ -1,0 +1,60 @@
+{
+  "workflow_summary": {
+    "start_time": "2025-09-19T21:54:11.258340",
+    "end_time": "2025-09-19T21:56:30.515404",
+    "total_duration_seconds": 139.257064,
+    "total_phases": 5,
+    "successful_phases": 3,
+    "failed_phases": 2,
+    "overall_success_rate": 60.0,
+    "overall_success": false
+  },
+  "phase_results": {
+    "Initial System Diagnostics": {
+      "success": false,
+      "returncode": 1,
+      "output": "2025-09-19 21:54:11,471 - INFO - \u2705 Loaded cricverse.env\n2025-09-19 21:54:11,471 - INFO - \ud83d\ude80 Starting comprehensive CricVerse diagnostics...\n2025-09-19 21:54:11,471 - INFO - \n==================================================\n2025-09-19 21:54:11,471 - INFO - Running: Database Connectivity\n2025-09-19 21:54:11,472 - INFO - ==================================================\n2025-09-19 21:54:11,472 - INFO - \ud83d\udd0d Testing database connectivity...\n2025-09-19 21:54:15,425 - INFO - \u2705 Database connected: postgres\n2025-09-19 21:54:15,425 - INFO -    Tables found: 37\n2025-09-19 21:54:15,425 - INFO -    Data counts: {'customer': 10, 'event': 60, 'booking': 2, 'ticket': 0, 'stadium': 8, 'team': 8}\n2025-09-19 21:54:15,828 - INFO - \n==================================================\n2025-09-19 21:54:15,829 - INFO - Running: Flask App Startup\n2025-09-19 21:54:15,829 - INFO - ==================================================\n2025-09-19 21:54:15,829 - INFO - \ud83d\udd0d Testing Flask app startup...\nC:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\flask_admin\\contrib\\__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.\n  __import__('pkg_resources').declare_namespace(__name__)\n2025-09-19 21:54:18,087 - INFO - \ud83d\udd27 Loading Gemini configuration: Model=gemini-1.5-flash\n2025-09-19 21:54:18,087 - INFO - \u2705 Gemini client initialized successfully with model: gemini-1.5-flash\n2025-09-19 21:54:20,138 - INFO - \u2705 BBL API routes registered\n2025-09-19 21:54:24,352 - WARNING - \u26a0\ufe0f Redis connection failed: Error 10061 connecting to localhost:6379. No connection could be made because the target machine actively refused it.\n2025-09-19 21:54:24,392 - INFO - \u2705 SocketIO initialized successfully\n2025-09-19 21:54:24,392 - INFO - \u2705 WebSock",
+      "duration": 27.795133,
+      "timestamp": "2025-09-19T21:54:39.056460"
+    },
+    "System Fixes Application": {
+      "success": true,
+      "returncode": 0,
+      "output": "2025-09-19 21:54:39,269 - INFO - \u2705 Loaded cricverse.env\n2025-09-19 21:54:39,269 - INFO - \ud83d\ude80 Starting comprehensive CricVerse fixes...\n2025-09-19 21:54:39,270 - INFO - \n==================================================\n2025-09-19 21:54:39,270 - INFO - Applying: Enhanced Models Metadata Column\n2025-09-19 21:54:39,270 - INFO - ==================================================\n2025-09-19 21:54:39,270 - INFO - \ud83d\udd27 Fixing enhanced_models.py metadata column...\n2025-09-19 21:54:39,271 - INFO - No metadata column issues found in enhanced_models.py\n2025-09-19 21:54:39,271 - INFO - \u2705 Enhanced Models Metadata Column completed successfully\n2025-09-19 21:54:39,271 - INFO - \n==================================================\n2025-09-19 21:54:39,271 - INFO - Applying: Chatbot Imports\n2025-09-19 21:54:39,271 - INFO - ==================================================\n2025-09-19 21:54:39,271 - INFO - \ud83d\udd27 Fixing chatbot.py imports...\n2025-09-19 21:54:39,274 - INFO - No import issues found in chatbot.py\n2025-09-19 21:54:39,275 - INFO - \u2705 Chatbot Imports completed successfully\n2025-09-19 21:54:39,275 - INFO - \n==================================================\n2025-09-19 21:54:39,275 - INFO - Applying: Realtime Indentation\n2025-09-19 21:54:39,275 - INFO - ==================================================\n2025-09-19 21:54:39,275 - INFO - \ud83d\udd27 Fixing realtime.py indentation...\n2025-09-19 21:54:39,275 - WARNING - realtime.py not found, skipping indentation fixes\n2025-09-19 21:54:39,275 - INFO - \u2705 Realtime Indentation completed successfully\n2025-09-19 21:54:39,275 - INFO - \n==================================================\n2025-09-19 21:54:39,275 - INFO - Applying: App Duplicate Routes\n2025-09-19 21:54:39,275 - INFO - ==================================================\n2025-09-19 21:54:39,275 - INFO - \ud83d\udd27 Fixing duplicate routes in app.py...\n2025-09-19 21:54:39,276 - INFO - \u2705 App Duplicate Routes completed successfully\n2025-09-19 21:54:39,276 - INFO - \n=============================================",
+      "duration": 0.250549,
+      "timestamp": "2025-09-19T21:54:39.309443"
+    },
+    "Post-Fix System Diagnostics": {
+      "success": false,
+      "returncode": 1,
+      "output": "2025-09-19 21:54:39,514 - INFO - \u2705 Loaded cricverse.env\n2025-09-19 21:54:39,514 - INFO - \ud83d\ude80 Starting comprehensive CricVerse diagnostics...\n2025-09-19 21:54:39,514 - INFO - \n==================================================\n2025-09-19 21:54:39,515 - INFO - Running: Database Connectivity\n2025-09-19 21:54:39,515 - INFO - ==================================================\n2025-09-19 21:54:39,515 - INFO - \ud83d\udd0d Testing database connectivity...\n2025-09-19 21:54:42,760 - INFO - \u2705 Database connected: postgres\n2025-09-19 21:54:42,760 - INFO -    Tables found: 37\n2025-09-19 21:54:42,760 - INFO -    Data counts: {'customer': 10, 'event': 60, 'booking': 2, 'ticket': 0, 'stadium': 8, 'team': 8}\n2025-09-19 21:54:42,965 - INFO - \n==================================================\n2025-09-19 21:54:42,965 - INFO - Running: Flask App Startup\n2025-09-19 21:54:42,965 - INFO - ==================================================\n2025-09-19 21:54:42,965 - INFO - \ud83d\udd0d Testing Flask app startup...\nC:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\flask_admin\\contrib\\__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.\n  __import__('pkg_resources').declare_namespace(__name__)\n2025-09-19 21:54:45,150 - INFO - \ud83d\udd27 Loading Gemini configuration: Model=gemini-1.5-flash\n2025-09-19 21:54:45,150 - INFO - \u2705 Gemini client initialized successfully with model: gemini-1.5-flash\n2025-09-19 21:54:47,129 - INFO - \u2705 BBL API routes registered\n2025-09-19 21:54:51,375 - WARNING - \u26a0\ufe0f Redis connection failed: Error 10061 connecting to localhost:6379. No connection could be made because the target machine actively refused it.\n2025-09-19 21:54:51,409 - INFO - \u2705 SocketIO initialized successfully\n2025-09-19 21:54:51,409 - INFO - \u2705 WebSock",
+      "duration": 24.522674,
+      "timestamp": "2025-09-19T21:55:03.833851"
+    },
+    "Comprehensive System Testing": {
+      "success": true,
+      "returncode": 0,
+      "output": "2025-09-19 21:55:04,009 - INFO - Running up to 3 tests per category\n2025-09-19 21:55:04,009 - INFO - \ud83d\ude80 Starting comprehensive test run...\n2025-09-19 21:55:04,009 - INFO - \ud83d\udd0d Discovering test files...\n2025-09-19 21:55:04,453 - INFO - Found 33 test files\n2025-09-19 21:55:04,481 - INFO - Found tests in 2 categories:\n2025-09-19 21:55:04,481 - INFO -   chatbot: 19 tests\n2025-09-19 21:55:04,481 - INFO -   database: 14 tests\n2025-09-19 21:55:04,481 - INFO - \n============================================================\n2025-09-19 21:55:04,481 - INFO - TESTING CATEGORY: DATABASE\n2025-09-19 21:55:04,481 - INFO - Running 3 tests\n2025-09-19 21:55:04,481 - INFO - ============================================================\n2025-09-19 21:55:04,481 - INFO - Running unittest: test_supabase_connection.py\n2025-09-19 21:55:08,416 - INFO - \u2705 PASS - test_supabase_connection.py (3.93s)\n2025-09-19 21:55:08,416 - INFO - Running pytest: tests\\test_booking_concurrency.py\n2025-09-19 21:55:32,769 - INFO - \u2705 PASS - tests\\test_booking_concurrency.py (24.35s)\n2025-09-19 21:55:32,769 - INFO - Running unittest: test_auth.py\n2025-09-19 21:55:47,222 - INFO - \u2705 PASS - test_auth.py (14.45s)\n2025-09-19 21:55:47,222 - INFO - Category database: 3/3 tests passed\n2025-09-19 21:55:47,222 - INFO - \n============================================================\n2025-09-19 21:55:47,222 - INFO - TESTING CATEGORY: CHATBOT\n2025-09-19 21:55:47,222 - INFO - Running 3 tests\n2025-09-19 21:55:47,222 - INFO - ============================================================\n2025-09-19 21:55:47,222 - INFO - Running unittest: test_app_access.py\n2025-09-19 21:55:58,067 - INFO - \u2705 PASS - test_app_access.py (10.84s)\n2025-09-19 21:55:58,067 - INFO - Running unittest: tests\\test_payment_integration.py\n2025-09-19 21:56:08,217 - INFO - \u2705 PASS - tests\\test_payment_integration.py (10.15s)\n2025-09-19 21:56:08,217 - INFO - Running unittest: tests\\test_ui_components.py\n2025-09-19 21:56:08,566 - INFO - \u2705 PASS - tests\\test_ui_components.py (0.",
+      "duration": 64.748081,
+      "timestamp": "2025-09-19T21:56:08.583935"
+    },
+    "Final Validation": {
+      "success": true,
+      "details": {
+        "database_connection": true,
+        "flask_app_startup": true,
+        "chatbot_functionality": true,
+        "critical_files_present": true
+      },
+      "duration": 0,
+      "timestamp": "2025-09-19T21:56:30.515146"
+    }
+  },
+  "recommendations": [
+    "Review failed phases and address critical issues",
+    "Database connectivity issues detected - verify Supabase configuration",
+    "Run individual diagnostic scripts to identify specific issues",
+    "Check environment configuration and API keys",
+    "Verify all dependencies are installed correctly"
+  ]
+}

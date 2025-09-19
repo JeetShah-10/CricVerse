@@ -10,30 +10,28 @@ def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        username = request.form.get('name')
+        name = request.form.get('name')  # kept for compatibility but not stored
         email = request.form.get('email')
         password = request.form.get('password')
         
         # Basic validation
-        if not username or not email or not password:
-            flash('Please fill out all fields.', 'danger')
+        if not email or not password:
+            flash('Please fill out all required fields.', 'danger')
             return render_template('register.html')
 
-        existing_customer = Customer.query.filter((Customer.email == email) | (Customer.username == username)).first()
+        existing_customer = Customer.query.filter(Customer.email == email).first()
         if existing_customer:
-            flash('A user with that email or username already exists.', 'danger')
+            flash('A user with that email already exists.', 'danger')
             return render_template('register.html')
 
         new_customer = Customer(
-            username=username,
-            first_name=username, # Defaulting first_name to username
             email=email
         )
         new_customer.set_password(password)
         db.session.add(new_customer)
         db.session.commit()
         
-        flash(f'Account created successfully! Please log in.', 'success')
+        flash('Account created successfully! Please log in.', 'success')
         return redirect(url_for('auth.login'))
         
     return render_template('register.html')
@@ -55,7 +53,7 @@ def login():
 
         if customer and customer.check_password(password):
             login_user(customer, remember=remember_me)
-            flash(f'Welcome back, {customer.username}!', 'success')
+            flash(f'Welcome back, {customer.email}!', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid email or password. Please try again.', 'danger')

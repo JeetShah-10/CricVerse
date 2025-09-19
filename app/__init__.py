@@ -73,7 +73,7 @@ def create_app(config_name='default'):
     # Initialize WebSocket and real-time features
     global socketio, notification_service
     try:
-        from realtime import init_socketio
+        from realtime_server import init_socketio
         socketio = init_socketio(app)
         logger.info("✅ WebSocket integration completed")
     except Exception as e:
@@ -102,6 +102,26 @@ try:
     app  # type: ignore[name-defined]
 except NameError:  # pragma: no cover
     app = create_app(os.environ.get('FLASK_ENV', 'default'))
+
+# Backward-compatibility: expose common ORM models at module level so
+# imports like `from app import Stadium` continue to work.
+try:
+    from app.models import (
+        Customer,
+        Event,
+        Booking,
+        Ticket,
+        Stadium,
+        Team,
+        Seat,
+        Concession,
+        MenuItem,
+        Match,
+    )
+except Exception:
+    # During early import or migrations, models might not be importable.
+    # Downstream code typically handles this at runtime within app context.
+    pass
 
 # Provide a Razorpay client handle for tests importing `from app import razorpay_client`
 try:

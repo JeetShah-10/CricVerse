@@ -2,9 +2,9 @@ from flask import Blueprint, request, jsonify, session
 import uuid
 from app.services.chatbot_service import get_chatbot_response, detect_user_intent, get_chat_suggestions
 
-chat_bp = Blueprint('chat', __name__)
+chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 
-@chat_bp.route('/send_message', methods=['POST'])
+@chat_bp.route('', methods=['POST'])
 def send_message():
     user_message = request.json.get('message')
     customer_id = session.get('customer_id') # Assuming customer_id is stored in session
@@ -20,7 +20,7 @@ def send_message():
     response_data = get_chatbot_response(user_message, customer_id, session_id)
     return jsonify(response_data)
 
-@chat_bp.route('/get_suggestions', methods=['GET'])
+@chat_bp.route('/suggestions', methods=['GET'])
 def get_suggestions():
     customer_id = session.get('customer_id')
     query_type = request.args.get('query_type', 'general')

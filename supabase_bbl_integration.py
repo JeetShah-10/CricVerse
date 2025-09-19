@@ -24,7 +24,8 @@ class BBLDataService:
     
     def __init__(self):
         self.supabase_url = os.getenv('SUPABASE_URL')
-        self.supabase_key = os.getenv('SUPABASE_KEY')
+        # Prefer anon key for REST; fallback to SUPABASE_KEY if provided
+        self.supabase_key = os.getenv('SUPABASE_ANON_KEY') or os.getenv('SUPABASE_KEY')
         # Query hardening settings
         self.max_retries: int = int(os.getenv('SUPABASE_MAX_RETRIES', '3'))
         self.base_delay: float = float(os.getenv('SUPABASE_RETRY_BASE_DELAY', '0.35'))
@@ -72,16 +73,20 @@ class BBLDataService:
         raise last_exc if last_exc else RuntimeError(f"Unknown error in _with_retries for {context}")
 
     def _table_available(self, table_name: str) -> bool:
-        """Check if a table is available by issuing a cheap head count request and cache the result."""
+        """Check if a table is available by issuing a cheap probe and cache the result."""
         if not self.supabase:
             return False
         if table_name in self._schema_cache:
             return self._schema_cache[table_name]
         try:
-            # Cheap query using head count where possible
+            # Avoid HEAD requests (seen 401 on some setups). Use a small GET.
             def _probe():
-                return self.supabase.table(table_name).select('*', count='exact', head=True).execute()
-            self._with_retries(_probe, f"probe {table_name}")
+                return self.supabase.table(table_name).select('id', count='exact').limit(1).execute()
+            resp = self._with_retries(_probe, f"probe {table_name}")
+            # If REST returns 401, treat as unavailable for this run (will fall back to mock)
+            if hasattr(resp, 'status_code') and resp.status_code == 401:
+                self._schema_cache[table_name] = False
+                return False
             self._schema_cache[table_name] = True
             return True
         except Exception:

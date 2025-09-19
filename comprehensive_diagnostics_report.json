@@ -1,0 +1,309 @@
+{
+  "timestamp": "2025-09-19T21:55:01.237109",
+  "duration_seconds": 21.72216,
+  "tests_passed": 6,
+  "tests_total": 8,
+  "success_rate": 75.0,
+  "issues_found": 3,
+  "recommendations_count": 2,
+  "results": {
+    "database": {
+      "status": "PASS",
+      "version": "PostgreSQL 17.6 on aarch64-unknown-linux-gnu",
+      "database": "postgres",
+      "tables": [
+        "booking",
+        "booking_analytics",
+        "chat_conversation",
+        "chat_message",
+        "concession",
+        "customer",
+        "customer_profile",
+        "enhanced_notification",
+        "event",
+        "event_umpire",
+        "match",
+        "match_update",
+        "menu_item",
+        "notification",
+        "notification_analytics",
+        "notification_queue",
+        "notification_template",
+        "order",
+        "parking",
+        "parking_booking",
+        "payment",
+        "payment_transaction",
+        "photo",
+        "player",
+        "qr_code",
+        "seat",
+        "stadium",
+        "stadium_admin",
+        "stadium_owner",
+        "system_log",
+        "team",
+        "ticket",
+        "ticket_transfer",
+        "umpire",
+        "user_notification_settings",
+        "verification_submission",
+        "websocket_connection"
+      ],
+      "table_count": 37,
+      "data_counts": {
+        "customer": 10,
+        "event": 60,
+        "booking": 2,
+        "ticket": 0,
+        "stadium": 8,
+        "team": 8
+      }
+    },
+    "flask_app": {
+      "status": "PASS",
+      "db_configured": true,
+      "blueprints": [
+        "booking",
+        "auth",
+        "user",
+        "ticketing",
+        "chat",
+        "main",
+        "bbl"
+      ],
+      "route_count": 26,
+      "routes": [
+        {
+          "endpoint": "static",
+          "methods": [
+            "HEAD",
+            "GET",
+            "OPTIONS"
+          ],
+          "rule": "/static/<path:filename>"
+        },
+        {
+          "endpoint": "booking.book_seat_route",
+          "methods": [
+            "POST",
+            "OPTIONS"
+          ],
+          "rule": "/api/booking/book-seat"
+        },
+        {
+          "endpoint": "booking.create_order_route",
+          "methods": [
+            "POST",
+            "OPTIONS"
+          ],
+          "rule": "/api/booking/create-order"
+        },
+        {
+          "endpoint": "booking.capture_order_route",
+          "methods": [
+            "POST",
+            "OPTIONS"
+          ],
+          "rule": "/api/booking/capture-order"
+        },
+        {
+          "endpoint": "auth.register",
+          "methods": [
+            "POST",
+            "GET",
+            "HEAD",
+            "OPTIONS"
+          ],
+          "rule": "/register"
+        },
+        {
+          "endpoint": "auth.login",
+          "methods": [
+            "POST",
+            "GET",
+            "HEAD",
+            "OPTIONS"
+          ],
+          "rule": "/login"
+        },
+        {
+          "endpoint": "auth.logout",
+          "methods": [
+            "HEAD",
+            "GET",
+            "OPTIONS"
+          ],
+          "rule": "/logout"
+        },
+        {
+          "endpoint": "user.dashboard",
+          "methods": [
+            "HEAD",
+            "GET",
+            "OPTIONS"
+          ],
+          "rule": "/dashboard"
+        },
+        {
+          "endpoint": "user.profile",
+          "methods": [
+            "POST",
+            "GET",
+            "HEAD",
+            "OPTIONS"
+          ],
+          "rule": "/profile"
+        },
+        {
+          "endpoint": "ticketing.select_seats",
+          "methods": [
+            "HEAD",
+            "GET",
+            "OPTIONS"
+          ],
+          "rule": "/event/<int:event_id>/select-seats"
+        }
+      ]
+    },
+    "chatbot": {
+      "status": "FAIL",
+      "error": "slice(None, 100, None)"
+    },
+    "admin": {
+      "status": "DISABLED",
+      "message": "Admin panel is disabled in environment"
+    },
+    "qr_codes": {
+      "status": "PASS",
+      "test_generation": "successful",
+      "qr_code_length": 2
+    },
+    "notifications": {
+      "status": "PASS",
+      "email_configured": true,
+      "sms_configured": true,
+      "services_imported": true
+    },
+    "websocket": {
+      "status": "FAIL",
+      "error": "realtime.py missing"
+    },
+    "test_files": {
+      "status": "ANALYZED",
+      "total_files": 25,
+      "files": [
+        {
+          "file": "test_supabase_connection.py",
+          "size": 3055,
+          "lines": 79,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": false,
+          "has_database_test": true,
+          "last_modified": "2025-09-19T19:17:02.655916"
+        },
+        {
+          "file": "test_app_access.py",
+          "size": 1292,
+          "lines": 41,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": false,
+          "has_database_test": false,
+          "last_modified": "2025-09-19T02:35:36.208218"
+        },
+        {
+          "file": "test_auth.py",
+          "size": 5243,
+          "lines": 127,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": true,
+          "has_database_test": true,
+          "last_modified": "2025-09-19T00:47:22.113934"
+        },
+        {
+          "file": "test_routes.py",
+          "size": 3111,
+          "lines": 89,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": true,
+          "has_database_test": false,
+          "last_modified": "2025-09-19T00:47:22.111935"
+        },
+        {
+          "file": "test_server_minimal.py",
+          "size": 1065,
+          "lines": 41,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": false,
+          "has_database_test": false,
+          "last_modified": "2025-09-18T22:47:57.626065"
+        },
+        {
+          "file": "test_payments.py",
+          "size": 5881,
+          "lines": 144,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": true,
+          "has_database_test": false,
+          "last_modified": "2025-09-18T22:47:57.621538"
+        },
+        {
+          "file": "test_new_structure.py",
+          "size": 2603,
+          "lines": 81,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": false,
+          "has_database_test": true,
+          "last_modified": "2025-09-18T22:47:57.620535"
+        },
+        {
+          "file": "test_minimal_server.py",
+          "size": 3125,
+          "lines": 104,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": false,
+          "has_database_test": false,
+          "last_modified": "2025-09-18T22:47:57.618535"
+        },
+        {
+          "file": "test_functionality.py",
+          "size": 1828,
+          "lines": 60,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": false,
+          "has_database_test": true,
+          "last_modified": "2025-09-18T22:47:57.617537"
+        },
+        {
+          "file": "test_final.py",
+          "size": 8560,
+          "lines": 211,
+          "has_unittest": false,
+          "has_pytest": false,
+          "has_flask_test": true,
+          "has_database_test": false,
+          "last_modified": "2025-09-18T22:47:57.615538"
+        }
+      ],
+      "recommendations": []
+    }
+  },
+  "issues": [
+    "Empty tables detected: ['ticket']",
+    "Chatbot test failed: slice(None, 100, None)",
+    "realtime.py file not found"
+  ],
+  "recommendations": [
+    "Run data seeding scripts to populate empty tables",
+    "Set ENABLE_ADMIN=1 to enable admin panel"
+  ]
+}
