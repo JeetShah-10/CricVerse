@@ -35,6 +35,17 @@ def create_app(config_name='default'):
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     
+    # Inject Supabase configuration into all templates
+    @app.context_processor
+    def inject_supabase_env():
+        supabase_url = os.getenv('SUPABASE_URL', '')
+        # Prefer explicit anon key; fallback to SUPABASE_KEY if provided
+        supabase_anon = os.getenv('SUPABASE_ANON_KEY') or os.getenv('SUPABASE_KEY', '')
+        return {
+            'SUPABASE_URL': supabase_url,
+            'SUPABASE_ANON_KEY': supabase_anon,
+        }
+    
     # Register blueprints
     from app.routes import booking_routes
     app.register_blueprint(booking_routes.bp)

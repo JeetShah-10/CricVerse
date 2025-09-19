@@ -34,6 +34,12 @@ def test_supabase_connection():
         
         print(f"🔌 Connecting to: {database_url.split('@')[0]}@****")
         
+        # Normalize for pg8000 driver if generic scheme is used
+        if database_url.startswith('postgresql://'):
+            database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+        # Normalize for pg8000 driver if generic scheme is used
+        if database_url.startswith('postgresql://'):
+            database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
         # Create engine
         engine = create_engine(database_url, echo=False)
         

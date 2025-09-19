@@ -1,91 +1,88 @@
 {
   "test_run": {
-    "start_time": "2025-09-19T02:44:56.401945",
-    "end_time": "2025-09-19T02:45:18.379868",
-    "total_tests": 10,
+    "timestamp": "2025-09-19T19:10:03.258291",
+    "total_tests": 5,
     "passed": 3,
-    "failed": 7
+    "failed": 2,
+    "fixes_applied": 5
   },
   "test_results": [
     {
-      "test": "Application Initialization Tests",
-      "status": "PASS",
+      "test": "Flask App",
+      "status": "[PASS] PASS",
       "success": true,
-      "message": "Tests completed successfully",
+      "message": "App is running",
       "details": null,
-      "timestamp": "2025-09-19T02:44:59.801434"
+      "timestamp": "2025-09-19T19:09:00.747586"
     },
     {
-      "test": "Booking Service Tests",
-      "status": "PASS",
+      "test": "Credentials",
+      "status": "[PASS] PASS",
       "success": true,
-      "message": "Tests completed successfully",
+      "message": "All credentials are valid",
       "details": null,
-      "timestamp": "2025-09-19T02:45:02.525684"
+      "timestamp": "2025-09-19T19:09:01.244405"
     },
     {
-      "test": "Chatbot Service Tests",
-      "status": "FAIL",
+      "test": "QR Code",
+      "status": "[FAIL] FAIL",
       "success": false,
-      "message": "Tests completed successfully",
-      "details": "test_basic_functionality (__main__.TestChatbotService.test_basic_functionality)\nTest basic chatbot functionality. ... C:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2k",
-      "timestamp": "2025-09-19T02:45:04.632324"
+      "message": "QR code test failed",
+      "details": null,
+      "timestamp": "2025-09-19T19:09:01.295926"
     },
     {
-      "test": "Database Model Tests",
-      "status": "FAIL",
+      "test": "Chatbot",
+      "status": "[FAIL] FAIL",
       "success": false,
-      "message": "Tests completed successfully",
-      "details": "test_booking_model_import (__main__.TestModels.test_booking_model_import)\nTest Booking model import. ... C:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalC",
-      "timestamp": "2025-09-19T02:45:06.737284"
+      "message": "Chatbot test failed",
+      "details": null,
+      "timestamp": "2025-09-19T19:09:26.639861"
     },
     {
-      "test": "Payment Integration Tests",
-      "status": "FAIL",
-      "success": false,
-      "message": "Tests completed successfully",
-      "details": "test_capture_payment_function_import (__main__.TestPaymentIntegration.test_capture_payment_function_import)\nTest that capture payment function can be imported. ... C:\\Users\\shahj\\AppData\\Local\\Package",
-      "timestamp": "2025-09-19T02:45:09.118003"
-    },
-    {
-      "test": "UI Component Tests",
-      "status": "FAIL",
-      "success": false,
-      "message": "Tests completed successfully",
-      "details": "test_admin_template_imports (__main__.TestUIComponents.test_admin_template_imports)\nTest that admin templates can be imported/loaded. ... FAIL\ntest_booking_templates (__main__.TestUIComponents.test_bo",
-      "timestamp": "2025-09-19T02:45:09.525750"
-    },
-    {
-      "test": "Route Tests",
-      "status": "FAIL",
-      "success": false,
-      "message": "Script failed",
-      "details": "C:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\flask_admin\\contrib\\__init__.py:2: UserWarning: pkg_resources",
-      "timestamp": "2025-09-19T02:45:11.743389"
-    },
-    {
-      "test": "Authentication Tests",
-      "status": "FAIL",
-      "success": false,
-      "message": "Script failed",
-      "details": "C:\\Users\\shahj\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\flask_admin\\contrib\\__init__.py:2: UserWarning: pkg_resources",
-      "timestamp": "2025-09-19T02:45:13.900294"
-    },
-    {
-      "test": "Credential Tests",
-      "status": "PASS",
+      "test": "Performance",
+      "status": "[PASS] PASS",
       "success": true,
-      "message": "Script executed successfully",
+      "message": "Performance test completed",
       "details": null,
-      "timestamp": "2025-09-19T02:45:14.607646"
+      "timestamp": "2025-09-19T19:09:45.624897"
+    }
+  ],
+  "fixes_applied": [
+    {
+      "fix": "Directory static/qrcodes",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Created successfully",
+      "timestamp": "2025-09-19T19:03:44.833103"
     },
     {
-      "test": "Concurrency Tests",
-      "status": "FAIL",
+      "fix": "Directory static/uploads",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Created successfully",
+      "timestamp": "2025-09-19T19:03:44.833578"
+    },
+    {
+      "fix": "Directory logs",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Created successfully",
+      "timestamp": "2025-09-19T19:03:44.833701"
+    },
+    {
+      "fix": "Database",
+      "status": "[FAIL] FAILED",
       "success": false,
-      "message": "Pytest failed",
-      "details": "tests/test_booking_concurrency.py::test_concurrent_booking ERROR         [ 33%]; tests/test_booking_concurrency.py::test_successful_booking ERROR         [ 66%]; tests/test_booking_concurrency.py::test_booking_nonexistent_seat ERROR   [100%]",
-      "timestamp": "2025-09-19T02:45:18.379820"
+      "message": "Error: (pg8000.dbapi.ProgrammingError) {'S': 'ERROR', 'V': 'ERROR', 'C': '57014', 'M': 'canceling statement due to statement timeout', 'F': 'postgres.c', 'L': '3405', 'R': 'ProcessInterrupts'}\n[SQL: \nCREATE TABLE season_ticket (\n\tid SERIAL NOT NULL, \n\tcustomer_id INTEGER NOT NULL, \n\tstadium_id INTEGER NOT NULL, \n\tseat_id INTEGER NOT NULL, \n\tseason_name VARCHAR(100) NOT NULL, \n\tseason_start_date DATE, \n\tseason_end_date DATE, \n\ttotal_matches INTEGER, \n\tmatches_used INTEGER, \n\tmatches_transferred INTEGER, \n\tprice_per_match FLOAT, \n\ttotal_price FLOAT, \n\tticket_status VARCHAR(20), \n\tpriority_booking BOOLEAN, \n\ttransfer_limit INTEGER, \n\tactivated_at TIMESTAMP WITHOUT TIME ZONE, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(customer_id) REFERENCES customer (id), \n\tFOREIGN KEY(stadium_id) REFERENCES stadium (id), \n\tFOREIGN KEY(seat_id) REFERENCES seat (id)\n)\n\n]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+      "timestamp": "2025-09-19T19:08:58.587504"
+    },
+    {
+      "fix": "Performance Optimization",
+      "status": "[FIX] APPLIED",
+      "success": true,
+      "message": "Optimization completed",
+      "timestamp": "2025-09-19T19:10:03.258150"
     }
   ]
 }

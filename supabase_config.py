@@ -23,6 +23,9 @@ class SupabaseConfig:
         self.supabase_key = os.getenv('SUPABASE_KEY')
         self.supabase_service_role_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
         self.database_url = os.getenv('DATABASE_URL')
+        # Normalize DB URL to use pg8000 if generic postgresql scheme is used
+        if self.database_url and self.database_url.startswith('postgresql://'):
+            self.database_url = self.database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
         
     def validate_config(self):
         """Validate that all required Supabase configuration is present"""
@@ -108,7 +111,9 @@ class SupabaseConfig:
         
         try:
             # Create engines for both databases
-            local_engine = create_engine(local_db_url)
+            # Normalize local URL similarly if needed
+            local_url = local_db_url.replace('postgresql://', 'postgresql+pg8000://', 1) if local_db_url.startswith('postgresql://') else local_db_url
+            local_engine = create_engine(local_url)
             supabase_engine = create_engine(self.database_url)
             
             logger.info("🔄 Starting data migration from local to Supabase...")

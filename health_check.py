@@ -7,10 +7,21 @@ Monitors system health and provides diagnostic information
 import os
 import sys
 import psutil
+from dotenv import load_dotenv
+
 import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import requests
+
+# Load environment from local files (best-effort)
+try:
+    if os.path.exists('cricverse.env'):
+        load_dotenv('cricverse.env')
+    else:
+        load_dotenv()
+except Exception:
+    pass
 
 # Configure logging
 logging.basicConfig(

@@ -1,9 +1,9 @@
 {
   "test_run": {
-    "timestamp": "2025-09-18T00:23:15.476803",
+    "timestamp": "2025-09-19T19:09:26.366252",
     "total_tests": 9,
-    "passed": 6,
-    "failed": 3
+    "passed": 4,
+    "failed": 5
   },
   "results": [
     {
@@ -12,7 +12,7 @@
       "success": false,
       "message": "API key not found or invalid",
       "details": null,
-      "timestamp": "2025-09-18T00:22:51.107485"
+      "timestamp": "2025-09-19T19:09:01.674955"
     },
     {
       "test": "Chatbot Import",
@@ -20,7 +20,7 @@
       "success": true,
       "message": "Chatbot module imported successfully",
       "details": null,
-      "timestamp": "2025-09-18T00:22:52.763679"
+      "timestamp": "2025-09-19T19:09:03.533691"
     },
     {
       "test": "Realtime Import",
@@ -28,7 +28,7 @@
       "success": true,
       "message": "Realtime module imported successfully",
       "details": null,
-      "timestamp": "2025-09-18T00:22:53.001349"
+      "timestamp": "2025-09-19T19:09:03.712485"
     },
     {
       "test": "App Startup",
@@ -36,7 +36,7 @@
       "success": true,
       "message": "Flask app is running",
       "details": null,
-      "timestamp": "2025-09-18T00:22:55.045783"
+      "timestamp": "2025-09-19T19:09:05.782664"
     },
     {
       "test": "Chat Interface",
@@ -44,31 +44,31 @@
       "success": true,
       "message": "Chat page loads successfully",
       "details": null,
-      "timestamp": "2025-09-18T00:22:57.089059"
+      "timestamp": "2025-09-19T19:09:07.873409"
     },
     {
       "test": "Chat Endpoint",
       "status": "[FAIL] FAIL",
       "success": false,
-      "message": "HTTP 400",
-      "details": "{\n  \"error\": \"CSRF token missing or invalid\",\n  \"message\": \"Please refresh the page and try again\"\n}\n",
-      "timestamp": "2025-09-18T00:23:01.189271"
+      "message": "HTTP 404",
+      "details": "<!doctype html>\n<html lang=en>\n<title>404 Not Found</title>\n<h1>Not Found</h1>\n<p>The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.</p>\n",
+      "timestamp": "2025-09-19T19:09:12.011828"
     },
     {
       "test": "Chat Suggestions",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "Got 4 suggestions",
+      "status": "[FAIL] FAIL",
+      "success": false,
+      "message": "HTTP 404",
       "details": null,
-      "timestamp": "2025-09-18T00:23:03.227147"
+      "timestamp": "2025-09-19T19:09:14.046762"
     },
     {
       "test": "Realtime Stats",
-      "status": "[PASS] PASS",
-      "success": true,
-      "message": "Real-time stats working",
+      "status": "[FAIL] FAIL",
+      "success": false,
+      "message": "HTTP 404",
       "details": null,
-      "timestamp": "2025-09-18T00:23:05.294896"
+      "timestamp": "2025-09-19T19:09:16.109133"
     },
     {
       "test": "Chatbot Functionality",
@@ -76,7 +76,7 @@
       "success": false,
       "message": "Only 0/4 scenarios passed (0.0%)",
       "details": null,
-      "timestamp": "2025-09-18T00:23:15.476803"
+      "timestamp": "2025-09-19T19:09:26.365874"
     }
   ]
 }

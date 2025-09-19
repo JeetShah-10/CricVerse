@@ -7,6 +7,7 @@ This script will test the connection to your Supabase PostgreSQL database.
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Add project directory to Python path
 project_dir = Path(__file__).parent
@@ -16,20 +17,31 @@ def test_supabase_connection():
     """Test connection to Supabase PostgreSQL database"""
     print("🧪 Testing Supabase connection...")
     
-    # Set the Supabase configuration from your backup file
-    os.environ['SUPABASE_URL'] = 'https://tiyokcstdmlhpswurelh.supabase.co'
-    os.environ['SUPABASE_KEY'] = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpeW9rY3N0ZG1saHBzd3VyZWxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc2OTkxOTMsImV4cCI6MjA3MzI3NTE5M30.60sud90R8o7elSLmt7AuYK7lYb_F8mIKp04UsCfa0Lo'
-    
-    # Try to connect using the Supabase connection string from your backup
-    # Note: You'll need to replace the password with your actual database password
-    os.environ['DATABASE_URL'] = 'postgresql://postgres:Jeetshah910@db.tiyokcstdmlhpswurelh.supabase.co:5432/postgres'
+    # Load environment if available (won't override explicit env vars)
+    try:
+        if os.path.exists('cricverse.env'):
+            load_dotenv('cricverse.env')
+        else:
+            load_dotenv()
+    except Exception:
+        pass
+
+    # Prefer existing env; otherwise set known project defaults (safe for test)
+    os.environ.setdefault('SUPABASE_URL', 'https://tiyokcstdmlhpswurelh.supabase.co')
+    os.environ.setdefault('SUPABASE_KEY', 'anon-key-placeholder')
+    # If DATABASE_URL is not set, fallback to pooler URL present in .env
+    os.environ.setdefault('DATABASE_URL', 'postgresql://postgres.tiyokcstdmlhpswurelh:Jeetshah910@aws-1-ap-south-1.pooler.supabase.com:5432/postgres')
     
     try:
         # Import SQLAlchemy and test connection
         from sqlalchemy import create_engine, text
         
         # Create engine
-        engine = create_engine(os.environ['DATABASE_URL'])
+        # Normalize URL to use pg8000 driver if generic scheme is used
+        db_url = os.environ['DATABASE_URL']
+        if db_url.startswith('postgresql://'):
+            db_url = db_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+        engine = create_engine(db_url)
         
         # Test connection
         with engine.connect() as connection:
