@@ -4,9 +4,9 @@ Example implementation for fetching live scores, standings, and team data from S
 """
 
 import os
-from supabase import create_client, Client
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 import logging
+import importlib
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +23,14 @@ class BBLDataService:
             logger.warning("Supabase credentials not found. Using mock data.")
             self.supabase = None
         else:
-            self.supabase: Client = create_client(self.supabase_url, self.supabase_key)
+            # Lazy import supabase to avoid local module name collisions (e.g., realtime.py)
+            try:
+                supabase_mod = importlib.import_module('supabase')
+                create_client = getattr(supabase_mod, 'create_client')
+                self.supabase: Any = create_client(self.supabase_url, self.supabase_key)
+            except Exception as e:
+                logger.warning(f"Supabase client import/init failed, falling back to mock: {e}")
+                self.supabase = None
     
     async def get_live_scores(self) -> List[Dict]:
         """Fetch live match scores and fixtures from Supabase"""

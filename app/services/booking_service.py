@@ -1,5 +1,7 @@
 from app import db
 from app.models.booking import Ticket, Seat, Booking
+from app.models.booking import Customer
+from app.models.match import Event
 from datetime import datetime
 from flask import session
 import time
@@ -71,6 +73,55 @@ def book_seat(seat_id, event_id, customer_id):
         # Commit the transaction
         db.session.commit()
         
+        # Prepare data for notifications and realtime broadcasts
+        try:
+            customer = db.session.query(Customer).get(customer_id)
+            event = db.session.query(Event).get(event_id)
+
+            # Build booking data payload
+            tickets_payload = []
+            tickets_payload.append({
+                'type': 'Seat',
+                'seat_info': f"Seat #{seat_id}",
+            })
+
+            booking_data = {
+                'booking_id': booking.id,
+                'event_name': getattr(event, 'event_name', 'CricVerse Event'),
+                'event_date': getattr(event, 'event_date', None),
+                'venue': getattr(event, 'stadium', None).name if getattr(event, 'stadium', None) else 'Venue',
+                'tickets': tickets_payload,
+                'currency': 'AUD',
+                'amount': seat_price
+            }
+
+            # Send email/SMS notifications (best-effort)
+            try:
+                from notification import send_booking_notifications
+                if customer:
+                    send_booking_notifications(customer.email, getattr(customer, 'phone', None), booking_data)
+            except Exception as _notify_err:
+                # Non-fatal; continue
+                pass
+
+            # Broadcast realtime booking notification (best-effort)
+            try:
+                from realtime import notify_new_booking
+                stadium_id = getattr(event, 'stadium_id', None)
+                if stadium_id:
+                    notify_new_booking(stadium_id, {
+                        'customer_name': getattr(customer, 'first_name', 'Customer'),
+                        'event_name': booking_data['event_name'],
+                        'seats_count': 1,
+                        'total_amount': seat_price
+                    })
+            except Exception as _rt_err:
+                # Non-fatal; continue
+                pass
+        except Exception:
+            # Swallow any post-commit side effect errors
+            pass
+
         # If we reach here, the transaction was successful
         return {
             'success': True,
@@ -199,6 +250,56 @@ def capture_payment_and_create_booking(order_id, customer_id):
 
         # Commit all changes
         db.session.commit()
+
+        # Prepare data for notifications and realtime broadcasts
+        try:
+            customer = db.session.query(Customer).get(customer_id)
+            event = db.session.query(Event).get(pending_booking['event_id'])
+
+            # Build booking data payload
+            tickets_payload = []
+            for seat_id in seat_ids:
+                tickets_payload.append({
+                    'type': 'Seat',
+                    'seat_info': f"Seat #{seat_id}",
+                })
+
+            booking_data = {
+                'booking_id': new_booking.id,
+                'event_name': getattr(event, 'event_name', 'CricVerse Event'),
+                'event_date': getattr(event, 'event_date', None),
+                'venue': getattr(event, 'stadium', None).name if getattr(event, 'stadium', None) else 'Venue',
+                'tickets': tickets_payload,
+                'currency': 'AUD',
+                'amount': pending_booking['total_amount']
+            }
+
+            # Send email/SMS notifications (best-effort)
+            try:
+                from notification import send_booking_notifications
+                if customer:
+                    send_booking_notifications(customer.email, getattr(customer, 'phone', None), booking_data)
+            except Exception as _notify_err:
+                # Non-fatal; continue
+                pass
+
+            # Broadcast realtime booking notification (best-effort)
+            try:
+                from realtime import notify_new_booking
+                stadium_id = getattr(event, 'stadium_id', None)
+                if stadium_id:
+                    notify_new_booking(stadium_id, {
+                        'customer_name': getattr(customer, 'first_name', 'Customer'),
+                        'event_name': booking_data['event_name'],
+                        'seats_count': len(seat_ids),
+                        'total_amount': pending_booking['total_amount']
+                    })
+            except Exception as _rt_err:
+                # Non-fatal; continue
+                pass
+        except Exception:
+            # Swallow any post-commit side effect errors
+            pass
 
         # Clear the pending booking from the session
         session.pop('pending_booking', None)

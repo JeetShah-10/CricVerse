@@ -170,6 +170,10 @@
   <!-- Main JS -->
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
   
+  <!-- Socket.IO client for realtime features -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-G3H+1xY7C2wXGkU1m4H4dQ1c6yq1hC9iY9xJv3z3q1YtC2r5r1Rz8g2pJQFQe4wG" crossorigin="anonymous"></script>
+  <script src="{{ url_for('static', filename='js/realtime_client.js') }}"></script>
+  
   <!-- PayPal SDK (loaded after everything else) -->
   <script src="https://www.paypal.com/sdk/js?client-id={{ PAYPAL_CLIENT_ID }}&currency=USD"></script>
   

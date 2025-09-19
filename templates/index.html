@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home-enhanced.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bbl-action-hub.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/stadium_enhanced.css') }}">
+    <!-- BBL Enhanced JS -->
+    <script src="{{ url_for('static', filename='js/bbl-enhanced.js') }}" defer></script>
     <!-- Supabase data widget styles (scoped to .home-page to avoid global overrides) -->
     <style>
       /* ==== Layout fixes (scoped to .home-page) ==== */
@@ -517,9 +519,6 @@ document.head.appendChild(style);
           <div class="energy-elements">
             <div class="cricket-ball floating"></div>
             <div class="lightning-bolt"></div>
-            <div class="trophy-element">
-              <img src="{{ url_for('static', filename='img/Big Bash League Trophy.png') }}" alt="BBL Trophy" class="floating-trophy">
-            </div>
           </div>
           <h1 class="hero-headline">BIG BASH TICKETS NOW ON SALE!</h1>
           <p class="hero-subtext">Experience the ultimate T20 cricket action. Australia's most electrifying tournament awaits!</p>

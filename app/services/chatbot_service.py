@@ -10,6 +10,9 @@ from datetime import datetime, date, timedelta
 import google.generativeai as genai
 import json
 from flask import request, current_app
+import asyncio
+from supabase_bbl_integration import BBLDataService
+
 from dotenv import load_dotenv
 
 # Load environment variables first
@@ -58,6 +61,8 @@ class CricVerseChatbot:
         self.max_tokens = 1500  # Increased for better responses
         self.temperature = 0.7
         self.api_key = os.getenv('GEMINI_API_KEY')
+        # BBL live data service
+        self.bbl_service = BBLDataService()
         
         # Enhanced conversation context tracking
         self.conversation_context = {}
@@ -251,6 +256,7 @@ Always prioritize database information over general knowledge, use personalizati
         try:
             # Get the original database context
             original_context = self.get_original_database_context(user_message)
+            message_lower = (user_message or "").lower()
                 
             # Add personalization if customer is logged in
             if customer_id:
@@ -276,12 +282,42 @@ Always prioritize database information over general knowledge, use personalizati
                         EventObj = type('Event', (object,), {'home_team_id': match.get('home_team_id'), 'away_team_id': match.get('away_team_id')})
                         match['is_favorite_team'] = self.is_favorite_team_match(user_profile, EventObj())
                         match['user_interest_score'] = 0.8 if match['is_favorite_team'] else 0.5
+            
+            # Add live BBL context (for all users; uses mock when Supabase not configured)
+            bbl_context = self.get_bbl_live_context(message_lower)
+            if bbl_context:
+                original_context.update(bbl_context)
                 
             return original_context
                 
         except Exception as e:
             logger.error(f"Error in enhanced database context: {e}")
             return self.get_original_database_context(user_message)
+
+    def get_bbl_live_context(self, message_lower: str) -> dict:
+        """Fetch live BBL context from Supabase-backed service (falls back to mock)."""
+        ctx = {}
+        try:
+            # Determine which datasets to fetch based on user query intent
+            wants_scores = any(w in message_lower for w in ['live', 'score', 'scores', 'fixture', 'fixtures', 'match'])
+            wants_standings = any(w in message_lower for w in ['standing', 'standings', 'table', 'points'])
+            wants_performers = any(w in message_lower for w in ['top', 'performer', 'performers', 'runs', 'wickets'])
+            wants_teams = any(w in message_lower for w in ['team', 'teams'])
+
+            if wants_scores:
+                ctx['live_scores'] = asyncio.run(self.bbl_service.get_live_scores())
+            if wants_standings:
+                ctx['standings'] = asyncio.run(self.bbl_service.get_standings())
+            if wants_performers:
+                tp = asyncio.run(self.bbl_service.get_top_performers())
+                ctx['top_runs'] = tp.get('top_runs', [])
+                ctx['top_wickets'] = tp.get('top_wickets', [])
+            if wants_teams:
+                ctx['teams'] = asyncio.run(self.bbl_service.get_teams())
+
+        except Exception as e:
+            logger.warning(f"BBL live context fetch failed: {e}")
+        return ctx
     
     def get_original_database_context(self, user_message):
         """Original database context method - kept as fallback"""
