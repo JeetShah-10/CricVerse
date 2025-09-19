@@ -1,10 +1,12 @@
-from flask import Blueprint, render_template, redirect, url_for, current_app, send_from_directory, jsonify, request
+from flask import Blueprint, render_template, redirect, url_for, current_app, send_from_directory, jsonify, request, flash
 import os
 from pathlib import Path
 from flask_login import current_user
 from app.models.stadium import Stadium, Concession, Parking, MenuItem
 from app.models.match import Event, Team, Player
 from app.models.booking import Ticket, Seat
+from app import db
+from datetime import datetime
 
 main_bp = Blueprint('main', __name__)
 
@@ -23,8 +25,9 @@ def events():
 
 @main_bp.route('/event/<int:event_id>')
 def event_detail(event_id: int):
-    # Placeholder: redirect to events list until a dedicated detail page/template is implemented
-    return redirect(url_for('main.events'))
+    # Render detailed event page if template/relations are available
+    event = Event.query.get_or_404(event_id)
+    return render_template('event_detail.html', event=event)
 
 @main_bp.route('/teams')
 def teams():
@@ -48,8 +51,41 @@ def teams():
 
 @main_bp.route('/team/<int:team_id>')
 def team_detail(team_id: int):
-    # Placeholder: redirect to teams list until a dedicated detail page/template is implemented
-    return redirect(url_for('main.teams'))
+    orm_team = Team.query.get_or_404(team_id)
+    # Build a view model with safe defaults for template fields
+    team = {
+        'id': orm_team.id,
+        'team_name': getattr(orm_team, 'team_name', None),
+        'team_logo': getattr(orm_team, 'team_logo', None),
+        'tagline': getattr(orm_team, 'tagline', None) or '',
+        'home_city': getattr(orm_team, 'home_city', None),
+        'home_ground': getattr(orm_team, 'home_ground', None),
+        'color1': '#0ea5e9',
+        'color2': '#1e293b',
+        'coach_name': getattr(orm_team, 'coach_name', None),
+        'manager': getattr(orm_team, 'manager', None),
+        'owner_name': getattr(orm_team, 'owner_name', None),
+        'about': getattr(orm_team, 'about', None),
+        'founding_year': getattr(orm_team, 'founding_year', None),
+        'championships_won': getattr(orm_team, 'championships_won', None),
+        'players': [
+            {
+                'id': p.id,
+                'player_name': getattr(p, 'player_name', None),
+                'player_role': getattr(p, 'player_role', None),
+                'image_url': getattr(p, 'image_url', None),
+                # Optional fields used in template fallbacks
+                'highlight': getattr(p, 'highlight', None),
+                'role': getattr(p, 'player_role', None),
+                'name': getattr(p, 'player_name', None),
+            } for p in getattr(orm_team, 'players', [])
+        ]
+    }
+    # Try to find the home stadium by name (if available)
+    stadium = None
+    if team.get('home_ground'):
+        stadium = Stadium.query.filter(Stadium.name == team['home_ground']).first()
+    return render_template('team_detail.html', team=team, stadium=stadium)
 
 @main_bp.route('/stadiums')
 def stadiums():
@@ -58,13 +94,27 @@ def stadiums():
 
 @main_bp.route('/stadium/<int:stadium_id>')
 def stadium_detail(stadium_id: int):
-    # Placeholder: redirect to stadiums list until a dedicated detail page/template is implemented
-    return redirect(url_for('main.stadiums'))
+    stadium = Stadium.query.get_or_404(stadium_id)
+    # Attach dynamic attributes expected by template
+    try:
+        from app.models.match import Event
+        from app.models.stadium import Photo
+        stadium.photos = Photo.query.filter_by(stadium_id=stadium.id).all()
+        stadium.upcoming_matches = Event.query.filter(Event.stadium_id == stadium.id).order_by(Event.event_date.asc()).limit(10).all()
+    except Exception:
+        stadium.photos = []
+        stadium.upcoming_matches = []
+    return render_template('stadium_detail.html', stadium=stadium)
 
 @main_bp.route('/players')
 def players():
     players = Player.query.order_by(Player.player_name.asc()).all()
     return render_template('players.html', players=players)
+
+@main_bp.route('/player/<int:player_id>')
+def player_detail(player_id: int):
+    player = Player.query.get_or_404(player_id)
+    return render_template('player_detail.html', player=player)
 
 @main_bp.route('/concessions')
 def concessions():
@@ -95,11 +145,27 @@ def concessions():
         selected_category=selected_category,
     )
 
-@main_bp.route('/concessions/<int:concession_id>/order')
+@main_bp.route('/concessions/<int:concession_id>/order', methods=['POST'])
 def order_concession(concession_id: int):
-    # Placeholder action: enforce login before ordering, then route back
+    # Minimal order creation to enable flow; enhance with quantities/items later
     if not current_user.is_authenticated:
+        flash('Please login to place an order.', 'info')
         return redirect(url_for('auth.login'))
+    try:
+        from app.models.stadium import Order as ConcessionOrder
+        order = ConcessionOrder(
+            concession_id=concession_id,
+            customer_id=getattr(current_user, 'id', None),
+            total_amount=0.0,
+            payment_status='Pending'
+        )
+        db.session.add(order)
+        db.session.commit()
+        flash('Order placed successfully. Proceed to payment from your Dashboard.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Order creation failed: {e}")
+        flash('Failed to place order. Please try again later.', 'danger')
     return redirect(url_for('main.concessions'))
 
 @main_bp.route('/parking')
@@ -109,11 +175,40 @@ def parking():
     parking_zones = Parking.query.all()
     return render_template('parking.html', stadiums=stadiums, parking_zones=parking_zones)
 
-@main_bp.route('/parking/book/<int:stadium_id>')
+@main_bp.route('/parking/book/<int:stadium_id>', methods=['GET', 'POST'])
 def book_parking(stadium_id: int):
-    # Placeholder: enforce login and redirect back for now
+    if request.method == 'GET':
+        stadium = Stadium.query.get_or_404(stadium_id)
+        parking_zones = Parking.query.filter_by(stadium_id=stadium_id).all()
+        return render_template('book_parking.html', stadium=stadium, parking_zones=parking_zones)
+    # POST
     if not current_user.is_authenticated:
+        flash('Please login to book parking.', 'info')
         return redirect(url_for('auth.login'))
+    try:
+        from app.models.stadium import ParkingBooking
+        parking_id = request.form.get('parking_id', type=int)
+        vehicle_number = request.form.get('vehicle_number', '').strip()
+        arrival_time = request.form.get('arrival_time')
+        departure_time = request.form.get('departure_time')
+        arrival_dt = datetime.fromisoformat(arrival_time) if arrival_time else None
+        departure_dt = datetime.fromisoformat(departure_time) if departure_time else None
+        booking = ParkingBooking(
+            parking_id=parking_id,
+            customer_id=getattr(current_user, 'id', None),
+            vehicle_number=vehicle_number,
+            arrival_time=arrival_dt,
+            departure_time=departure_dt,
+            amount_paid=0.0,
+            payment_status='Pending'
+        )
+        db.session.add(booking)
+        db.session.commit()
+        flash('Parking booked successfully. Payment pending.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Parking booking failed: {e}")
+        flash('Failed to book parking. Please try again.', 'danger')
     return redirect(url_for('main.parking'))
 
 @main_bp.route('/tickets')
@@ -125,6 +220,43 @@ def tickets():
 def seats():
     seats = Seat.query.limit(500).all()
     return render_template('seats.html', seats=seats)
+
+@main_bp.route('/checkout')
+def checkout():
+    # Minimal checkout page renderer; client-side JS will orchestrate payment
+    return render_template('checkout.html')
+
+@main_bp.route('/payment/confirm')
+def payment_confirm():
+    """Finalize a payment for an order or parking booking.
+    Expects query params: type=order|parking, order_id|booking_id, amount
+    """
+    try:
+        ptype = request.args.get('type')
+        amount = request.args.get('amount', type=float) or 0.0
+        if ptype == 'order':
+            oid = request.args.get('order_id', type=int)
+            from app.models.stadium import Order as ConcessionOrder
+            order = ConcessionOrder.query.get_or_404(oid)
+            order.total_amount = amount
+            order.payment_status = 'Completed'
+            db.session.commit()
+            flash('Payment successful. Your concession order is confirmed.', 'success')
+        elif ptype == 'parking':
+            bid = request.args.get('booking_id', type=int)
+            from app.models.stadium import ParkingBooking
+            booking = ParkingBooking.query.get_or_404(bid)
+            booking.amount_paid = amount
+            booking.payment_status = 'Completed'
+            db.session.commit()
+            flash('Payment successful. Your parking booking is confirmed.', 'success')
+        else:
+            flash('Unknown payment type.', 'warning')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Payment confirmation failed: {e}")
+        flash('Failed to confirm payment. Please contact support.', 'danger')
+    return redirect(url_for('user.dashboard'))
 
 @main_bp.route('/ai_options')
 def ai_options():

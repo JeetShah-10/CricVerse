@@ -1,8 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}{{ team.team_name }} • Team{% endblock %}
 {% block content %}
-<div class="team-hero mb-4 rounded-4 shadow-lg"
-     style="background: linear-gradient(135deg, {{ team.color1 }}, {{ team.color2 }} 80%); padding: 2.5em 1em;">
+<div class="team-hero mb-4 rounded-4 shadow-lg" style="--color1: {{ team.color1 or '#0ea5e9' }}; --color2: {{ team.color2 or '#1e293b' }};">
   <div class="d-flex flex-column flex-md-row align-items-center justify-content-between">
   <img src="{{ team.team_logo }}" alt="{{ team.team_name }} Logo"
          class="team-logo-lg rounded-circle shadow-lg mb-3 mb-md-0"
@@ -28,14 +27,14 @@
               <li><strong>Titles:</strong> {{ team.championships_won }}</li>
               <li><strong>Home Ground:</strong>
                 {% if stadium %}
-                  <a href="{{ url_for('stadium_detail', stadium_id=stadium.id) }}" class="text-primary fw-bold">{{ stadium.name }}</a>
+                  <a href="{{ url_for('main.stadium_detail', stadium_id=stadium.id) }}" class="text-primary fw-bold">{{ stadium.name }}</a>
                 {% else %}
                   <span class="text-muted">{{ team.home_ground or 'N/A' }}</span>
                 {% endif %}
               </li>
               <li><strong>Colors:</strong>
                 {% if team.color1 %}
-                  <span style="background:{{ team.color1 }}; color:#fff; border-radius:1em; padding:0.2em 0.8em;">
+                  <span class="team-color-badge" style="--badge-color: {{ team.color1 or '#0ea5e9' }};">
                     {{ team.team_color or team.color1 }}
                   </span>
                 {% else %}
@@ -82,3 +81,21 @@
 </div>
 {% endblock %}
 
+{% block scripts %}
+<style>
+  .team-hero {
+    background: linear-gradient(135deg, var(--color1), var(--color2) 80%);
+    padding: 2.5em 1em;
+  }
+  .team-color-badge {
+    background: var(--badge-color);
+    color: #fff;
+    border-radius: 1em;
+    padding: 0.2em 0.8em;
+    display: inline-block;
+  }
+  .team-logo-lg {
+    width: 140px; height: 140px; object-fit: cover;
+  }
+</style>
+{% endblock %}

@@ -47,7 +47,8 @@ class Player(db.Model):
     nationality = db.Column(db.String(50))
     batting_style = db.Column(db.String(50))
     bowling_style = db.Column(db.String(50))
-    player_image = db.Column(db.String(200))
+    # Align with database column name 'image_url' (Supabase schema)
+    image_url = db.Column('image_url', db.String(200))
 
 class EventUmpire(db.Model):
     __tablename__ = 'event_umpire'

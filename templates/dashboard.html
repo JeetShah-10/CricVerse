@@ -152,7 +152,10 @@
                                 </small>
                             </div>
                             <div class="text-end">
-                                <div class="h5 mb-0">₹{{ '%.0f'|format(b.amount_paid) }}</div>
+                                <div class="h5 mb-1">₹{{ '%.0f'|format(b.amount_paid or 0) }}</div>
+                                {% if (b.payment_status or 'Pending') == 'Pending' %}
+                                <a class="btn btn-primary btn-sm" href="{{ url_for('main.checkout') }}?type=parking&booking_id={{ b.id }}&amount={{ '%.0f'|format(b.amount_paid or 0) }}">Pay Now</a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -164,7 +167,7 @@
                             <i class="bi bi-p-circle text-primary mb-4" style="font-size: 4rem;"></i>
                             <h5 class="card-title">No parking bookings</h5>
                             <p class="card-text text-muted">Your reserved parking spots will appear here.</p>
-                            <a href="{{ url_for('parking') }}" class="btn btn-primary">Find Parking</a>
+                            <a href="{{ url_for('main.parking') }}" class="btn btn-primary">Find Parking</a>
                         </div>
                     </div>
                 </div>
@@ -186,7 +189,10 @@
                                 <span class="badge bg-success">{{ o.payment_status }}</span>
                             </div>
                             <div class="text-end">
-                                <div class="h5 mb-0">₹{{ '%.0f'|format(o.total_amount) }}</div>
+                                <div class="h5 mb-1">₹{{ '%.0f'|format(o.total_amount or 0) }}</div>
+                                {% if (o.payment_status or 'Pending') == 'Pending' %}
+                                <a class="btn btn-primary btn-sm" href="{{ url_for('main.checkout') }}?type=order&order_id={{ o.id }}&amount={{ '%.0f'|format(o.total_amount or 0) }}">Pay Now</a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -198,7 +204,7 @@
                             <i class="bi bi-cart3 text-primary mb-4" style="font-size: 4rem;"></i>
                             <h5 class="card-title">No order history</h5>
                             <p class="card-text text-muted">Your concession orders will appear here.</p>
-                            <a href="{{ url_for('concessions') }}" class="btn btn-primary">View Concessions</a>
+                            <a href="{{ url_for('main.concessions') }}" class="btn btn-primary">View Concessions</a>
                         </div>
                     </div>
                 </div>

@@ -27,6 +27,12 @@
     <!-- PayPal SDK loaded after body to prevent interference -->
     <script>window.PAYPAL_CLIENT_ID = '{{ PAYPAL_CLIENT_ID }}';</script>
 
+  <!-- Connection Status Indicator (merged from base_enhanced.html) -->
+  <div id="connection-status" class="connection-status" style="display:none; position: fixed; top: 10px; right: 10px; z-index: 9999; padding: 6px 12px; border-radius: 14px; font-size: 12px;
+    background-color: #dc3545; color: #fff;">
+    <i class="bi bi-wifi"></i> <span id="connection-text">Connecting...</span>
+  </div>
+
   <header class="glass-header fixed-top">
     <nav class="navbar navbar-expand-lg navbar-dark w-100">
       <div class="container">
@@ -57,17 +63,17 @@
             <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.realtime_demo' %}active{% endif %}" href="{{ url_for('main.realtime_demo') }}"><i class="bi bi-broadcast me-1"></i>LIVE</a></li>
           </ul>
           <ul class="navbar-nav">
-            {% if current_user.is_authenticated %}
+                {% if current_user.is_authenticated %}
                 {% if current_user.is_admin() %}
-                    <li class="nav-item"><a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-primary me-2">Admin</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin.index') }}" class="btn btn-outline-primary me-2">Admin</a></li>
                 {% elif current_user.role == 'stadium_owner' %}
-                    <li class="nav-item"><a href="{{ url_for('stadium_owner_dashboard') }}" class="btn btn-outline-primary me-2">Stadium Owner</a></li>
+                    <li class="nav-item"><a href="{{ url_for('main.stadium_owner_dashboard') }}" class="btn btn-outline-primary me-2">Stadium Owner</a></li>
                 {% else %}
                     <li class="nav-item"><a href="{{ url_for('user.dashboard') }}" class="btn btn-outline-primary me-2">Dashboard</a></li>
                     <li class="nav-item"><a href="{{ url_for('user.profile') }}" class="btn btn-outline-info me-2">Profile</a></li>
                 {% endif %}
                 <li class="nav-item"><a href="{{ url_for('auth.logout') }}" class="btn btn-primary">Logout</a></li>
-            {% else %}
+                {% else %}
                 <li class="nav-item"><a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-auth me-2">Login</a></li>
                 <li class="nav-item"><a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-auth">Register</a></li>
             {% endif %}
@@ -194,6 +200,37 @@
                 console.log('❌ Header components missing');
             }
         }, 500);
+    });
+  </script>
+
+  <!-- Realtime connection status management (merged) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const statusElement = document.getElementById('connection-status');
+      const statusText = document.getElementById('connection-text');
+      if (!statusElement || !statusText) return;
+
+      // Show while attempting
+      statusElement.style.display = 'block';
+
+      if (window.cricVerseRealtime && typeof window.cricVerseRealtime.on === 'function') {
+        window.cricVerseRealtime.on('connected', function() {
+          statusElement.style.backgroundColor = '#28a745';
+          statusText.textContent = 'Connected';
+          setTimeout(() => { statusElement.style.display = 'none'; }, 3000);
+        });
+        window.cricVerseRealtime.on('disconnected', function() {
+          statusElement.style.display = 'block';
+          statusElement.style.backgroundColor = '#dc3545';
+          statusText.textContent = 'Disconnected';
+        });
+        window.cricVerseRealtime.on('error', function(err) {
+          console.error('Realtime error:', err);
+        });
+      } else {
+        // Hide if realtime not initialized after a short delay
+        setTimeout(() => { statusElement.style.display = 'none'; }, 1500);
+      }
     });
   </script>
 </body>

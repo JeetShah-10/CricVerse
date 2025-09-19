@@ -117,34 +117,65 @@ class CheckoutManager {
     }
     
     loadOrderData() {
-        // In a real implementation, this would load from the server or session
-        // For now, we'll simulate with sample data
-        this.orderData = {
-            items: [
-                {
-                    id: 1,
-                    name: "Melbourne Stars vs Sydney Thunder",
-                    description: "General Admission - Section B, Row 12, Seat 5",
-                    quantity: 1,
-                    price: 45.00,
-                    type: "ticket"
-                },
-                {
-                    id: 2,
-                    name: "Parking Pass",
-                    description: "3 Hours Parking at MCG",
-                    quantity: 1,
-                    price: 15.00,
-                    type: "parking"
-                }
-            ],
-            eventId: 123,
-            seatIds: [456],
-            subtotal: 60.00,
-            fee: 3.00,
-            total: 63.00
-        };
-        
+        // Prefer context from URL query params if present (dashboard Pay Now)
+        const params = new URLSearchParams(window.location.search);
+        const type = params.get('type'); // 'order' | 'parking' | ...
+        const amount = parseFloat(params.get('amount') || '0');
+        const orderId = params.get('order_id');
+        const bookingId = params.get('booking_id');
+
+        if (type && amount > 0) {
+            const name = type === 'order' ? 'Concession Order' : type === 'parking' ? 'Parking Booking' : 'BBL Payment';
+            const desc = type === 'order' && orderId ? `Order #${orderId}` : type === 'parking' && bookingId ? `Parking Booking #${bookingId}` : 'BBL Payment';
+
+            this.orderData = {
+                items: [
+                    {
+                        id: 1,
+                        name: name,
+                        description: desc,
+                        quantity: 1,
+                        price: amount,
+                        type: type
+                    }
+                ],
+                eventId: '',
+                seatIds: [],
+                subtotal: amount,
+                fee: 0.00,
+                total: amount,
+                _ctx: { type, amount, orderId, bookingId }
+            };
+        } else {
+            // Fallback demo data
+            this.orderData = {
+                items: [
+                    {
+                        id: 1,
+                        name: "Melbourne Stars vs Sydney Thunder",
+                        description: "General Admission - Section B, Row 12, Seat 5",
+                        quantity: 1,
+                        price: 45.00,
+                        type: "ticket"
+                    },
+                    {
+                        id: 2,
+                        name: "Parking Pass",
+                        description: "3 Hours Parking at MCG",
+                        quantity: 1,
+                        price: 15.00,
+                        type: "parking"
+                    }
+                ],
+                eventId: 123,
+                seatIds: [456],
+                subtotal: 60.00,
+                fee: 3.00,
+                total: 63.00,
+                _ctx: null
+            };
+        }
+
         this.renderOrderSummary();
         this.populateFormFields();
         this.loadPaymentMethods();
@@ -548,6 +579,16 @@ class CheckoutManager {
                         date: new Date().toLocaleDateString(),
                         transactionId: 'TXN-' + Math.floor(1000000 + Math.random() * 9000000)
                     });
+
+                    // If context provided from dashboard, auto-confirm server-side and redirect back to dashboard
+                    if (this.orderData._ctx && this.orderData._ctx.type) {
+                        const q = new URLSearchParams();
+                        q.set('type', this.orderData._ctx.type);
+                        q.set('amount', String(this.orderData.total.toFixed(2)));
+                        if (this.orderData._ctx.orderId) q.set('order_id', this.orderData._ctx.orderId);
+                        if (this.orderData._ctx.bookingId) q.set('booking_id', this.orderData._ctx.bookingId);
+                        setTimeout(() => { window.location.href = `/payment/confirm?${q.toString()}`; }, 1200);
+                    }
                 }, 2000);
             }
         };
