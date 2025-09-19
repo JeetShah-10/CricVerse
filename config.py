@@ -15,7 +15,13 @@ except (ImportError, ModuleNotFoundError):
 class Config:
     """Base configuration class."""
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///cricverse.db'
+    # Normalize DATABASE_URL for SQLAlchemy and choose an available Postgres driver
+    _raw_db_url = os.environ.get('DATABASE_URL')
+    _normalized_db_url = _raw_db_url
+    if _raw_db_url and _raw_db_url.startswith('postgresql://'):
+        # Force pg8000 to avoid native lib dependencies on Windows
+        _normalized_db_url = _raw_db_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+    SQLALCHEMY_DATABASE_URI = _normalized_db_url or 'sqlite:///cricverse.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Security settings
@@ -37,6 +43,7 @@ class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
     FLASK_ENV = 'development'
+    TEMPLATES_AUTO_RELOAD = True
 
 class ProductionConfig(Config):
     """Production configuration."""

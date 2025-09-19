@@ -331,7 +331,7 @@ function initializeTeamsCarousel() {
         
         // Click handler to navigate to teams page
         card.addEventListener('click', function() {
-            window.location.href = "{{ url_for('teams') }}";
+            window.location.href = "/teams";
         });
     });
 }
@@ -524,11 +524,11 @@ document.head.appendChild(style);
           <h1 class="hero-headline">BIG BASH TICKETS NOW ON SALE!</h1>
           <p class="hero-subtext">Experience the ultimate T20 cricket action. Australia's most electrifying tournament awaits!</p>
           <div class="hero-buttons">
-            <a href="{{ url_for('events') }}" class="btn btn-primary-cta">
+            <a href="{{ url_for('main.events') }}" class="btn btn-primary-cta">
               <span>Buy Tickets Now</span>
               <i class="bi bi-ticket-perforated"></i>
             </a>
-            <a href="{{ url_for('teams') }}" class="btn btn-secondary-outline">
+            <a href="/teams" class="btn btn-secondary-outline">
               <span>View Teams</span>
               <i class="bi bi-people-fill"></i>
             </a>
