@@ -84,11 +84,14 @@ def create_tables_directly():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE INDEX IF NOT EXISTS idx_customer_favorite_team_id ON customer (favorite_team_id);
+        CREATE INDEX IF NOT EXISTS idx_customer_created_at ON customer (created_at);
+        CREATE INDEX IF NOT EXISTS idx_customer_updated_at ON customer (updated_at);
         
         -- Stadium table
         CREATE TABLE IF NOT EXISTS stadium (
             id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
+            name VARCHAR(100) UNIQUE NOT NULL,
             location VARCHAR(100) NOT NULL,
             capacity INTEGER NOT NULL,
             contact_number VARCHAR(20),
@@ -105,11 +108,13 @@ def create_tables_directly():
             open_hour TIME,
             close_hour TIME
         );
+        CREATE INDEX IF NOT EXISTS idx_stadium_location ON stadium (location);
+        CREATE INDEX IF NOT EXISTS idx_stadium_latitude_longitude ON stadium (latitude, longitude);
         
         -- Team table
         CREATE TABLE IF NOT EXISTS team (
             id SERIAL PRIMARY KEY,
-            team_name VARCHAR(100) NOT NULL,
+            team_name VARCHAR(100) UNIQUE NOT NULL,
             tagline VARCHAR(200),
             about TEXT,
             founding_year INTEGER,
@@ -126,6 +131,7 @@ def create_tables_directly():
             home_city VARCHAR(100),
             team_type VARCHAR(50)
         );
+        CREATE INDEX IF NOT EXISTS idx_team_home_city ON team (home_city);
         
         -- Player table
         CREATE TABLE IF NOT EXISTS player (
@@ -143,6 +149,9 @@ def create_tables_directly():
             market_value FLOAT,
             photo_url VARCHAR(200)
         );
+        CREATE INDEX IF NOT EXISTS idx_player_player_name ON player (player_name);
+        CREATE INDEX IF NOT EXISTS idx_player_nationality ON player (nationality);
+        CREATE INDEX IF NOT EXISTS idx_player_player_role ON player (player_role);
         
         -- Event table
         CREATE TABLE IF NOT EXISTS event (
@@ -159,6 +168,8 @@ def create_tables_directly():
             match_status VARCHAR(50) DEFAULT 'Scheduled',
             attendance INTEGER DEFAULT 0
         );
+        CREATE INDEX IF NOT EXISTS idx_event_event_name ON event (event_name);
+        CREATE INDEX IF NOT EXISTS idx_event_event_date ON event (event_date);
         
         -- Seat table
         CREATE TABLE IF NOT EXISTS seat (
@@ -172,6 +183,8 @@ def create_tables_directly():
             has_shade BOOLEAN DEFAULT FALSE,
             is_available BOOLEAN DEFAULT TRUE
         );
+        -- CREATE UNIQUE INDEX IF NOT EXISTS uix_seat_stadium_section_row_seat ON seat (stadium_id, section, row_number, seat_number); -- Temporarily commented out due to timeout
+        CREATE INDEX IF NOT EXISTS idx_seat_is_available ON seat (is_available);
         
         -- Booking table
         CREATE TABLE IF NOT EXISTS booking (
@@ -180,6 +193,7 @@ def create_tables_directly():
             total_amount FLOAT NOT NULL,
             booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE INDEX IF NOT EXISTS idx_booking_booking_date ON booking (booking_date);
         
         -- Ticket table
         CREATE TABLE IF NOT EXISTS ticket (
@@ -191,10 +205,13 @@ def create_tables_directly():
             ticket_type VARCHAR(50),
             access_gate VARCHAR(20),
             ticket_status VARCHAR(20) DEFAULT 'Booked',
-            qr_code VARCHAR(200),
+            qr_code VARCHAR(200) UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE INDEX IF NOT EXISTS idx_ticket_ticket_status ON ticket (ticket_status);
+        CREATE INDEX IF NOT EXISTS idx_ticket_created_at ON ticket (created_at);
+        CREATE INDEX IF NOT EXISTS idx_ticket_updated_at ON ticket (updated_at);
         
         -- Concession table
         CREATE TABLE IF NOT EXISTS concession (
@@ -206,6 +223,8 @@ def create_tables_directly():
             opening_hours VARCHAR(100),
             description TEXT
         );
+        CREATE INDEX IF NOT EXISTS idx_concession_name ON concession (name);
+        CREATE INDEX IF NOT EXISTS idx_concession_category ON concession (category);
         
         -- Menu Item table
         CREATE TABLE IF NOT EXISTS menu_item (
@@ -218,6 +237,10 @@ def create_tables_directly():
             is_available BOOLEAN DEFAULT TRUE,
             is_vegetarian BOOLEAN DEFAULT TRUE
         );
+        CREATE INDEX IF NOT EXISTS idx_menu_item_name ON menu_item (name);
+        CREATE INDEX IF NOT EXISTS idx_menu_item_category ON menu_item (category);
+        CREATE INDEX IF NOT EXISTS idx_menu_item_is_available ON menu_item (is_available);
+        CREATE INDEX IF NOT EXISTS idx_menu_item_is_vegetarian ON menu_item (is_vegetarian);
         
         -- Match table
         CREATE TABLE IF NOT EXISTS match (
@@ -236,6 +259,7 @@ def create_tables_directly():
             result_type VARCHAR(20),
             winning_margin VARCHAR(20)
         );
+        CREATE INDEX IF NOT EXISTS idx_match_result_type ON match (result_type);
         """
         
         # Execute table creation
@@ -244,13 +268,13 @@ def create_tables_directly():
             statements = [stmt.strip() for stmt in table_creation_sql.split(';') if stmt.strip()]
             
             for statement in statements:
-                if statement.strip():
-                    print(f"Executing: {statement[:50]}...")
-                    connection.execute(text(statement))
+                stripped_statement = statement.strip()
+                if stripped_statement and not stripped_statement.startswith('--'):
+                    print(f"Executing: {stripped_statement[:50]}...")
+                    connection.execute(text(stripped_statement))
             
             connection.commit()
-            
-        print("✅ Database tables created successfully!")
+            print("Database tables created successfully!")
         return True
         
     except Exception as e:
@@ -261,7 +285,7 @@ def create_tables_directly():
 
 def main():
     """Main initialization function"""
-    print("🏏 CricVerse Supabase Table Creation")
+    print("CricVerse Supabase Table Creation")
     print("=" * 50)
     
     # Load environment
@@ -279,7 +303,7 @@ def main():
     
     print("\n" + "=" * 50)
     print("🎉 Supabase table creation complete!")
-    print("🚀 You can now start the CricVerse application")
+    print("You can now start the CricVerse application")
     print("   Run: python app.py")
 
 if __name__ == "__main__":

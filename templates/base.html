@@ -38,11 +38,11 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav mx-auto">
-            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">HOME</a></li>
-            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'events' %}active{% endif %}" href="{{ url_for('events') }}">TICKETS</a></li>
-            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'teams' %}active{% endif %}" href="{{ url_for('teams') }}">TEAMS</a></li>
-            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'stadiums' %}active{% endif %}" href="{{ url_for('stadiums') }}">STADIUMS</a></li>
-            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'players' %}active{% endif %}" href="{{ url_for('players') }}">PLAYERS</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.index' %}active{% endif %}" href="{{ url_for('main.index') }}">HOME</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.events' %}active{% endif %}" href="{{ url_for('main.events') }}">TICKETS</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.teams' %}active{% endif %}" href="{{ url_for('main.teams') }}">TEAMS</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.stadiums' %}active{% endif %}" href="{{ url_for('main.stadiums') }}">STADIUMS</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.players' %}active{% endif %}" href="{{ url_for('main.players') }}">PLAYERS</a></li>
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="bi bi-robot me-1"></i>AI ASSISTANT
@@ -50,11 +50,11 @@
               <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
                 <li><a class="dropdown-item" href="{{ url_for('main.ai_options') }}"><i class="bi bi-grid me-1"></i>Choose Interface</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('chat_interface') }}"><i class="bi bi-chat me-1"></i>Classic Chat</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('ai_assistant') }}"><i class="bi bi-stars me-1"></i>Command Center</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('main.chat_interface') }}"><i class="bi bi-chat me-1"></i>Classic Chat</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('main.ai_assistant') }}"><i class="bi bi-stars me-1"></i>Command Center</a></li>
               </ul>
             </li>
-            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'realtime_demo' %}active{% endif %}" href="{{ url_for('realtime_demo') }}"><i class="bi bi-broadcast me-1"></i>LIVE</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.realtime_demo' %}active{% endif %}" href="{{ url_for('main.realtime_demo') }}"><i class="bi bi-broadcast me-1"></i>LIVE</a></li>
           </ul>
           <ul class="navbar-nav">
             {% if current_user.is_authenticated %}
@@ -125,11 +125,11 @@
               <div class="col-md-6">
                   <h5 class="footer-heading">Quick Links</h5>
                   <ul class="footer-links">
-                      <li><a href="{{ url_for('index') }}">Home</a></li>
-                      <li><a href="{{ url_for('events') }}">Tickets</a></li>
-                      <li><a href="{{ url_for('teams') }}">Teams</a></li>
-                      <li><a href="{{ url_for('stadiums') }}">Stadiums</a></li>
-                      <li><a href="{{ url_for('players') }}">Players</a></li>
+                      <li><a href="{{ url_for('main.index') }}">Home</a></li>
+                      <li><a href="{{ url_for('main.events') }}">Tickets</a></li>
+                      <li><a href="{{ url_for('main.teams') }}">Teams</a></li>
+                      <li><a href="{{ url_for('main.stadiums') }}">Stadiums</a></li>
+                      <li><a href="{{ url_for('main.players') }}">Players</a></li>
                   </ul>
               </div>
           </div>

@@ -22,7 +22,7 @@ def test_supabase_connection():
     
     # Try to connect using the Supabase connection string from your backup
     # Note: You'll need to replace the password with your actual database password
-    os.environ['DATABASE_URL'] = 'postgresql://postgres:YOUR_ACTUAL_PASSWORD@db.tiyokcstdmlhpswurelh.supabase.co:5432/postgres'
+    os.environ['DATABASE_URL'] = 'postgresql://postgres:Jeetshah910@db.tiyokcstdmlhpswurelh.supabase.co:5432/postgres'
     
     try:
         # Import SQLAlchemy and test connection

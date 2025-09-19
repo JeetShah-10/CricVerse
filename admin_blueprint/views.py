@@ -13,7 +13,7 @@ class MyAdminIndexView(BaseView):
     @expose('/')
     def index(self):
         if not current_user.is_authenticated or not current_user.is_admin:
-            return redirect(url_for('login'))
+            return redirect(url_for('auth.login'))
         return self.render('admin/index.html')
 
 class MyModelView(ModelView):
@@ -25,7 +25,7 @@ class MyModelView(ModelView):
         return current_user.is_authenticated and current_user.is_admin
     
     def inaccessible_callback(self, name, **kwargs):
-        return redirect(url_for('login'))
+        return redirect(url_for('auth.login'))
 
 class EventModelView(ModelView):
     column_list = ('id', 'name', 'event_date', 'stadium', 'created_at')

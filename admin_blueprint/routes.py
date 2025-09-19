@@ -18,7 +18,7 @@ def before_request():
     """Ensure user is admin before accessing admin routes"""
     if not current_user.is_admin:
         flash('Access denied. Administrator privileges required.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
 
 @admin_bp.route('/')
 def dashboard():

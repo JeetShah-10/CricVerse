@@ -8,9 +8,9 @@ db = SQLAlchemy()
 class Concession(db.Model):
     __tablename__ = 'concession'
     id = db.Column(db.Integer, primary_key=True)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'))
-    name = db.Column(db.String(100), nullable=False)
-    category = db.Column(db.String(50))
+    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False, index=True)
+    category = db.Column(db.String(50), index=True)
     location_zone = db.Column(db.String(50))
     opening_hours = db.Column(db.String(100))
     description = db.Column(db.Text)
@@ -22,9 +22,9 @@ class Stadium(db.Model):
     __tablename__ = 'stadium'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    location = db.Column(db.String(100), nullable=False)
-    capacity = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(100), nullable=False, index=True)
+    location = db.Column(db.String(100), nullable=False, index=True)
+    capacity = db.Column(db.Integer, nullable=False, index=True)
     contact_number = db.Column(db.String(20))
     opening_year = db.Column(db.Integer)
     pitch_type = db.Column(db.String(50))
@@ -34,8 +34,8 @@ class Stadium(db.Model):
     has_practice_nets = db.Column(db.Boolean, default=True)
     description = db.Column(db.Text, nullable=True)
     image_url = db.Column(db.String(200), nullable=True)
-    latitude = db.Column(db.Float, nullable=True)
-    longitude = db.Column(db.Float, nullable=True)
+    latitude = db.Column(db.Float, nullable=True, index=True)
+    longitude = db.Column(db.Float, nullable=True, index=True)
     open_hour = db.Column(db.Time, nullable=True)
     close_hour = db.Column(db.Time, nullable=True)
     
@@ -52,7 +52,7 @@ class Team(db.Model):
     __tablename__ = 'team'
     
     id = db.Column(db.Integer, primary_key=True)
-    team_name = db.Column(db.String(100), nullable=False)
+    team_name = db.Column(db.String(100), nullable=False, index=True)
     tagline = db.Column(db.String(200))
     about = db.Column(db.Text)
     founding_year = db.Column(db.Integer)
@@ -66,8 +66,8 @@ class Team(db.Model):
     owner_name = db.Column(db.String(100))
     fun_fact = db.Column(db.Text)
     team_logo = db.Column(db.String(200))
-    home_city = db.Column(db.String(100))
-    team_type = db.Column(db.String(50))
+    home_city = db.Column(db.String(100), index=True)
+    team_type = db.Column(db.String(50), index=True)
     
     players = db.relationship('Player', backref='team', lazy=True)
     home_events = db.relationship('Event', foreign_keys='Event.home_team_id', backref='home_team', lazy=True)
@@ -77,15 +77,15 @@ class Player(db.Model):
     __tablename__ = 'player'
     
     id = db.Column(db.Integer, primary_key=True)
-    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
-    player_name = db.Column(db.String(100), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True, index=True)
+    player_name = db.Column(db.String(100), nullable=False, index=True)
     age = db.Column(db.Integer)
     batting_style = db.Column(db.String(50))
     bowling_style = db.Column(db.String(50))
-    player_role = db.Column(db.String(50))
+    player_role = db.Column(db.String(50), index=True)
     is_captain = db.Column(db.Boolean, default=False)
     is_wicket_keeper = db.Column(db.Boolean, default=False)
-    nationality = db.Column(db.String(50))
+    nationality = db.Column(db.String(50), index=True)
     jersey_number = db.Column(db.Integer)
     market_value = db.Column(db.Float)
     photo_url = db.Column(db.String(200))
@@ -94,22 +94,21 @@ class Event(db.Model):
     __tablename__ = 'event'
     
     id = db.Column(db.Integer, primary_key=True)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'))
-    event_name = db.Column(db.String(100), nullable=False)
-    event_type = db.Column(db.String(50))
+    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False, index=True)
+    event_name = db.Column(db.String(100), nullable=False, index=True)
+    event_type = db.Column(db.String(50), index=True)
     tournament_name = db.Column(db.String(100))
-    event_date = db.Column(db.Date, nullable=False)
+    event_date = db.Column(db.Date, nullable=False, index=True)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time)
-    home_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    away_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    match_status = db.Column(db.String(50), default='Scheduled')
+    home_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
+    away_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
+    match_status = db.Column(db.String(50), default='Scheduled', index=True)
     attendance = db.Column(db.Integer, default=0)
     
     match = db.relationship('Match', backref='event', uselist=False)
     tickets = db.relationship('Ticket', backref='event', lazy=True)
     umpires = db.relationship('EventUmpire', backref='event', lazy=True)
-    season_ticket_matches = db.relationship('SeasonTicketMatch', backref='event', lazy=True)
     analytics = db.relationship('BookingAnalytics', backref='event', lazy=True)
 
 
@@ -117,10 +116,10 @@ class Match(db.Model):
     __tablename__ = 'match'
     
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), unique=True)
-    home_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    away_team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
-    toss_winner_id = db.Column(db.Integer, db.ForeignKey('team.id'))
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), unique=True, nullable=False, index=True)
+    home_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
+    away_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=False, index=True)
+    toss_winner_id = db.Column(db.Integer, db.ForeignKey('team.id'), index=True)
     toss_decision = db.Column(db.String(10))
     home_score = db.Column(db.Integer, default=0)
     away_score = db.Column(db.Integer, default=0)
@@ -137,21 +136,21 @@ class Seat(db.Model):
     __tablename__ = 'seat'
     
     id = db.Column(db.Integer, primary_key=True)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'))
-    seat_number = db.Column(db.String(20), nullable=False)
-    section = db.Column(db.String(50))
+    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False, index=True)
+    seat_number = db.Column(db.String(20), nullable=False, index=True)
+    section = db.Column(db.String(50), index=True)
     row_number = db.Column(db.String(10))
-    seat_type = db.Column(db.String(50))
+    seat_type = db.Column(db.String(50), index=True)
     price = db.Column(db.Float)
     has_shade = db.Column(db.Boolean, default=False)
-    is_available = db.Column(db.Boolean, default=True)
+    is_available = db.Column(db.Boolean, default=True, index=True)
     season_tickets = db.relationship('SeasonTicket', backref='seat', lazy=True)
 
 
 class Photo(db.Model):
     __tablename__ = 'photo'
     id = db.Column(db.Integer, primary_key=True)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'))
+    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False, index=True)
     url = db.Column(db.String(200), nullable=False)
     caption = db.Column(db.String(200))
 
@@ -159,20 +158,20 @@ class Photo(db.Model):
 class MenuItem(db.Model):
     __tablename__ = 'menu_item'
     id = db.Column(db.Integer, primary_key=True)
-    concession_id = db.Column(db.Integer, db.ForeignKey('concession.id'))
-    name = db.Column(db.String(100), nullable=False)
+    concession_id = db.Column(db.Integer, db.ForeignKey('concession.id'), nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False, index=True)
     description = db.Column(db.Text)
     price = db.Column(db.Float, nullable=False)
-    category = db.Column(db.String(50))
-    is_available = db.Column(db.Boolean, default=True)
-    is_vegetarian = db.Column(db.Boolean, default=True)
+    category = db.Column(db.String(50), index=True)
+    is_available = db.Column(db.Boolean, default=True, index=True)
+    is_vegetarian = db.Column(db.Boolean, default=True, index=True)
 
 
 class Parking(db.Model):
     __tablename__ = 'parking'
     id = db.Column(db.Integer, primary_key=True)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'))
-    zone = db.Column(db.String(50), nullable=False)
+    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False, index=True)
+    zone = db.Column(db.String(50), nullable=False, index=True)
     capacity = db.Column(db.Integer, nullable=False)
     rate_per_hour = db.Column(db.Float, nullable=False)
     bookings = db.relationship('ParkingBooking', backref='parking', lazy=True)
@@ -195,15 +194,9 @@ class Customer(db.Model, UserMixin):
     bookings = db.relationship('Booking', backref='customer', lazy=True)
     orders = db.relationship('Order', backref='customer', lazy=True)
     parking_bookings = db.relationship('ParkingBooking', backref='customer', lazy=True)
-    sent_transfers = db.relationship('TicketTransfer', foreign_keys='TicketTransfer.from_customer_id', backref='from_customer', lazy=True)
-    received_transfers = db.relationship('TicketTransfer', foreign_keys='TicketTransfer.to_customer_id', backref='to_customer', lazy=True)
-    selling_tickets = db.relationship('ResaleMarketplace', foreign_keys='ResaleMarketplace.seller_id', backref='seller', lazy=True)
-    bought_tickets = db.relationship('ResaleMarketplace', foreign_keys='ResaleMarketplace.buyer_id', backref='buyer', lazy=True)
     season_tickets = db.relationship('SeasonTicket', backref='customer', lazy=True)
-    received_season_matches = db.relationship('SeasonTicketMatch', backref='transferred_to', lazy=True)
     accessibility_needs = db.relationship('AccessibilityAccommodation', foreign_keys='AccessibilityAccommodation.customer_id', backref='customer', lazy=True)
     verified_by_user = db.relationship('AccessibilityAccommodation', foreign_keys='AccessibilityAccommodation.verified_by')
-    assigned_accessibility_tasks = db.relationship('AccessibilityBooking', backref='assigned_staff', lazy=True)
     verification_submissions = db.relationship('VerificationSubmission', backref='user', lazy=True)
     system_logs = db.relationship('SystemLog', backref='customer', lazy=True)
     websocket_connections = db.relationship('WebSocketConnection', backref='customer', lazy=True)
@@ -235,7 +228,6 @@ class Booking(db.Model):
     
     tickets = db.relationship('Ticket', backref='booking', lazy=True)
     payments = db.relationship('Payment', backref='booking', lazy=True)
-    accessibility_bookings = db.relationship('AccessibilityBooking', backref='booking', lazy=True)
 
 
 class Ticket(db.Model):
@@ -252,8 +244,6 @@ class Ticket(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    transfers = db.relationship('TicketTransfer', backref='ticket', lazy=True)
-    marketplace_listings = db.relationship('ResaleMarketplace', backref='ticket', lazy=True)
     qr_codes = db.relationship('QRCode', backref='ticket', lazy=True)
 
 
@@ -386,33 +376,6 @@ class MatchUpdate(db.Model):
     is_broadcasted = db.Column(db.Boolean, default=False)
     broadcasted_at = db.Column(db.DateTime)
 
-class ChatConversation(db.Model):
-    __tablename__ = 'chat_conversation'
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
-    session_id = db.Column(db.String(100), nullable=False)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    ended_at = db.Column(db.DateTime)
-    user_agent = db.Column(db.String(500))
-    ip_address = db.Column(db.String(45))
-    language = db.Column(db.String(5), default='en')
-    message_count = db.Column(db.Integer, default=0)
-    satisfaction_rating = db.Column(db.Integer)
-    messages = db.relationship('ChatMessage', backref='conversation', lazy='dynamic')
-
-class ChatMessage(db.Model):
-    __tablename__ = 'chat_message'
-    id = db.Column(db.Integer, primary_key=True)
-    conversation_id = db.Column(db.Integer, db.ForeignKey('chat_conversation.id'), nullable=False)
-    sender_type = db.Column(db.String(10), nullable=False)
-    message = db.Column(db.Text, nullable=False)
-    intent = db.Column(db.String(100))
-    confidence_score = db.Column(db.Float)
-    openai_response_id = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    tokens_used = db.Column(db.Integer)
-    response_time_ms = db.Column(db.Integer)
-
 class BookingAnalytics(db.Model):
     __tablename__ = 'booking_analytics'
     id = db.Column(db.Integer, primary_key=True)
@@ -459,60 +422,29 @@ class WebSocketConnection(db.Model):
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.String(500))
 
-
-
-class ResaleMarketplace(db.Model):
-    __tablename__ = 'resale_marketplace'
-    id = db.Column(db.Integer, primary_key=True)
-    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
-    seller_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    buyer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
-    original_price = db.Column(db.Float, nullable=False)
-    listing_price = db.Column(db.Float, nullable=False)
-    final_price = db.Column(db.Float)
-    platform_fee = db.Column(db.Float, default=0.0)
-    seller_fee = db.Column(db.Float, default=0.0)
-    listing_status = db.Column(db.String(20), default='active')
-    listing_description = db.Column(db.Text)
-    is_negotiable = db.Column(db.Boolean, default=False)
-    listed_at = db.Column(db.DateTime, default=datetime.utcnow)
-    sold_at = db.Column(db.DateTime)
-    expires_at = db.Column(db.DateTime)
-    is_verified = db.Column(db.Boolean, default=False)
-    verification_status = db.Column(db.String(20), default='pending')
-
 class SeasonTicket(db.Model):
     __tablename__ = 'season_ticket'
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    stadium_id = db.Column(db.Integer, db.ForeignKey('stadium.id'), nullable=False)
-    seat_id = db.Column(db.Integer, db.ForeignKey('seat.id'), nullable=False)
-    season_name = db.Column(db.String(100), nullable=False)
-    season_start_date = db.Column(db.Date, nullable=False)
-    season_end_date = db.Column(db.Date, nullable=False)
-    total_matches = db.Column(db.Integer, nullable=False)
+    id = db.Column(db.BigInteger, primary_key=True)
+    customer_id = db.Column(db.BigInteger, db.ForeignKey('customer.id'), nullable=False, index=True)
+    stadium_id = db.Column(db.BigInteger, db.ForeignKey('stadium.id'), nullable=False, index=True)
+    seat_id = db.Column(db.BigInteger, db.ForeignKey('seat.id'), nullable=False, index=True)
+    season_name = db.Column(db.Text, nullable=False)
+    season_start_date = db.Column(db.DateTime(timezone=True))
+    season_end_date = db.Column(db.DateTime(timezone=True))
+    total_matches = db.Column(db.Integer)
     matches_used = db.Column(db.Integer, default=0)
     matches_transferred = db.Column(db.Integer, default=0)
-    total_price = db.Column(db.Float, nullable=False)
-    price_per_match = db.Column(db.Float, nullable=False)
-    ticket_status = db.Column(db.String(20), default='active')
-    priority_booking = db.Column(db.Boolean, default=True)
-    transfer_limit = db.Column(db.Integer, default=5)
-    purchased_at = db.Column(db.DateTime, default=datetime.utcnow)
-    activated_at = db.Column(db.DateTime)
-    matches = db.relationship('SeasonTicketMatch', backref='season_ticket', lazy='dynamic')
+    price_per_match = db.Column(db.Numeric(12, 2))
+    total_price = db.Column(db.Numeric(12, 2))
+    ticket_status = db.Column(db.Text)
+    priority_booking = db.Column(db.Boolean, default=False)
+    transfer_limit = db.Column(db.Integer, default=0)
+    activated_at = db.Column(db.DateTime(timezone=True))
 
-class SeasonTicketMatch(db.Model):
-    __tablename__ = 'season_ticket_match'
-    id = db.Column(db.Integer, primary_key=True)
-    season_ticket_id = db.Column(db.Integer, db.ForeignKey('season_ticket.id'), nullable=False)
-    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
-    is_used = db.Column(db.Boolean, default=False)
-    used_at = db.Column(db.DateTime)
-    is_transferred = db.Column(db.Boolean, default=False)
-    transferred_to_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
-    transferred_at = db.Column(db.DateTime)
-    transfer_price = db.Column(db.Float, default=0.0)
+    __table_args__ = (
+        db.Index('idx_season_ticket_season_dates', 'season_start_date', 'season_end_date'),
+        db.Index('idx_season_ticket_status_start', 'ticket_status', db.desc('season_start_date')),
+    )
 
 class AccessibilityAccommodation(db.Model):
     __tablename__ = 'accessibility_accommodation'
@@ -537,23 +469,6 @@ class AccessibilityAccommodation(db.Model):
     verification_document = db.Column(db.String(200))
     verified_at = db.Column(db.DateTime)
     verified_by = db.Column(db.Integer, db.ForeignKey('customer.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    bookings = db.relationship('AccessibilityBooking', backref='accommodation', lazy='dynamic')
-
-class AccessibilityBooking(db.Model):
-    __tablename__ = 'accessibility_booking'
-    id = db.Column(db.Integer, primary_key=True)
-    booking_id = db.Column(db.Integer, db.ForeignKey('booking.id'), nullable=False)
-    accommodation_id = db.Column(db.Integer, db.ForeignKey('accessibility_accommodation.id'), nullable=False)
-    requested_accommodations = db.Column(db.Text)
-    provided_accommodations = db.Column(db.Text)
-    staff_notes = db.Column(db.Text)
-    special_instructions = db.Column(db.Text)
-    accommodation_status = db.Column(db.String(20), default='requested')
-    assigned_staff_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
-    fulfillment_notes = db.Column(db.Text)
-    fulfilled_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

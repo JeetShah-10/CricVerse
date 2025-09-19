@@ -24,15 +24,15 @@ else:
     load_dotenv()
 
 def get_db_connection():
-    """Get PostgreSQL database connection"""
+    """Get PostgreSQL database connection using DATABASE_URL"""
     try:
-        conn = psycopg2.connect(
-            host=os.getenv('POSTGRES_HOST', 'localhost'),
-            port=os.getenv('POSTGRES_PORT', '5432'),
-            database=os.getenv('POSTGRES_DB', 'stadium_db'),
-            user=os.getenv('POSTGRES_USER', 'postgres'),
-            password=os.getenv('POSTGRES_PASSWORD', 'admin')
-        )
+        database_url = os.getenv('DATABASE_URL')
+        if not database_url:
+            print("❌ DATABASE_URL not found in environment variables!")
+            return None
+        
+        # psycopg2.connect can directly use the DATABASE_URL
+        conn = psycopg2.connect(database_url)
         return conn
     except Exception as e:
         print(f"Database connection failed: {e}")
@@ -108,29 +108,41 @@ class StadiumSeatingGenerator:
             }
         }
     
-    def generate_seats_for_stadium(self, stadium_id):
-        """Generate all seats for a specific stadium"""
-        print(f"Generating seats for stadium ID: {stadium_id}")
+    def generate_seats_for_stadium(self, stadium_id, max_seats_per_stadium):
+        """Generate all seats for a specific stadium, up to a maximum limit"""
+        print(f"Generating seats for stadium ID: {stadium_id} (max {max_seats_per_stadium} seats)")
         
+        current_stadium_seats_count = 0
         for tier_name, tier_data in self.seating_structure.items():
             for block_name, block_info in tier_data['blocks'].items():
-                self.generate_block_seats(
+                if current_stadium_seats_count >= max_seats_per_stadium:
+                    break
+                
+                seats_generated_in_block = self.generate_block_seats(
                     stadium_id=stadium_id,
                     section=block_name,
                     seat_type=tier_data['seat_type'],
                     rows=block_info['rows'],
                     seats_per_row=block_info['seats_per_row'],
                     base_price=block_info['base_price'],
-                    has_shade=block_info['has_shade']
+                    has_shade=block_info['has_shade'],
+                    max_seats_per_stadium=max_seats_per_stadium,
+                    current_stadium_seats_count=current_stadium_seats_count
                 )
+                current_stadium_seats_count += seats_generated_in_block
+            if current_stadium_seats_count >= max_seats_per_stadium:
+                break
         
-        print(f"Generated {len(self.seating_data)} seats for stadium {stadium_id}")
-        return len(self.seating_data)
+        print(f"Generated {current_stadium_seats_count} seats for stadium {stadium_id}")
+        return current_stadium_seats_count
     
-    def generate_block_seats(self, stadium_id, section, seat_type, rows, seats_per_row, base_price, has_shade):
-        """Generate seats for a specific block/section"""
-        
+    def generate_block_seats(self, stadium_id, section, seat_type, rows, seats_per_row, base_price, has_shade, max_seats_per_stadium, current_stadium_seats_count):
+        """Generate seats for a specific block/section, respecting stadium seat limit"""
+        seats_generated_in_block = 0
         for row in range(1, rows + 1):
+            if current_stadium_seats_count + seats_generated_in_block >= max_seats_per_stadium:
+                break
+
             # Use alphabetical row naming for premium tiers, numerical for general
             if seat_type in ['VIP', 'Corporate']:
                 row_name = chr(64 + row)  # A, B, C, etc.
@@ -138,6 +150,9 @@ class StadiumSeatingGenerator:
                 row_name = str(row).zfill(2)  # 01, 02, 03, etc.
             
             for seat in range(1, seats_per_row + 1):
+                if current_stadium_seats_count + seats_generated_in_block >= max_seats_per_stadium:
+                    break
+
                 seat_number = str(seat).zfill(2)
                 
                 # Apply pricing variations based on position
@@ -154,6 +169,8 @@ class StadiumSeatingGenerator:
                 }
                 
                 self.seating_data.append(seat_data)
+                seats_generated_in_block += 1
+        return seats_generated_in_block
     
     def calculate_seat_price(self, base_price, row, seat, seats_per_row, seat_type):
         """Calculate dynamic pricing based on seat position"""
@@ -237,18 +254,18 @@ class StadiumSeatingGenerator:
                 tier_seats += block_seats
                 tier_revenue += block_revenue
                 
-                print(f"  {block_name:<20} | {block_seats:>4} seats | ${block_info['base_price']:>3} | Shade: {'Yes' if block_info['has_shade'] else 'No'}")
+                print(f"  {block_name:<20} | {block_seats:>4} seats | ₹{block_info['base_price']:>3} | Shade: {'Yes' if block_info['has_shade'] else 'No'}")
             
             print(f"  {'':<20} | {'':<4}      | {'':<4}     | ")
-            print(f"  {'TIER TOTAL':<20} | {tier_seats:>4} seats | ${tier_revenue:>7,.0f} potential")
+            print(f"  {'TIER TOTAL':<20} | {tier_seats:>4} seats | ₹{tier_revenue:>7,.0f} potential")
             
             total_seats += tier_seats
             total_revenue_potential += tier_revenue
         
         print("\n" + "="*60)
         print(f"TOTAL STADIUM CAPACITY: {total_seats:,} seats")
-        print(f"TOTAL REVENUE POTENTIAL: ${total_revenue_potential:,.0f}")
-        print(f"AVERAGE TICKET PRICE: ${total_revenue_potential/total_seats:.2f}")
+        print(f"TOTAL REVENUE POTENTIAL: ₹{total_revenue_potential:,.0f}")
+        print(f"AVERAGE TICKET PRICE: ₹{total_revenue_potential/total_seats:.2f}")
         print("="*60)
 
 def main():
@@ -285,10 +302,13 @@ def main():
         
         # Generate seats for each stadium
         total_generated = 0
+        TOTAL_DESIRED_SEATS = 30000
+        max_seats_per_stadium = TOTAL_DESIRED_SEATS // len(stadiums) if stadiums else TOTAL_DESIRED_SEATS
+        
         for stadium_id, stadium_name in stadiums:
             print(f"\n🏟️  Processing: {stadium_name}")
             generator.seating_data = []  # Reset for each stadium
-            seats_count = generator.generate_seats_for_stadium(stadium_id)
+            seats_count = generator.generate_seats_for_stadium(stadium_id, max_seats_per_stadium)
             
             if generator.insert_seats_to_database():
                 print(f"✅ Successfully created {seats_count:,} seats for {stadium_name}")

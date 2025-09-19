@@ -33,39 +33,46 @@ if os.path.exists('cricverse.env'):
 else:
     load_dotenv()
 
-def get_db_connection():
-    """Get PostgreSQL database connection using same logic as main app"""
-    try:
-        # Check for DATABASE_URL first (Supabase)
-        database_url = os.getenv('DATABASE_URL')
-        
-        if database_url and 'postgresql' in database_url:
-            # Parse Supabase URL
-            import urllib.parse as urlparse
-            url = urlparse.urlparse(database_url)
-            conn = psycopg2.connect(
-                host=url.hostname,
-                port=url.port,
-                database=url.path[1:],  # Remove leading slash
-                user=url.username,
-                password=url.password
-            )
-            print(f"✅ Connected to Supabase database")
-            return conn
-        else:
-            # Fallback to local PostgreSQL
-            conn = psycopg2.connect(
-                host=os.getenv('POSTGRES_HOST', 'localhost'),
-                port=os.getenv('POSTGRES_PORT', '5432'),
-                database=os.getenv('POSTGRES_DB', 'stadium_db'),
-                user=os.getenv('POSTGRES_USER', 'postgres'),
-                password=os.getenv('POSTGRES_PASSWORD', 'admin')
-            )
-            print(f"✅ Connected to local PostgreSQL database")
-            return conn
-    except Exception as e:
-        print(f"❌ Database connection failed: {e}")
-        return None
+import time
+
+def get_db_connection(retries=5, delay=2):
+    """Get PostgreSQL database connection with retry logic."""
+    for i in range(retries):
+        try:
+            # Check for DATABASE_URL first (Supabase)
+            database_url = os.getenv('DATABASE_URL')
+            
+            if database_url and 'postgresql' in database_url:
+                # Parse Supabase URL
+                import urllib.parse as urlparse
+                url = urlparse.urlparse(database_url)
+                conn = psycopg2.connect(
+                    host=url.hostname,
+                    port=url.port,
+                    database=url.path[1:],  # Remove leading slash
+                    user=url.username,
+                    password=url.password
+                )
+                print(f"✅ Connected to Supabase database")
+                return conn
+            else:
+                # Fallback to local PostgreSQL
+                conn = psycopg2.connect(
+                    host=os.getenv('POSTGRES_HOST', 'localhost'),
+                    port=os.getenv('POSTGRES_PORT', '5432'),
+                    database=os.getenv('POSTGRES_DB', 'stadium_db'),
+                    user=os.getenv('POSTGRES_USER', 'postgres'),
+                    password=os.getenv('POSTGRES_PASSWORD', 'admin')
+                )
+                print(f"✅ Connected to local PostgreSQL database")
+                return conn
+        except Exception as e:
+            print(f"❌ Database connection failed (attempt {i+1}/{retries}): {e}")
+            if i < retries - 1:
+                time.sleep(delay * (2 ** i))  # Exponential backoff
+            else:
+                return None
+    return None
 
 class ProfessionalStadiumSeatingGenerator:
     def __init__(self):
@@ -224,9 +231,12 @@ class ProfessionalStadiumSeatingGenerator:
         
         total_generated = 0
         
+        # Scaling factor to reduce total seats
+        SEAT_SCALING_FACTOR = 0.15  # Adjust this value to get the desired total seat count
+
         for tier_name, tier_data in template['tiers'].items():
-            tier_capacity = int(capacity * tier_data['capacity_percentage'])
-            print(f"   {tier_name}: {tier_capacity:,} seats")
+            tier_capacity = int(capacity * tier_data['capacity_percentage'] * SEAT_SCALING_FACTOR)
+            print(f"   {tier_name}: {tier_capacity:,} seats (scaled)")
             
             tier_seats = 0
             blocks = list(tier_data['blocks'].items())
@@ -415,7 +425,7 @@ class ProfessionalStadiumSeatingGenerator:
             """
             
             # Process in smaller batches to avoid connection timeouts
-            batch_size = 500  # Smaller batch size for Supabase
+            batch_size = 250  # Smaller batch size for Supabase
             total_seats = len(self.seating_data)
             
             print(f"   Inserting {total_seats:,} seats in batches of {batch_size}...")
