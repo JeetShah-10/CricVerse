@@ -1,34 +1,15 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, current_app
 import asyncio
-from supabase_bbl_integration import bbl_data_service
 
 bbl_bp = Blueprint('bbl', __name__, url_prefix='/api/bbl')
 
-# Use the global BBL service instance
-bbl_service = bbl_data_service
-
 @bbl_bp.route('/live-scores', methods=['GET'])
 def live_scores():
-    if not bbl_service:
-        return jsonify({
-            'success': False,
-            'error': 'Supabase BBL service not available. Please check your Supabase configuration.'
-        }), 503
-    
-    try:
-        matches = asyncio.run(bbl_service.get_live_scores())
-        return jsonify({
-            'success': True,
-            'matches': matches
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Failed to fetch live scores from Supabase: {str(e)}'
-        }), 500
+    bbl_service = current_app.bbl_data_service
 
 @bbl_bp.route('/standings', methods=['GET'])
 def standings():
+    bbl_service = current_app.bbl_data_service
     if not bbl_service:
         return jsonify({
             'success': False,
@@ -49,6 +30,7 @@ def standings():
 
 @bbl_bp.route('/teams', methods=['GET'])
 def teams():
+    bbl_service = current_app.bbl_data_service
     if not bbl_service:
         return jsonify({
             'success': False,
@@ -69,6 +51,7 @@ def teams():
 
 @bbl_bp.route('/top-performers', methods=['GET'])
 def top_performers():
+    bbl_service = current_app.bbl_data_service
     if not bbl_service:
         return jsonify({
             'success': False,

@@ -2,9 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, current_app, se
 import os
 from pathlib import Path
 from flask_login import current_user
-from app.models.stadium import Stadium, Concession, Parking, MenuItem
-from app.models.match import Event, Team, Player
-from app.models.booking import Ticket, Seat
+from app.models import Stadium, Concession, Parking, MenuItem, Event, Team, Player, Ticket, Seat, Order, ParkingBooking, Photo
 from app import db
 from datetime import datetime
 
@@ -31,60 +29,15 @@ def event_detail(event_id: int):
 
 @main_bp.route('/teams')
 def teams():
-    # Transform ORM Team into dicts expected by templates (name, logo_url, etc.)
-    orm_teams = Team.query.order_by(Team.team_name.asc()).all()
-    teams = []
-    for t in orm_teams:
-        teams.append({
-            'id': t.id,
-            'name': getattr(t, 'team_name', None),
-            'logo_url': getattr(t, 'team_logo', None),
-            'city': getattr(t, 'home_city', None),
-            'about': None,
-            'founding_year': None,
-            'championships_won': None,
-            'home_ground': getattr(t, 'home_ground', None),
-            'color1': '#0ea5e9',
-            'color2': '#1e293b',
-        })
-    return render_template('teams.html', teams=teams)
+    all_teams = Team.query.order_by(Team.team_name.asc()).all()
+    return render_template('teams.html', teams=all_teams)
 
 @main_bp.route('/team/<int:team_id>')
 def team_detail(team_id: int):
-    orm_team = Team.query.get_or_404(team_id)
-    # Build a view model with safe defaults for template fields
-    team = {
-        'id': orm_team.id,
-        'team_name': getattr(orm_team, 'team_name', None),
-        'team_logo': getattr(orm_team, 'team_logo', None),
-        'tagline': getattr(orm_team, 'tagline', None) or '',
-        'home_city': getattr(orm_team, 'home_city', None),
-        'home_ground': getattr(orm_team, 'home_ground', None),
-        'color1': '#0ea5e9',
-        'color2': '#1e293b',
-        'coach_name': getattr(orm_team, 'coach_name', None),
-        'manager': getattr(orm_team, 'manager', None),
-        'owner_name': getattr(orm_team, 'owner_name', None),
-        'about': getattr(orm_team, 'about', None),
-        'founding_year': getattr(orm_team, 'founding_year', None),
-        'championships_won': getattr(orm_team, 'championships_won', None),
-        'players': [
-            {
-                'id': p.id,
-                'player_name': getattr(p, 'player_name', None),
-                'player_role': getattr(p, 'player_role', None),
-                'image_url': getattr(p, 'image_url', None),
-                # Optional fields used in template fallbacks
-                'highlight': getattr(p, 'highlight', None),
-                'role': getattr(p, 'player_role', None),
-                'name': getattr(p, 'player_name', None),
-            } for p in getattr(orm_team, 'players', [])
-        ]
-    }
-    # Try to find the home stadium by name (if available)
+    team = Team.query.get_or_404(team_id)
     stadium = None
-    if team.get('home_ground'):
-        stadium = Stadium.query.filter(Stadium.name == team['home_ground']).first()
+    if team.home_ground:
+        stadium = Stadium.query.filter(Stadium.name == team.home_ground).first()
     return render_template('team_detail.html', team=team, stadium=stadium)
 
 @main_bp.route('/stadiums')
@@ -97,8 +50,6 @@ def stadium_detail(stadium_id: int):
     stadium = Stadium.query.get_or_404(stadium_id)
     # Attach dynamic attributes expected by template
     try:
-        from app.models.match import Event
-        from app.models.stadium import Photo
         stadium.photos = Photo.query.filter_by(stadium_id=stadium.id).all()
         stadium.upcoming_matches = Event.query.filter(Event.stadium_id == stadium.id).order_by(Event.event_date.asc()).limit(10).all()
     except Exception:
@@ -152,8 +103,7 @@ def order_concession(concession_id: int):
         flash('Please login to place an order.', 'info')
         return redirect(url_for('auth.login'))
     try:
-        from app.models.stadium import Order as ConcessionOrder
-        order = ConcessionOrder(
+        order = Order(
             concession_id=concession_id,
             customer_id=getattr(current_user, 'id', None),
             total_amount=0.0,
@@ -186,7 +136,6 @@ def book_parking(stadium_id: int):
         flash('Please login to book parking.', 'info')
         return redirect(url_for('auth.login'))
     try:
-        from app.models.stadium import ParkingBooking
         parking_id = request.form.get('parking_id', type=int)
         vehicle_number = request.form.get('vehicle_number', '').strip()
         arrival_time = request.form.get('arrival_time')
@@ -236,15 +185,13 @@ def payment_confirm():
         amount = request.args.get('amount', type=float) or 0.0
         if ptype == 'order':
             oid = request.args.get('order_id', type=int)
-            from app.models.stadium import Order as ConcessionOrder
-            order = ConcessionOrder.query.get_or_404(oid)
+            order = Order.query.get_or_404(oid)
             order.total_amount = amount
             order.payment_status = 'Completed'
             db.session.commit()
             flash('Payment successful. Your concession order is confirmed.', 'success')
         elif ptype == 'parking':
             bid = request.args.get('booking_id', type=int)
-            from app.models.stadium import ParkingBooking
             booking = ParkingBooking.query.get_or_404(bid)
             booking.amount_paid = amount
             booking.payment_status = 'Completed'

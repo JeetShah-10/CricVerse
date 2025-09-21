@@ -51,7 +51,7 @@ def profile():
     teams = Team.query.all()
     if request.method == 'POST':
         # Update basic profile fields
-        current_user.first_name = request.form.get('name', '')
+        current_user.name = request.form.get('name', '')
         current_user.phone = request.form.get('phone', '')
 
         try:

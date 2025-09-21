@@ -17,6 +17,10 @@ if os.path.exists('cricverse.env'):
 else:
     load_dotenv()
 
+# Import and create app instance
+from app import create_app
+app = create_app(os.environ.get('FLASK_ENV', 'development'))
+
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cricverse.run")
@@ -31,6 +35,11 @@ try:
         if supa.test_connection():
             logger.info("Supabase connection OK.")
         else:
+            logger.warning("Supabase connection failed. The app will still start; mock/fallbacks may be used.")
+except Exception as e:
+    logger.warning(f"⚠️ Supabase preflight check failed: {e}. The app will still start.")
+
+if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
     
@@ -42,6 +51,3 @@ try:
         debug=debug,
         threaded=True
     )
-
-if __name__ == '__main__':
-    main()

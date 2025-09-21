@@ -1,186 +1,181 @@
 {% extends 'base.html' %}
 {% block title %}Login • CricVerse{% endblock %}
+
+{% block head_extra %}
+<style>
+    :root {
+        --primary-glow: #00ff87;
+        --secondary-glow: #00c2ff;
+        --dark-bg: #10121A;
+        --card-bg: rgba(23, 26, 38, 0.85);
+        --input-bg: #1E2230;
+        --text-color: #E0E0E0;
+        --text-muted: #8A93A2;
+    }
+
+    .auth-page-wrapper {
+        background-image: linear-gradient(rgba(16, 18, 26, 0.9), rgba(16, 18, 26, 0.9)), url("{{ url_for('static', filename='img/Stadium Image.jpg') }}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    .auth-card {
+        background-color: var(--card-bg);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 1rem;
+    }
+
+    .auth-card .card-header {
+        background: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+    
+    .cricverse-logo {
+        height: 50px;
+        margin-bottom: 1rem;
+        filter: drop-shadow(0 0 10px var(--primary-glow));
+    }
+
+    .form-control {
+        background-color: var(--input-bg);
+        border: 1px solid #343A4F;
+        color: var(--text-color);
+        border-radius: 0.5rem;
+        padding: 0.8rem 1rem;
+    }
+
+    .form-control:focus {
+        background-color: var(--input-bg);
+        color: var(--text-color);
+        border-color: var(--primary-glow);
+        box-shadow: 0 0 0 0.25rem rgba(0, 255, 135, 0.2);
+    }
+    
+    .form-control::placeholder {
+        color: var(--text-muted);
+    }
+
+    .form-label {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .btn-glow {
+        background: linear-gradient(90deg, var(--primary-glow), var(--secondary-glow));
+        border: none;
+        color: #000;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 0.8rem;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 0 20px rgba(0, 255, 135, 0.4);
+    }
+
+    .btn-glow:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 30px rgba(0, 200, 255, 0.6);
+    }
+    
+    .auth-link {
+        color: var(--primary-glow);
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+    .auth-link:hover {
+        color: var(--secondary-glow);
+        text-decoration: underline;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--primary-glow);
+        border-color: var(--primary-glow);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-center align-items-center min-vh-100 px-4 py-5" data-aos="fade-up">
-  <div class="w-100" style="max-width: 400px;">
-    <div class="card shadow-lg">
-      <div class="card-body p-4 p-md-5">
-        <h3 class="h3 fw-bold mb-4 text-center">Login</h3>
-        <form method="post" action="{{ url_for('auth.login') }}">
-          <div class="mb-3">
-            <label class="form-label fw-medium" for="email">Email</label>
-            <input type="email" name="email" id="email" class="form-control form-control-lg" placeholder="Enter your email" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-medium" for="password">Password</label>
-            <div class="input-group">
-              <input type="password" name="password" id="password" class="form-control form-control-lg" placeholder="Enter your password" required>
-              <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-                <i class="fas fa-eye"></i>
-              </button>
+<div class="auth-page-wrapper d-flex justify-content-center align-items-center min-vh-100 px-4 py-5">
+    <div class="w-100" style="max-width: 450px;">
+        <div class="card auth-card shadow-lg">
+            <div class="card-header">
+                <img src="{{ url_for('static', filename='img/cricverse_logo_new.png') }}" alt="CricVerse Logo" class="cricverse-logo">
+                <h3 class="h3 fw-bold mb-0 text-white">Welcome Back</h3>
+                <p class="mb-0" style="color: var(--text-muted);">Sign in to continue to CricVerse</p>
             </div>
-          </div>
-          
-          <div class="row mb-4">
-            <div class="col">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="remember_me" id="remember_me">
-                <label class="form-check-label" for="remember_me">
-                  Remember me
-                </label>
-              </div>
+            <div class="card-body p-4 p-md-5">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                <form method="post" action="{{ url_for('auth.login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="you@example.com" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <label for="password" class="form-label">Password</label>
+                            <a href="#" class="auth-link small">Forgot Password?</a>
+                        </div>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Enter your password" required>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" name="remember_me" id="remember_me">
+                        <label class="form-check-label" for="remember_me" style="color: var(--text-muted);">
+                            Remember me
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-glow">Login</button>
+                    </div>
+                </form>
+                <div class="text-center mt-4">
+                    <p style="color: var(--text-muted);">Don't have an account? <a href="{{ url_for('auth.register') }}" class="auth-link">Create one now</a></p>
+                </div>
             </div>
-            <div class="col-auto">
-              <a href="#" class="text-decoration-none small" id="forgotPassword">Forgot password?</a>
-            </div>
-          </div>
-          
-          <div class="d-grid">
-            <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
-          </div>
-        </form>
-        <div class="text-center mt-3">
-          <p class="text-muted">Don't have an account? <a href="{{ url_for('auth.register') }}" class="text-decoration-none">Register here</a></p>
         </div>
-      </div>
     </div>
-  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Enhanced Login Form JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.querySelector('form');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const togglePasswordBtn = document.getElementById('togglePassword');
-    const forgotPasswordLink = document.getElementById('forgotPassword');
     
-    // Password visibility toggle
-    togglePasswordBtn.addEventListener('click', function() {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        
-        const icon = this.querySelector('i');
-        icon.classList.toggle('fa-eye');
-        icon.classList.toggle('fa-eye-slash');
-    });
-    
-    // Forgot password functionality
-    forgotPasswordLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        // Show forgot password modal/alert
-        const email = emailInput.value.trim();
-        if (!email) {
-            CricVerse.showNotification(
-                'Please enter your email address first, then click "Forgot password?"', 
-                'warning'
-            );
-            emailInput.focus();
-            return;
-        }
-        
-        // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            CricVerse.showNotification('Please enter a valid email address.', 'warning');
-            emailInput.focus();
-            return;
-        }
-        
-        // Simulate password reset request
-        CricVerse.showModal(
-            'Password Reset Requested',
-            `
-            <div class="text-center">
-                <i class="fas fa-envelope-circle-check text-success mb-3" style="font-size: 3rem;"></i>
-                <p class="mb-3">If an account with email <strong>${email}</strong> exists, we've sent you password reset instructions.</p>
-                <p class="text-muted small mb-0">Please check your email inbox and spam folder.</p>
-            </div>
-            `,
-            'success'
-        );
-        
-        // In production, this would make an AJAX call to the server
-        console.log(`Password reset requested for: ${email}`);
-    });
-    
-    // Enhanced form validation
     loginForm.addEventListener('submit', function(e) {
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
-        
-        let isValid = true;
-        let errorMessages = [];
-        
-        // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!email) {
-            errorMessages.push('Please enter your email address.');
-            isValid = false;
-        } else if (!emailRegex.test(email)) {
-            errorMessages.push('Please enter a valid email address.');
-            isValid = false;
-        }
-        
-        // Password validation
-        if (!password) {
-            errorMessages.push('Please enter your password.');
-            isValid = false;
-        }
-        
-        if (!isValid) {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        if (submitBtn.disabled) {
             e.preventDefault();
-            
-            // Show validation errors
-            let errorDiv = document.querySelector('.validation-errors');
-            if (!errorDiv) {
-                errorDiv = document.createElement('div');
-                errorDiv.className = 'validation-errors alert alert-danger mt-3';
-                loginForm.appendChild(errorDiv);
-            }
-            
-            errorDiv.innerHTML = `
-                <h6><i class="fas fa-exclamation-triangle me-2"></i>Please fix the following issues:</h6>
-                <ul class="mb-0">
-                    ${errorMessages.map(msg => `<li>${msg}</li>`).join('')}
-                </ul>
-            `;
-            
-            // Scroll to error
-            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-            // Remove any existing error messages
-            const errorDiv = document.querySelector('.validation-errors');
-            if (errorDiv) {
-                errorDiv.remove();
-            }
-            
-            // Show loading state
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing In...';
-            submitBtn.disabled = true;
-            
-            // Re-enable form if there's an error (handled by Flask flash messages)
-            setTimeout(() => {
+            return;
+        }
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing In...';
+        submitBtn.disabled = true;
+        
+        // Re-enable form if there's a validation error from server
+        setTimeout(() => {
+            if (document.querySelector('.alert-danger')) {
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
-            }, 3000);
-        }
-    });
-    
-    // Auto-focus email field
-    emailInput.focus();
-    
-    // Enter key navigation
-    emailInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            passwordInput.focus();
-        }
+            }
+        }, 1000);
     });
 });
 </script>

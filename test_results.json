@@ -1,0 +1,178 @@
+{
+  "timestamp": "2025-09-21T20:45:26.154791",
+  "tests": {
+    "Environment Variables": {
+      "success": true,
+      "present_vars": [
+        "SUPABASE_URL",
+        "SUPABASE_KEY",
+        "SECRET_KEY"
+      ],
+      "missing_vars": [],
+      "message": "Environment check: 3/3 variables present",
+      "timestamp": "2025-09-21T20:45:26.155724"
+    },
+    "Flask App Creation": {
+      "success": true,
+      "app_name": "app",
+      "config_loaded": true,
+      "blueprints": [
+        "booking",
+        "auth",
+        "user",
+        "ticketing",
+        "main",
+        "admin",
+        "enhanced_features",
+        "live_cricket",
+        "bbl"
+      ],
+      "message": "Flask app created successfully with 9 blueprints",
+      "timestamp": "2025-09-21T20:45:36.256882"
+    },
+    "Database Connection": {
+      "success": true,
+      "connection_test": true,
+      "tables": {
+        "customers": {
+          "exists": false,
+          "error": "(psycopg2.errors.UndefinedColumn) column customer.username does not exist\nLINE 2: FROM (SELECT customer.id AS customer_id, customer.username A...\n                                                 ^\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT customer.id AS customer_id, customer.username AS customer_username, customer.first_name AS customer_first_name, customer.last_name AS customer_last_name, customer.email AS customer_email, customer.password_hash AS customer_password_hash, customer.created_at AS customer_created_at, customer.updated_at AS customer_updated_at, customer.is_active AS customer_is_active, customer.role AS customer_role \nFROM customer) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+        },
+        "stadiums": {
+          "exists": false,
+          "error": "(psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT stadium.id AS stadium_id, stadium.name AS stadium_name, stadium.location AS stadium_location, stadium.capacity AS stadium_capacity, stadium.image_url AS stadium_image_url, stadium.contact_number AS stadium_contact_number, stadium.opening_year AS stadium_opening_year, stadium.pitch_type AS stadium_pitch_type, stadium.boundary_length AS stadium_boundary_length, stadium.floodlight_quality AS stadium_floodlight_quality, stadium.has_dressing_rooms AS stadium_has_dressing_rooms, stadium.has_practice_nets AS stadium_has_practice_nets \nFROM stadium) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)"
+        },
+        "events": {
+          "exists": false,
+          "error": "(psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT event.id AS event_id, event.event_name AS event_event_name, event.event_type AS event_event_type, event.tournament_name AS event_tournament_name, event.event_date AS event_event_date, event.start_time AS event_start_time, event.end_time AS event_end_time, event.stadium_id AS event_stadium_id, event.home_team_id AS event_home_team_id, event.away_team_id AS event_away_team_id, event.match_status AS event_match_status \nFROM event) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)"
+        },
+        "matches": {
+          "exists": false,
+          "error": "(psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT match.id AS match_id, match.event_id AS match_event_id, match.home_score AS match_home_score, match.away_score AS match_away_score, match.overs_home AS match_overs_home, match.overs_away AS match_overs_away, match.current_innings AS match_current_innings, match.is_live AS match_is_live \nFROM match) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)"
+        },
+        "bookings": {
+          "exists": false,
+          "error": "(psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT booking.id AS booking_id, booking.customer_id AS booking_customer_id, booking.total_amount AS booking_total_amount, booking.booking_date AS booking_booking_date, booking.payment_status AS booking_payment_status \nFROM booking) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)"
+        }
+      },
+      "message": "Database connection successful",
+      "timestamp": "2025-09-21T20:45:47.318144"
+    },
+    "Services Initialization": {
+      "success": true,
+      "services_count": 6,
+      "services_status": {
+        "supabase": {
+          "status": "healthy",
+          "connection": "active",
+          "supabase_url": "https://tiyokcstdmlhpswurelh.supabase.co",
+          "table_counts": {
+            "customer": "Error: (psycopg2.errors.UndefinedColumn) column customer.username does not exist\nLINE 2: FROM (SELECT customer.id AS customer_id, customer.username A...\n                                                 ^\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT customer.id AS customer_id, customer.username AS customer_username, customer.first_name AS customer_first_name, customer.last_name AS customer_last_name, customer.email AS customer_email, customer.password_hash AS customer_password_hash, customer.created_at AS customer_created_at, customer.updated_at AS customer_updated_at, customer.is_active AS customer_is_active, customer.role AS customer_role \nFROM customer) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+            "stadium": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT stadium.id AS stadium_id, stadium.name AS stadium_name, stadium.location AS stadium_location, stadium.capacity AS stadium_capacity, stadium.image_url AS stadium_image_url, stadium.contact_number AS stadium_contact_number, stadium.opening_year AS stadium_opening_year, stadium.pitch_type AS stadium_pitch_type, stadium.boundary_length AS stadium_boundary_length, stadium.floodlight_quality AS stadium_floodlight_quality, stadium.has_dressing_rooms AS stadium_has_dressing_rooms, stadium.has_practice_nets AS stadium_has_practice_nets \nFROM stadium) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+            "event": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT event.id AS event_id, event.event_name AS event_event_name, event.event_type AS event_event_type, event.tournament_name AS event_tournament_name, event.event_date AS event_event_date, event.start_time AS event_start_time, event.end_time AS event_end_time, event.stadium_id AS event_stadium_id, event.home_team_id AS event_home_team_id, event.away_team_id AS event_away_team_id, event.match_status AS event_match_status \nFROM event) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+            "match": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT match.id AS match_id, match.event_id AS match_event_id, match.home_score AS match_home_score, match.away_score AS match_away_score, match.overs_home AS match_overs_home, match.overs_away AS match_overs_away, match.current_innings AS match_current_innings, match.is_live AS match_is_live \nFROM match) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+            "booking": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT booking.id AS booking_id, booking.customer_id AS booking_customer_id, booking.total_amount AS booking_total_amount, booking.booking_date AS booking_booking_date, booking.payment_status AS booking_payment_status \nFROM booking) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+            "ticket": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT ticket.id AS ticket_id, ticket.event_id AS ticket_event_id, ticket.seat_id AS ticket_seat_id, ticket.customer_id AS ticket_customer_id, ticket.booking_id AS ticket_booking_id, ticket.ticket_type AS ticket_ticket_type, ticket.ticket_status AS ticket_ticket_status, ticket.access_gate AS ticket_access_gate, ticket.qr_code AS ticket_qr_code, ticket.created_at AS ticket_created_at, ticket.updated_at AS ticket_updated_at \nFROM ticket) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+            "seat": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT seat.id AS seat_id, seat.section AS seat_section, seat.row_number AS seat_row_number, seat.seat_number AS seat_seat_number, seat.seat_type AS seat_seat_type, seat.price AS seat_price, seat.is_available AS seat_is_available \nFROM seat) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)"
+          },
+          "timestamp": "2025-09-21T15:15:59.300962"
+        },
+        "analytics": {
+          "status": "unknown"
+        },
+        "enhanced_booking": {
+          "status": "healthy"
+        },
+        "performance": {
+          "status": "unknown"
+        },
+        "security": {
+          "status": "unknown"
+        },
+        "live_cricket": {
+          "status": "unhealthy",
+          "error": "(psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT match.id AS match_id, match.event_id AS match_event_id, match.home_score AS match_home_score, match.away_score AS match_away_score, match.overs_home AS match_overs_home, match.overs_away AS match_overs_away, match.current_innings AS match_current_innings, match.is_live AS match_is_live \nFROM match \nWHERE match.is_live = true) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+          "timestamp": "2025-09-21T15:15:59.325792"
+        }
+      },
+      "message": "Services initialized: 6 services",
+      "timestamp": "2025-09-21T20:45:59.325825"
+    },
+    "Supabase Service": {
+      "success": true,
+      "health_status": {
+        "status": "healthy",
+        "connection": "active",
+        "supabase_url": "https://tiyokcstdmlhpswurelh.supabase.co",
+        "table_counts": {
+          "customer": "Error: (psycopg2.errors.UndefinedColumn) column customer.username does not exist\nLINE 2: FROM (SELECT customer.id AS customer_id, customer.username A...\n                                                 ^\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT customer.id AS customer_id, customer.username AS customer_username, customer.first_name AS customer_first_name, customer.last_name AS customer_last_name, customer.email AS customer_email, customer.password_hash AS customer_password_hash, customer.created_at AS customer_created_at, customer.updated_at AS customer_updated_at, customer.is_active AS customer_is_active, customer.role AS customer_role \nFROM customer) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/f405)",
+          "stadium": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT stadium.id AS stadium_id, stadium.name AS stadium_name, stadium.location AS stadium_location, stadium.capacity AS stadium_capacity, stadium.image_url AS stadium_image_url, stadium.contact_number AS stadium_contact_number, stadium.opening_year AS stadium_opening_year, stadium.pitch_type AS stadium_pitch_type, stadium.boundary_length AS stadium_boundary_length, stadium.floodlight_quality AS stadium_floodlight_quality, stadium.has_dressing_rooms AS stadium_has_dressing_rooms, stadium.has_practice_nets AS stadium_has_practice_nets \nFROM stadium) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+          "event": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT event.id AS event_id, event.event_name AS event_event_name, event.event_type AS event_event_type, event.tournament_name AS event_tournament_name, event.event_date AS event_event_date, event.start_time AS event_start_time, event.end_time AS event_end_time, event.stadium_id AS event_stadium_id, event.home_team_id AS event_home_team_id, event.away_team_id AS event_away_team_id, event.match_status AS event_match_status \nFROM event) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+          "match": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT match.id AS match_id, match.event_id AS match_event_id, match.home_score AS match_home_score, match.away_score AS match_away_score, match.overs_home AS match_overs_home, match.overs_away AS match_overs_away, match.current_innings AS match_current_innings, match.is_live AS match_is_live \nFROM match) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+          "booking": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT booking.id AS booking_id, booking.customer_id AS booking_customer_id, booking.total_amount AS booking_total_amount, booking.booking_date AS booking_booking_date, booking.payment_status AS booking_payment_status \nFROM booking) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+          "ticket": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT ticket.id AS ticket_id, ticket.event_id AS ticket_event_id, ticket.seat_id AS ticket_seat_id, ticket.customer_id AS ticket_customer_id, ticket.booking_id AS ticket_booking_id, ticket.ticket_type AS ticket_ticket_type, ticket.ticket_status AS ticket_ticket_status, ticket.access_gate AS ticket_access_gate, ticket.qr_code AS ticket_qr_code, ticket.created_at AS ticket_created_at, ticket.updated_at AS ticket_updated_at \nFROM ticket) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)",
+          "seat": "Error: (psycopg2.errors.InFailedSqlTransaction) current transaction is aborted, commands ignored until end of transaction block\n\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT seat.id AS seat_id, seat.section AS seat_section, seat.row_number AS seat_row_number, seat.seat_number AS seat_seat_number, seat.seat_type AS seat_seat_type, seat.price AS seat_price, seat.is_available AS seat_is_available \nFROM seat) AS anon_1]\n(Background on this error at: https://sqlalche.me/e/20/2j85)"
+        },
+        "timestamp": "2025-09-21T15:16:11.884167"
+      },
+      "stadiums_count": 0,
+      "events_count": 0,
+      "message": "Supabase service healthy, 0 stadiums, 0 events",
+      "timestamp": "2025-09-21T20:46:12.090370"
+    },
+    "Live Cricket Service": {
+      "success": true,
+      "health_status": {
+        "status": "healthy",
+        "initialized": true,
+        "socketio_connected": true,
+        "live_matches": 0,
+        "total_matches": 9,
+        "timestamp": "2025-09-21T15:16:24.889515"
+      },
+      "live_matches_count": 0,
+      "initialized": true,
+      "message": "Live cricket service: 0 live matches",
+      "timestamp": "2025-09-21T20:46:25.028637"
+    },
+    "Routes Registration": {
+      "success": true,
+      "total_routes": 109,
+      "found_key_routes": [
+        "/live/",
+        "/enhanced/concessions",
+        "/enhanced/parking",
+        "/enhanced/about",
+        "/health/services",
+        "/health/database"
+      ],
+      "missing_key_routes": [],
+      "blueprints": [
+        "booking",
+        "auth",
+        "user",
+        "ticketing",
+        "main",
+        "admin",
+        "enhanced_features",
+        "live_cricket",
+        "bbl"
+      ],
+      "message": "Routes registered: 109 total, 6/6 key routes found",
+      "timestamp": "2025-09-21T20:46:35.551184"
+    },
+    "Enhanced Booking Service": {
+      "success": true,
+      "stadiums_available": 8,
+      "menu_test": true,
+      "message": "Enhanced booking service working with 8 stadiums",
+      "timestamp": "2025-09-21T20:46:48.467655"
+    }
+  },
+  "summary": {
+    "total_tests": 8,
+    "passed": 8,
+    "failed": 0,
+    "warnings": 0
+  }
+}

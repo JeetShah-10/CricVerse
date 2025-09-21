@@ -8,31 +8,42 @@ bp = Blueprint('auth', __name__)
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
     if request.method == 'POST':
-        name = request.form.get('name')  # kept for compatibility but not stored
+        name = request.form.get('name')
         email = request.form.get('email')
+        phone = request.form.get('phone')
         password = request.form.get('password')
         
-        # Basic validation
-        if not email or not password:
-            flash('Please fill out all required fields.', 'danger')
+        # Server-side validation
+        if not all([name, email, password]):
+            flash('Please fill out all required fields: Name, Email, and Password.', 'danger')
             return render_template('register.html')
 
         existing_customer = Customer.query.filter(Customer.email == email).first()
         if existing_customer:
-            flash('A user with that email already exists.', 'danger')
+            flash('An account with this email address already exists.', 'danger')
             return render_template('register.html')
 
+        # Create new customer
         new_customer = Customer(
-            email=email
+            name=name,
+            email=email,
+            phone=phone
         )
         new_customer.set_password(password)
-        db.session.add(new_customer)
-        db.session.commit()
         
-        flash('Account created successfully! Please log in.', 'success')
-        return redirect(url_for('auth.login'))
+        try:
+            db.session.add(new_customer)
+            db.session.commit()
+            flash('Your account has been created! Please log in.', 'success')
+            return redirect(url_for('auth.login'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred during registration: {e}', 'danger')
+            # In a production environment, you would log this error.
+
+    return render_template('register.html')
         
     return render_template('register.html')
 

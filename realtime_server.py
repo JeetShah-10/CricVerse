@@ -26,15 +26,21 @@ def init_socketio(app):
     
     # Initialize Redis for message passing between server instances
     redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-    try:
-        redis_client = redis.from_url(redis_url, decode_responses=True)
-        redis_client.ping()
-        logger.info(f"✅ Redis connected: {redis_url}")
-    except Exception as e:
-        # Only warn if not in testing mode
-        if not os.getenv('PYTEST_CURRENT_TEST') and not os.getenv('TESTING'):
-            logger.warning(f"⚠️ Redis connection failed: {e}")
-        redis_client = None
+    redis_client = None
+    
+    # Only attempt Redis connection if URL is provided and not fake
+    if redis_url:
+        try:
+            redis_client = redis.from_url(redis_url, decode_responses=True)
+            redis_client.ping()
+            logger.info(f"✅ Redis connected: {redis_url}")
+        except Exception as e:
+            # Only warn if not in testing mode
+            if not os.getenv('PYTEST_CURRENT_TEST') and not os.getenv('TESTING'):
+                logger.warning(f"⚠️ Redis connection failed: {e}")
+            redis_client = None
+    else:
+        logger.info("ℹ️ Redis not configured or using default URL, skipping Redis connection")
     
     # Initialize SocketIO with Redis adapter if available
     if redis_client:

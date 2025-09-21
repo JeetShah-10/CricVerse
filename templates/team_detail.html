@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}{{ team.team_name }} • Team{% endblock %}
 {% block content %}
-<div class="team-hero mb-4 rounded-4 shadow-lg" style="--color1: {{ team.color1 or '#0ea5e9' }}; --color2: {{ team.color2 or '#1e293b' }};">
+<div class="team-hero mb-4 rounded-4 shadow-lg" style="--color1: {{ team.team_color or '#0ea5e9' }}; --color2: #1e293b;">
   <div class="d-flex flex-column flex-md-row align-items-center justify-content-between">
   <img src="{{ team.team_logo }}" alt="{{ team.team_name }} Logo"
          class="team-logo-lg rounded-circle shadow-lg mb-3 mb-md-0"
@@ -34,13 +34,14 @@
                 {% endif %}
               </li>
               <li><strong>Colors:</strong>
-                {% if team.color1 %}
-                  <span class="team-color-badge" style="--badge-color: {{ team.color1 or '#0ea5e9' }};">
-                    {{ team.team_color or team.color1 }}
+                {% if team.team_color %}
+                  <span class="team-color-badge" style="--badge-color: {{ team.team_color }};">
+                    {{ team.team_color }}
                   </span>
                 {% else %}
                   <span class="text-muted">N/A</span>
                 {% endif %}
+              </li>
               <li><strong>Coach:</strong> {{ team.coach_name or 'N/A' }}</li>
             </ul>
           </div>
@@ -58,10 +59,9 @@
           {% for player in team.players %}
           <div class="col-6 col-md-4 col-lg-3">
             <div class="player-card card border-0 shadow-sm rounded-3 text-center p-2 h-100">
-              <img src="{{ player.image_url }}" alt="{{ player.name }}" class="rounded-circle mb-2" loading="lazy" decoding="async" style="width:60px; height:60px; object-fit:cover;">
-              <div class="fw-bold">{{ player.name }}</div>
-              <div class="small text-muted">{{ player.role }}</div>
-              <div class="small text-info">{{ player.highlight }}</div>
+              <img src="{{ player.photo_url }}" alt="{{ player.player_name }}" class="rounded-circle mb-2" loading="lazy" decoding="async" style="width:60px; height:60px; object-fit:cover;">
+              <div class="fw-bold">{{ player.player_name }}</div>
+              <div class="small text-muted">{{ player.player_role }}</div>
             </div>
           </div>
           {% endfor %}

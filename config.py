@@ -25,8 +25,14 @@ class Config:
     # Performance optimizations
     SEND_FILE_MAX_AGE_DEFAULT = timedelta(hours=12)
     
+    # Supabase Configuration
+    SUPABASE_URL = os.environ.get('SUPABASE_URL')
+    SUPABASE_KEY = os.environ.get('SUPABASE_KEY') or os.environ.get('SUPABASE_ANON_KEY')
+    SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+    
     # API Keys
     GEMINI_API_KEY = os.environ.get('GOOGLE_API_KEY')
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     
     # Payment settings
     PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID')
@@ -44,12 +50,27 @@ class DevelopmentConfig(Config):
     DEBUG = True
     FLASK_ENV = 'development'
     TEMPLATES_AUTO_RELOAD = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or 'sqlite:///cricverse_dev.db'
+    # Use Supabase PostgreSQL for development
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SQLALCHEMY_ECHO = False
+    
+    # Supabase specific settings for development
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_timeout': 30,
+        'pool_size': 5,
+        'max_overflow': 10,
+        'connect_args': {
+            'sslmode': 'require',
+            'connect_timeout': 30
+        }
+    }
 
 class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
+    # Use in-memory SQLite for testing only
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
 
@@ -58,14 +79,21 @@ class ProductionConfig(Config):
     DEBUG = False
     FLASK_ENV = 'production'
     SESSION_COOKIE_SECURE = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///cricverse.db'
+    # Use Supabase PostgreSQL for production
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     
-    # Production optimizations
+    # Production optimizations for Supabase
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
-        'pool_size': 10,
-        'max_overflow': 20
+        'pool_size': 20,
+        'max_overflow': 30,
+        'pool_timeout': 30,
+        'connect_args': {
+            'sslmode': 'require',
+            'connect_timeout': 30,
+            'application_name': 'CricVerse-Production'
+        }
     }
 
 # Configuration dictionary

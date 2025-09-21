@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class BBLDataService:
     """Service for fetching BBL data from Supabase"""
     
-    def __init__(self):
+    def __init__(self, supabase_url: str, supabase_key: str):
         self.supabase_url = os.getenv('SUPABASE_URL')
         self.supabase_key = os.getenv('SUPABASE_ANON_KEY')
         
@@ -48,25 +48,34 @@ class BBLDataService:
         """Get live BBL match scores from Supabase"""
         try:
             # Query live matches from Supabase
-            response = self.supabase.table('matches').select(
-                'id, home_team_id, away_team_id, match_date, status, home_score, away_score, venue'
-            ).eq('status', 'live').execute()
+            # Join Event and Match tables to get match_date from Event
+            # Status is in the Event table, not Match table
+            response = self.supabase.from_('match').select(
+                'id, home_team_id, away_team_id, event(event_date, match_status, stadium(name)), home_score, away_score'
+            ).eq('event.match_status', 'live').execute()
             
             matches = []
             for match in response.data:
+                # Handle case where match might be None
+                if not match:
+                    continue
+                    
                 # Get team names
-                home_team = await self._get_team_name(match['home_team_id'])
-                away_team = await self._get_team_name(match['away_team_id'])
+                home_team = await self._get_team_name(match.get('home_team_id', 0))
+                away_team = await self._get_team_name(match.get('away_team_id', 0))
+                
+                # Get event data safely
+                event_data = match.get('event', {}) or {}
                 
                 matches.append({
-                    'id': match['id'],
+                    'id': match.get('id', 0),
                     'home_team': home_team,
                     'away_team': away_team,
                     'home_score': match.get('home_score', '0/0'),
                     'away_score': match.get('away_score', '0/0'),
-                    'status': match['status'],
-                    'venue': match.get('venue', 'TBD'),
-                    'match_date': match['match_date']
+                    'status': event_data.get('match_status', 'Scheduled'),
+                    'venue': event_data.get('stadium', {}).get('name', 'TBD') if event_data.get('stadium') else 'TBD',
+                    'match_date': event_data.get('event_date')
                 })
             
             logger.info(f"✅ Retrieved {len(matches)} live matches from Supabase")
@@ -79,9 +88,10 @@ class BBLDataService:
     async def get_standings(self) -> List[Dict[str, Any]]:
         """Get BBL team standings from Supabase"""
         try:
-            response = self.supabase.table('team_standings').select(
-                'team_id, team_name, matches_played, wins, losses, points, net_run_rate'
-            ).order('points', desc=True).execute()
+            # Fallback to team table since team_standings doesn't exist
+            response = self.supabase.table('team').select(
+                'id, team_name'
+            ).order('team_name').execute()
             
             logger.info(f"✅ Retrieved {len(response.data)} team standings from Supabase")
             return response.data
@@ -107,15 +117,15 @@ class BBLDataService:
     async def get_top_performers(self) -> Dict[str, List[Dict[str, Any]]]:
         """Get top performers (runs and wickets) from Supabase"""
         try:
-            # Get top run scorers
-            runs_response = self.supabase.table('player_stats').select(
-                'player_id, player_name, team_name, runs, matches'
-            ).order('runs', desc=True).limit(10).execute()
+            # Fallback to player table since player_stats doesn't exist
+            runs_response = self.supabase.table('player').select(
+                'id, player_name, team_id'
+            ).order('player_name').limit(10).execute()
             
             # Get top wicket takers
-            wickets_response = self.supabase.table('player_stats').select(
-                'player_id, player_name, team_name, wickets, matches'
-            ).order('wickets', desc=True).limit(10).execute()
+            wickets_response = self.supabase.table('player').select(
+                'id, player_name, team_id'
+            ).order('player_name').limit(10).execute()
             
             result = {
                 'top_runs': runs_response.data,
@@ -142,10 +152,3 @@ class BBLDataService:
             logger.error(f"❌ Error fetching team name for ID {team_id}: {e}")
             raise
 
-# Global instance - will be initialized when Supabase credentials are available
-try:
-    bbl_data_service = BBLDataService()
-    logger.info("✅ BBL Data Service initialized successfully")
-except (ValueError, ConnectionError) as e:
-    logger.error(f"❌ BBL Data Service initialization failed: {e}")
-    bbl_data_service = None

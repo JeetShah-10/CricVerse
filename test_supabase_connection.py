@@ -13,6 +13,10 @@ from datetime import datetime
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 from supabase_bbl_integration import BBLDataService
 from supabase_config import SupabaseConfig
 
@@ -121,7 +125,9 @@ class SupabaseConnectionTester:
                 print("❌ Skipping BBL service test - connection failed")
                 return
             
-            self.bbl_service = BBLDataService()
+            supabase_url = os.getenv('SUPABASE_URL')
+            supabase_key = os.getenv('SUPABASE_ANON_KEY')
+            self.bbl_service = BBLDataService(supabase_url, supabase_key)
             self.test_results['bbl_service_init'] = True
             print("✅ BBL Service initialized successfully")
             

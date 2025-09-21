@@ -1,12 +1,12 @@
 from app import db
-from app.models.booking import Ticket, Seat, Booking
-from app.models.booking import Customer
-from app.models.match import Event
+from app.models.booking_ticket import Ticket, Seat, Booking
+from app.models import Customer
+from app.models.event_match_team import Event
 from datetime import datetime
 from flask import session
 import time
 import random
-from app.models.payment import Payment
+from app.models.payment_models import Payment
 
 def book_seat(seat_id, event_id, customer_id):
     """

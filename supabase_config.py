@@ -15,8 +15,13 @@ class SupabaseConfig:
     
     def __init__(self):
         self.url = os.getenv('SUPABASE_URL')
-        self.key = os.getenv('SUPABASE_ANON_KEY')
+        self.key = os.getenv('SUPABASE_ANON_KEY') or os.getenv('SUPABASE_KEY')
         self.service_key = os.getenv('SUPABASE_SERVICE_KEY')
+        
+        logger.info(f"[DEBUG] SupabaseConfig init - URL: {self.url is not None}, Key: {self.key is not None}")
+        logger.info(f"[DEBUG] Raw URL: {self.url}")
+        logger.info(f"[DEBUG] Raw Key: {self.key}")
+
         self.client: Optional[Client] = None
         
         if self.url and self.key:
