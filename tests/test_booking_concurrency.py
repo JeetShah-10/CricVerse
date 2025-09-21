@@ -1,23 +1,10 @@
 import pytest
 import threading
-import time
 from app import create_app, db
 from app.models.booking import Booking, Ticket, Seat
 from app.services.booking_service import book_seat
 
-@pytest.fixture
-def app():
-    """Create application for testing."""
-    app = create_app('testing')
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-@pytest.fixture
-def client(app):
-    """Create test client."""
-    return app.test_client()
+# Use global fixtures from conftest.py
 
 @pytest.fixture
 def sample_data(app):

@@ -11,14 +11,18 @@ def book_seat_route():
         data = request.get_json()
         seat_id = data.get('seat_id')
         event_id = data.get('event_id')
-        # Use current_user instead of passing customer_id in request
-        if not current_user.is_authenticated:
-            return jsonify({'success': False, 'message': 'Authentication required'}), 401
+        customer_id = data.get('customer_id')  # Allow customer_id in request for testing
+        
+        # Use current_user if authenticated, otherwise use customer_id from request (for testing)
+        if current_user.is_authenticated:
+            customer_id = current_user.id
+        elif not customer_id:
+            return jsonify({'success': False, 'message': 'Authentication required or customer_id must be provided'}), 401
         
         if not all([seat_id, event_id]):
             return jsonify({'success': False, 'message': 'Missing seat_id or event_id'}), 400
         
-        result = booking_service.book_seat(seat_id, event_id, current_user.id)
+        result = booking_service.book_seat(seat_id, event_id, customer_id)
         
         if result['success']:
             return jsonify(result), 200

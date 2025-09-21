@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Booking Confirmation - CricVerse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="text-center mb-4">
+                <i class="fas fa-check-circle fa-5x text-success mb-3"></i>
+                <h1 class="text-success">Booking Confirmed!</h1>
+                <p class="lead">Your cricket match tickets have been successfully booked.</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Booking Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Match Information</h6>
+                            <p><strong>Match:</strong> Melbourne Stars vs Sydney Sixers</p>
+                            <p><strong>Date:</strong> January 15, 2024</p>
+                            <p><strong>Time:</strong> 7:15 PM</p>
+                            <p><strong>Venue:</strong> Melbourne Cricket Ground (MCG)</p>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Booking Information</h6>
+                            <p><strong>Booking ID:</strong> #CRV-2024-001234</p>
+                            <p><strong>Customer:</strong> {{ current_user.name if current_user.is_authenticated else 'Guest User' }}</p>
+                            <p><strong>Booking Date:</strong> {{ moment().format('MMMM Do, YYYY') }}</p>
+                            <p><strong>Status:</strong> <span class="badge bg-success">Confirmed</span></p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>Seat Details</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Section</th>
+                                    <th>Row</th>
+                                    <th>Seat</th>
+                                    <th>Type</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody id="seat-details">
+                                <tr>
+                                    <td>Premium</td>
+                                    <td>A</td>
+                                    <td>1</td>
+                                    <td>Premium</td>
+                                    <td>$150.00</td>
+                                </tr>
+                                <tr>
+                                    <td>Premium</td>
+                                    <td>A</td>
+                                    <td>2</td>
+                                    <td>Premium</td>
+                                    <td>$150.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Payment Summary</h6>
+                            <div class="d-flex justify-content-between">
+                                <span>Subtotal:</span>
+                                <span>$300.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Booking Fee:</span>
+                                <span>$15.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>GST (10%):</span>
+                                <span>$31.50</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <strong>Total Paid:</strong>
+                                <strong>$346.50</strong>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Payment Method</h6>
+                            <p><i class="fab fa-cc-visa"></i> **** **** **** 1234</p>
+                            <p><strong>Transaction ID:</strong> TXN-789456123</p>
+                            <p><strong>Payment Status:</strong> <span class="badge bg-success">Paid</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-mobile-alt fa-3x text-primary mb-3"></i>
+                            <h6>Digital Tickets</h6>
+                            <p class="text-muted">Your tickets have been sent to your email and are available in your account.</p>
+                            <button class="btn btn-primary btn-sm">View Tickets</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-calendar-alt fa-3x text-success mb-3"></i>
+                            <h6>Add to Calendar</h6>
+                            <p class="text-muted">Don't forget your match! Add it to your calendar.</p>
+                            <button class="btn btn-success btn-sm">Add Event</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-share-alt fa-3x text-info mb-3"></i>
+                            <h6>Share</h6>
+                            <p class="text-muted">Share your excitement with friends and family!</p>
+                            <button class="btn btn-info btn-sm">Share Booking</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info mt-4">
+                <h6><i class="fas fa-info-circle"></i> Important Information</h6>
+                <ul class="mb-0">
+                    <li>Please arrive at the stadium at least 30 minutes before the match starts</li>
+                    <li>Bring a valid photo ID for entry verification</li>
+                    <li>Check the stadium's prohibited items list before attending</li>
+                    <li>Your digital tickets will be required for entry</li>
+                </ul>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="/" class="btn btn-outline-primary me-2">Back to Home</a>
+                <a href="/user/bookings" class="btn btn-primary">View All Bookings</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load seat details from session storage if available
+document.addEventListener('DOMContentLoaded', function() {
+    const selectedSeats = JSON.parse(sessionStorage.getItem('selectedSeats') || '[]');
+    const totalPrice = sessionStorage.getItem('totalPrice') || '0';
+    
+    if (selectedSeats.length > 0) {
+        updateSeatDetails(selectedSeats, totalPrice);
+    }
+    
+    // Clear session storage
+    sessionStorage.removeItem('selectedSeats');
+    sessionStorage.removeItem('totalPrice');
+});
+
+function updateSeatDetails(seats, total) {
+    const tbody = document.getElementById('seat-details');
+    tbody.innerHTML = '';
+    
+    seats.forEach(seat => {
+        const row = document.createElement('tr');
+        const seatParts = seat.id.split('');
+        const section = seatParts[0] === 'A' ? 'Premium' : seatParts[0] === 'B' || seatParts[0] === 'C' ? 'General' : 'Economy';
+        
+        row.innerHTML = `
+            <td>${section}</td>
+            <td>${seatParts[0]}</td>
+            <td>${seatParts[1]}</td>
+            <td>${section}</td>
+            <td>$${seat.price}.00</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+</script>
+{% endblock %}

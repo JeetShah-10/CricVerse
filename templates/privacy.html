@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - CricVerse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <h1 class="text-center mb-4">Privacy Policy</h1>
+            
+            <div class="card">
+                <div class="card-body">
+                    <p class="lead">Last updated: {{ moment().format('MMMM Do, YYYY') }}</p>
+                    
+                    <h3>1. Information We Collect</h3>
+                    <p>We collect information you provide directly to us, such as when you create an account, make a booking, or contact us for support.</p>
+                    
+                    <h4>Personal Information</h4>
+                    <ul>
+                        <li>Name and contact information</li>
+                        <li>Payment information</li>
+                        <li>Booking history and preferences</li>
+                        <li>Communication records</li>
+                    </ul>
+                    
+                    <h4>Automatically Collected Information</h4>
+                    <ul>
+                        <li>Device and browser information</li>
+                        <li>IP address and location data</li>
+                        <li>Usage patterns and analytics</li>
+                        <li>Cookies and similar technologies</li>
+                    </ul>
+                    
+                    <h3>2. How We Use Your Information</h3>
+                    <p>We use the information we collect to:</p>
+                    <ul>
+                        <li>Process bookings and payments</li>
+                        <li>Provide customer support</li>
+                        <li>Send important updates and notifications</li>
+                        <li>Improve our services and user experience</li>
+                        <li>Comply with legal obligations</li>
+                    </ul>
+                    
+                    <h3>3. Information Sharing</h3>
+                    <p>We do not sell, trade, or rent your personal information to third parties. We may share information in the following circumstances:</p>
+                    <ul>
+                        <li>With stadium partners for booking fulfillment</li>
+                        <li>With payment processors for transaction processing</li>
+                        <li>With service providers who assist in our operations</li>
+                        <li>When required by law or legal process</li>
+                    </ul>
+                    
+                    <h3>4. Data Security</h3>
+                    <p>We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.</p>
+                    
+                    <h3>5. Your Rights</h3>
+                    <p>You have the right to:</p>
+                    <ul>
+                        <li>Access and update your personal information</li>
+                        <li>Request deletion of your data</li>
+                        <li>Opt out of marketing communications</li>
+                        <li>Request data portability</li>
+                    </ul>
+                    
+                    <h3>6. Contact Us</h3>
+                    <p>If you have questions about this Privacy Policy, please contact us at:</p>
+                    <p>
+                        Email: privacy@cricverse.com<br>
+                        Phone: 1800-CRICVERSE<br>
+                        Address: Level 15, Cricket House, 123 Stadium Drive, Sydney NSW 2000
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

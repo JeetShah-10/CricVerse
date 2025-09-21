@@ -97,6 +97,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeActionHub();
     initializeTeamsCarousel();
     initializeVideoOptimization();
+    enableGlobalImageLazyLoading();
+
     optimizeTeamLogos();
 });
 
@@ -344,6 +346,10 @@ function initializeVideoOptimization() {
     const fallbackImg = document.querySelector('.hero-fallback-img');
     
     if (video) {
+        // Respect Data Saver where supported
+        const mediaSaver = window.matchMedia && window.matchMedia('(prefers-reduced-data: reduce)');
+        const isSaver = mediaSaver && mediaSaver.matches;
+
         // Handle video load errors
         video.addEventListener('error', function() {
             console.log('Video failed to load, showing fallback image');
@@ -360,13 +366,51 @@ function initializeVideoOptimization() {
             }
         });
         
-        // Force play on mobile devices if needed
-        video.addEventListener('canplay', function() {
-            video.play().catch(function(error) {
-                console.log('Autoplay prevented:', error);
-            });
-        });
+        // Lazy-load the video source when the section enters the viewport and data saver is off
+        const source = video.querySelector('source');
+        const loadVideo = () => {
+            if (!source) return;
+            const dataSrc = source.getAttribute('data-src');
+            if (dataSrc && !source.getAttribute('src')) {
+                source.setAttribute('src', dataSrc);
+                video.load();
+            }
+        };
+
+        if (!isSaver && 'IntersectionObserver' in window) {
+            const io = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        loadVideo();
+                        // Attempt autoplay once metadata is available
+                        video.addEventListener('canplay', function once() {
+                            video.removeEventListener('canplay', once);
+                            video.play().catch(() => {/* autoplay may be blocked */});
+                        });
+                        io.disconnect();
+                    }
+                });
+            }, { rootMargin: '200px' });
+            io.observe(video);
+        } else {
+            // Data saver or old browser: show fallback image
+            if (fallbackImg) fallbackImg.style.display = 'block';
+        }
     }
+}
+
+// Globally set lazy loading for images if not explicitly set
+function enableGlobalImageLazyLoading() {
+    try {
+        const imgs = document.querySelectorAll('img');
+        imgs.forEach(img => {
+            if (!img.hasAttribute('loading')) {
+                img.setAttribute('loading', 'lazy');
+            }
+            // decode ASAP to avoid layout jank when they appear
+            if (img.decode) img.decode().catch(() => {});
+        });
+    } catch(e) { /* no-op */ }
 }
 
 // Add CSS animations
@@ -465,12 +509,12 @@ document.head.appendChild(style);
           </div>
           <div class="teams-matchup">
             <div class="team-side home">
-              ${home.team_logo ? `<img src="${home.team_logo}" alt="${home.team_name}" class="team-logo">` : ''}
+              ${home.team_logo ? `<img src="${home.team_logo}" alt="${home.team_name}" class="team-logo" loading="lazy">` : ''}
               <span class="team-name">${home.team_name}</span>
             </div>
             <div class="vs-indicator"><span>VS</span></div>
             <div class="team-side away">
-              ${away.team_logo ? `<img src="${away.team_logo}" alt="${away.team_name}" class="team-logo">` : ''}
+              ${away.team_logo ? `<img src="${away.team_logo}" alt="${away.team_name}" class="team-logo" loading="lazy">` : ''}
               <span class="team-name">${away.team_name}</span>
             </div>
           </div>
@@ -502,13 +546,13 @@ document.head.appendChild(style);
 <section class="hero-banner">
   <div class="hero-background">
     <div class="hero-video-bg">
-      <video autoplay muted loop playsinline preload="auto" poster="{{ url_for('static', filename='img/Match Action .png') }}">
-        <source src="{{ url_for('static', filename='img/Main Page Video.mp4') }}" type="video/mp4">
+      <video autoplay muted loop playsinline preload="none" poster="{{ url_for('static', filename='img/Match Action .png') }}">
+        <source data-src="{{ url_for('static', filename='img/Main Page Video.mp4') }}" type="video/mp4">
         <!-- Fallback for browsers that don't support video -->
         Your browser does not support the video tag.
       </video>
       <!-- Fallback image for browsers that don't support video -->
-      <img src="{{ url_for('static', filename='img/Match Action .png') }}" alt="Cricket Action" class="hero-fallback-img" style="display: none;">
+      <img src="{{ url_for('static', filename='img/Match Action .png') }}" alt="Cricket Action" class="hero-fallback-img" style="display: none;" loading="lazy">
     </div>
     <div class="hero-gradient-overlay"></div>
   </div>
@@ -555,10 +599,13 @@ document.head.appendChild(style);
       </div>
       <div class="col-lg-5 highlights-image-side">
         <div class="highlights-cricket-action">
-          <img src="{{ url_for('static', filename='img/fan celebrations.png') }}" alt="Fan Celebrations" class="highlights-bg-img">
+          <picture>
+            <source srcset="{{ url_for('static', filename='img/fan celebrations.webp') }}" type="image/webp">
+            <img src="{{ url_for('static', filename='img/fan celebrations.png') }}" alt="Fan Celebrations" class="highlights-bg_img" loading="lazy">
+          </picture>
           <div class="action-overlay"></div>
           <div class="celebration-gif">
-            <img src="{{ url_for('static', filename='img/Celebration GIF.gif') }}" alt="Celebration" class="celebration-animation">
+            <img src="{{ url_for('static', filename='img/Celebration GIF.gif') }}" alt="Celebration" class="celebration-animation" loading="lazy">
           </div>
           <div class="crowd-energy"></div>
         </div>
@@ -605,7 +652,10 @@ document.head.appendChild(style);
                   </div>
                   <div class="teams-matchup">
                     <div class="team-side home">
-                      <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars" class="team-logo">
+                      <picture>
+                        <source srcset="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.webp') }}" type="image/webp">
+                        <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars" class="team-logo" loading="lazy">
+                      </picture>
                       <span class="team-name">Melbourne Stars</span>
                       <span class="team-score">156/4</span>
                     </div>
@@ -616,7 +666,10 @@ document.head.appendChild(style);
                       </div>
                     </div>
                     <div class="team-side away">
-                      <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers" class="team-logo">
+                      <picture>
+                        <source srcset="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.webp') }}" type="image/webp">
+                        <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers" class="team-logo" loading="lazy">
+                      </picture>
                       <span class="team-name">Sydney Sixers</span>
                       <span class="team-score">132/6</span>
                     </div>
@@ -634,14 +687,20 @@ document.head.appendChild(style);
                   </div>
                   <div class="teams-matchup">
                     <div class="team-side home">
-                      <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers" class="team-logo">
+                      <picture>
+                        <source srcset="{{ url_for('static', filename='img/teams/Perth Scorchers.webp') }}" type="image/webp">
+                        <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers" class="team-logo" loading="lazy">
+                      </picture>
                       <span class="team-name">Perth Scorchers</span>
                     </div>
                     <div class="vs-indicator">
                       <span>VS</span>
                     </div>
                     <div class="team-side away">
-                      <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat" class="team-logo">
+                      <picture>
+                        <source srcset="{{ url_for('static', filename='img/teams/Brisbane Heat.webp') }}" type="image/webp">
+                        <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat" class="team-logo" loading="lazy">
+                      </picture>
                       <span class="team-name">Brisbane Heat</span>
                     </div>
                   </div>
@@ -658,14 +717,20 @@ document.head.appendChild(style);
                   </div>
                   <div class="teams-matchup">
                     <div class="team-side home">
-                      <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hurricanes" class="team-logo">
+                      <picture>
+                        <source srcset="{{ url_for('static', filename='img/teams/Hobart Hurricanes.webp') }}" type="image/webp">
+                        <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hurricanes" class="team-logo" loading="lazy">
+                      </picture>
                       <span class="team-name">Hobart Hurricanes</span>
                     </div>
                     <div class="vs-indicator">
                       <span>VS</span>
                     </div>
                     <div class="team-side away">
-                      <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Strikers" class="team-logo">
+                      <picture>
+                        <source srcset="{{ url_for('static', filename='img/teams/Adelaide Striker.webp') }}" type="image/webp">
+                        <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Strikers" class="team-logo" loading="lazy">
+                      </picture>
                       <span class="team-name">Adelaide Strikers</span>
                     </div>
                   </div>
@@ -696,7 +761,10 @@ document.head.appendChild(style);
                     <tr class="playoff-position" data-team="stars">
                       <td class="position">1</td>
                       <td class="team-cell">
-                        <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars" class="team-logo-table">
+                        <picture>
+                          <source srcset="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.webp') }}" type="image/webp">
+                          <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars" class="team-logo-table">
+                        </picture>
                         <span class="team-name">Melbourne Stars</span>
                         <span class="playoff-indicator">🏆</span>
                       </td>
@@ -709,7 +777,10 @@ document.head.appendChild(style);
                     <tr class="playoff-position" data-team="sixers">
                       <td class="position">2</td>
                       <td class="team-cell">
-                        <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers" class="team-logo-table">
+                        <picture>
+                          <source srcset="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.webp') }}" type="image/webp">
+                          <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers" class="team-logo-table">
+                        </picture>
                         <span class="team-name">Sydney Sixers</span>
                         <span class="playoff-indicator">🏆</span>
                       </td>
@@ -722,7 +793,10 @@ document.head.appendChild(style);
                     <tr class="playoff-position" data-team="scorchers">
                       <td class="position">3</td>
                       <td class="team-cell">
-                        <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers" class="team-logo-table">
+                        <picture>
+                          <source srcset="{{ url_for('static', filename='img/teams/Perth Scorchers.webp') }}" type="image/webp">
+                          <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers" class="team-logo-table">
+                        </picture>
                         <span class="team-name">Perth Scorchers</span>
                         <span class="playoff-indicator">🏆</span>
                       </td>
@@ -735,7 +809,10 @@ document.head.appendChild(style);
                     <tr class="playoff-position" data-team="heat">
                       <td class="position">4</td>
                       <td class="team-cell">
-                        <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat" class="team-logo-table">
+                        <picture>
+                          <source srcset="{{ url_for('static', filename='img/teams/Brisbane Heat.webp') }}" type="image/webp">
+                          <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat" class="team-logo-table">
+                        </picture>
                         <span class="team-name">Brisbane Heat</span>
                         <span class="playoff-indicator">🏆</span>
                       </td>
@@ -748,7 +825,10 @@ document.head.appendChild(style);
                     <tr data-team="hurricanes">
                       <td class="position">5</td>
                       <td class="team-cell">
-                        <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hurricanes" class="team-logo-table">
+                        <picture>
+                          <source srcset="{{ url_for('static', filename='img/teams/Hobart Hurricanes.webp') }}" type="image/webp">
+                          <img src="{{ url_for('static', filename='img/teams/Hobart Hurricanes.png') }}" alt="Hurricanes" class="team-logo-table">
+                        </picture>
                         <span class="team-name">Hobart Hurricanes</span>
                       </td>
                       <td>7</td>
@@ -760,7 +840,10 @@ document.head.appendChild(style);
                     <tr data-team="strikers">
                       <td class="position">6</td>
                       <td class="team-cell">
-                        <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Strikers" class="team-logo-table">
+                        <picture>
+                          <source srcset="{{ url_for('static', filename='img/teams/Adelaide Striker.webp') }}" type="image/webp">
+                          <img src="{{ url_for('static', filename='img/teams/Adelaide Striker.png') }}" alt="Strikers" class="team-logo-table">
+                        </picture>
                         <span class="team-name">Adelaide Strikers</span>
                       </td>
                       <td>8</td>
@@ -796,7 +879,10 @@ document.head.appendChild(style);
                         <div class="player-info">
                           <h4 class="player-name">Marcus Stoinis</h4>
                           <div class="team-badge stars-badge">
-                            <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars">
+                            <picture>
+                              <source srcset="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.webp') }}" type="image/webp">
+                              <img src="{{ url_for('static', filename='img/teams/Melbourne_Stars_logo.png') }}" alt="Stars">
+                            </picture>
                             <span>Melbourne Stars</span>
                           </div>
                         </div>
@@ -813,7 +899,10 @@ document.head.appendChild(style);
                         <div class="player-info">
                           <h4 class="player-name">Josh Inglis</h4>
                           <div class="team-badge scorchers-badge">
-                            <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers">
+                            <picture>
+                              <source srcset="{{ url_for('static', filename='img/teams/Perth Scorchers.webp') }}" type="image/webp">
+                              <img src="{{ url_for('static', filename='img/teams/Perth Scorchers.png') }}" alt="Scorchers">
+                            </picture>
                             <span>Perth Scorchers</span>
                           </div>
                         </div>
@@ -830,7 +919,10 @@ document.head.appendChild(style);
                         <div class="player-info">
                           <h4 class="player-name">Alex Hales</h4>
                           <div class="team-badge sixers-badge">
-                            <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers">
+                            <picture>
+                              <source srcset="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.webp') }}" type="image/webp">
+                              <img src="{{ url_for('static', filename='img/teams/Sydney_Sixers_logo.svg.png') }}" alt="Sixers">
+                            </picture>
                             <span>Sydney Sixers</span>
                           </div>
                         </div>
@@ -847,7 +939,10 @@ document.head.appendChild(style);
                         <div class="player-info">
                           <h4 class="player-name">Chris Lynn</h4>
                           <div class="team-badge heat-badge">
-                            <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat">
+                            <picture>
+                              <source srcset="{{ url_for('static', filename='img/teams/Brisbane Heat.webp') }}" type="image/webp">
+                              <img src="{{ url_for('static', filename='img/teams/Brisbane Heat.png') }}" alt="Heat">
+                            </picture>
                             <span>Brisbane Heat</span>
                           </div>
                         </div>

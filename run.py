@@ -31,31 +31,17 @@ try:
         if supa.test_connection():
             logger.info("Supabase connection OK.")
         else:
-            logger.warning("Supabase connection test failed. The app will still start; features may use fallbacks.")
-except Exception as e:
-    logger.warning(f"Supabase preflight skipped or failed: {e}")
-
-from app import create_app
-try:
-    # socketio is set in app.__init__ during create_app
-    from app import socketio  # type: ignore
-except Exception:
-    socketio = None
-
-# Determine the configuration to use
-config_name = os.environ.get('FLASK_ENV', 'default')
-
-# Create the application instance
-app = create_app(config_name)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    
+    print(f"CricVerse running on http://127.0.0.1:{port}")
+    
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=debug,
+        threaded=True
+    )
 
 if __name__ == '__main__':
-    host = os.environ.get('HOST', '127.0.0.1')
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
-
-    logger.info(f"Starting CricVerse on http://{host}:{port} (debug={debug})")
-    # Prefer SocketIO server if available
-    if socketio is not None:
-        socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
-    else:
-        app.run(host=host, port=port, debug=debug)
+    main()

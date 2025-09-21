@@ -57,15 +57,15 @@
                 <li><a class="dropdown-item" href="{{ url_for('main.ai_options') }}"><i class="bi bi-grid me-1"></i>Choose Interface</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{{ url_for('main.chat_interface') }}"><i class="bi bi-chat me-1"></i>Classic Chat</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('main.ai_assistant') }}"><i class="bi bi-stars me-1"></i>Command Center</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('main.chatbot') }}"><i class="bi bi-stars me-1"></i>AI Chatbot</a></li>
               </ul>
             </li>
-            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.realtime_demo' %}active{% endif %}" href="{{ url_for('main.realtime_demo') }}"><i class="bi bi-broadcast me-1"></i>LIVE</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.realtime' %}active{% endif %}" href="{{ url_for('main.realtime') }}"><i class="bi bi-broadcast me-1"></i>LIVE</a></li>
           </ul>
           <ul class="navbar-nav">
                 {% if current_user.is_authenticated %}
                 {% if current_user.is_admin() %}
-                    <li class="nav-item"><a href="{{ url_for('admin.index') }}" class="btn btn-outline-primary me-2">Admin</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-primary me-2">Admin Panel</a></li>
                 {% elif current_user.role == 'stadium_owner' %}
                     <li class="nav-item"><a href="{{ url_for('main.stadium_owner_dashboard') }}" class="btn btn-outline-primary me-2">Stadium Owner</a></li>
                 {% else %}

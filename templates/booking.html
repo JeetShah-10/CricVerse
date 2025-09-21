@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Book Tickets - CricVerse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4">Book Your Cricket Experience</h1>
+    
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Select Your Match</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="stadium" class="form-label">Stadium</label>
+                            <select class="form-control" id="stadium" onchange="loadEvents()">
+                                <option value="">Select Stadium</option>
+                                <option value="1">Melbourne Cricket Ground (MCG)</option>
+                                <option value="2">Sydney Cricket Ground (SCG)</option>
+                                <option value="3">Adelaide Oval</option>
+                                <option value="4">The Gabba</option>
+                                <option value="5">Perth Stadium</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="event" class="form-label">Match</label>
+                            <select class="form-control" id="event" onchange="loadSeats()">
+                                <option value="">Select Match</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="event-details" class="mt-3" style="display: none;">
+                        <div class="alert alert-info">
+                            <h6>Match Details</h6>
+                            <p id="match-info">Select a match to see details</p>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button class="btn btn-primary btn-lg" onclick="proceedToSeats()" disabled id="proceed-btn">
+                            <i class="fas fa-arrow-right"></i> Select Seats
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-ticket-alt fa-3x text-primary mb-3"></i>
+                            <h5>Easy Booking</h5>
+                            <p class="text-muted">Simple 3-step process to book your tickets</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                            <h5>Secure Payment</h5>
+                            <p class="text-muted">Multiple payment options with bank-level security</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="fas fa-mobile-alt fa-3x text-info mb-3"></i>
+                            <h5>Mobile Tickets</h5>
+                            <p class="text-muted">Digital tickets delivered instantly to your phone</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadEvents() {
+    const stadiumId = document.getElementById('stadium').value;
+    const eventSelect = document.getElementById('event');
+    
+    if (!stadiumId) {
+        eventSelect.innerHTML = '<option value="">Select Match</option>';
+        return;
+    }
+    
+    // Mock events data
+    const events = {
+        '1': [
+            {id: 1, name: 'Melbourne Stars vs Sydney Sixers', date: '2024-01-15', time: '7:15 PM'},
+            {id: 2, name: 'Melbourne Renegades vs Brisbane Heat', date: '2024-01-18', time: '7:15 PM'}
+        ],
+        '2': [
+            {id: 3, name: 'Sydney Thunder vs Perth Scorchers', date: '2024-01-16', time: '7:15 PM'},
+            {id: 4, name: 'Sydney Sixers vs Adelaide Strikers', date: '2024-01-20', time: '7:15 PM'}
+        ]
+    };
+    
+    const stadiumEvents = events[stadiumId] || [];
+    eventSelect.innerHTML = '<option value="">Select Match</option>';
+    
+    stadiumEvents.forEach(event => {
+        const option = document.createElement('option');
+        option.value = event.id;
+        option.textContent = `${event.name} - ${event.date} ${event.time}`;
+        eventSelect.appendChild(option);
+    });
+}
+
+function loadSeats() {
+    const eventId = document.getElementById('event').value;
+    const eventDetails = document.getElementById('event-details');
+    const proceedBtn = document.getElementById('proceed-btn');
+    
+    if (!eventId) {
+        eventDetails.style.display = 'none';
+        proceedBtn.disabled = true;
+        return;
+    }
+    
+    // Show event details
+    eventDetails.style.display = 'block';
+    document.getElementById('match-info').innerHTML = `
+        <strong>Selected Match:</strong> ${document.getElementById('event').selectedOptions[0].text}<br>
+        <strong>Stadium:</strong> ${document.getElementById('stadium').selectedOptions[0].text}<br>
+        <strong>Ticket Prices:</strong> From $25 (General) to $150 (Premium)
+    `;
+    
+    proceedBtn.disabled = false;
+}
+
+function proceedToSeats() {
+    const stadiumId = document.getElementById('stadium').value;
+    const eventId = document.getElementById('event').value;
+    
+    if (stadiumId && eventId) {
+        window.location.href = `/booking/select-seats?stadium=${stadiumId}&event=${eventId}`;
+    }
+}
+</script>
+{% endblock %}

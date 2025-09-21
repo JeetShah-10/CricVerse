@@ -266,13 +266,9 @@ def ai_options():
 def chat_interface():
     return render_template('chat.html')
 
-@main_bp.route('/ai_assistant')
-def ai_assistant():
-    return render_template('ai_assistant.html')
+# Removed ai_assistant route - template deleted
 
-@main_bp.route('/realtime')
-def realtime_demo():
-    return render_template('realtime.html')
+# Removed duplicate realtime route
 
 @main_bp.route('/stadium_owner')
 def stadium_owner_dashboard():
@@ -331,3 +327,179 @@ def realtime_stats():
         'uptime': None,
         'ts': request.headers.get('Date')
     })
+
+@main_bp.route('/realtime')
+def realtime():
+    """Real-time updates page."""
+    return render_template('realtime.html')
+
+@main_bp.route('/contact')
+def contact():
+    """Contact page."""
+    return render_template('contact.html')
+
+@main_bp.route('/privacy')
+def privacy():
+    """Privacy policy page."""
+    return render_template('privacy.html')
+
+@main_bp.route('/terms')
+def terms():
+    """Terms of service page."""
+    return render_template('terms.html')
+
+@main_bp.route('/chatbot')
+def chatbot():
+    """Chatbot page."""
+    return render_template('chatbot.html')
+
+@main_bp.route('/live-scores')
+def live_scores():
+    """Live scores page."""
+    return render_template('live_scores.html')
+
+@main_bp.route('/match-center')
+def match_center():
+    """Match center page."""
+    return render_template('match_center.html')
+
+@main_bp.route('/booking')
+def booking():
+    """Main booking page."""
+    return render_template('booking.html')
+
+@main_bp.route('/booking/select-seats')
+def select_seats():
+    """Seat selection page."""
+    return render_template('select_seats.html')
+
+@main_bp.route('/booking/checkout')
+def booking_checkout():
+    """Booking checkout page."""
+    return render_template('checkout.html')
+
+@main_bp.route('/booking/confirmation')
+def confirmation():
+    """Booking confirmation page."""
+    return render_template('confirmation.html')
+
+@main_bp.route('/bbl-action-hub')
+def bbl_action_hub():
+    """BBL Action Hub page."""
+    return render_template('bbl_action_hub.html')
+
+@main_bp.route('/qr-demo')
+def qr_demo():
+    """QR code demo page."""
+    return render_template('qr_demo.html')
+
+@main_bp.route('/generate-qr')
+def generate_qr():
+    """QR generation page."""
+    return render_template('generate_qr.html')
+
+@main_bp.route('/analytics')
+def analytics():
+    """Analytics dashboard."""
+    return render_template('analytics.html')
+
+@main_bp.route('/insights')
+def insights():
+    """Cricket insights page."""
+    return render_template('insights.html')
+
+@main_bp.route('/statistics')
+def statistics():
+    """Statistics page."""
+    return render_template('statistics.html')
+
+@main_bp.route('/api/health')
+def health_check():
+    """Health check API endpoint."""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'version': '1.0.0'
+    })
+
+@main_bp.route('/api/csrf-token')
+def csrf_token():
+    """CSRF token API endpoint."""
+    return jsonify({
+        'csrf_token': 'test-csrf-token',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@main_bp.route('/api/generate-qr', methods=['POST'])
+def generate_qr_api():
+    """QR generation API."""
+    data = request.get_json()
+    if not data or not data.get('data'):
+        return jsonify({'error': 'Data is required'}), 400
+    
+    return jsonify({
+        'success': True,
+        'qr_data': data.get('data'),
+        'qr_url': f'/qr/{data.get("data")}',
+        'timestamp': datetime.now().isoformat()
+    })
+
+# Removed routes for deleted templates
+
+@main_bp.route('/payment-success')
+def payment_success():
+    """Payment success page."""
+    return render_template('payment_success.html')
+
+@main_bp.route('/seat-selection')
+def seat_selection():
+    """Seat selection page."""
+    return render_template('seat_selection.html')
+
+@main_bp.route('/concession-menu')
+def concession_menu():
+    """Concession menu page."""
+    return render_template('concession_menu.html')
+
+@main_bp.route('/concession/<int:concession_id>/menu')
+def concession_menu_detail(concession_id):
+    """Concession menu detail page."""
+    concession = Concession.query.get_or_404(concession_id)
+    menu_items = MenuItem.query.filter_by(concession_id=concession_id).all()
+    return render_template('concession_menu.html', concession=concession, menu_items=menu_items)
+
+# Removed special feature routes - templates don't exist
+
+# Payment routes
+@main_bp.route('/payment/paypal/success')
+def paypal_success():
+    """PayPal payment success."""
+    return render_template('payment_success.html', payment_method='PayPal')
+
+@main_bp.route('/payment/paypal/cancel')
+def paypal_cancel():
+    """PayPal payment cancelled."""
+    flash('Payment was cancelled.', 'info')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/payment/razorpay/success')
+def razorpay_success():
+    """Razorpay payment success."""
+    return render_template('payment_success.html', payment_method='Razorpay')
+
+@main_bp.route('/payment/razorpay/cancel')
+def razorpay_cancel():
+    """Razorpay payment cancelled."""
+    flash('Payment was cancelled.', 'info')
+    return redirect(url_for('main.index'))
+
+# Missing basic templates
+@main_bp.route('/dashboard')
+def dashboard():
+    """User dashboard (redirect to user routes)."""
+    return redirect(url_for('user.dashboard'))
+
+@main_bp.route('/profile')
+def profile():
+    """User profile (redirect to user routes)."""
+    return redirect(url_for('user.profile'))

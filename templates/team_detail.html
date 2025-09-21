@@ -5,6 +5,7 @@
   <div class="d-flex flex-column flex-md-row align-items-center justify-content-between">
   <img src="{{ team.team_logo }}" alt="{{ team.team_name }} Logo"
          class="team-logo-lg rounded-circle shadow-lg mb-3 mb-md-0"
+         loading="lazy" decoding="async"
          style="width: 140px; height: 140px; object-fit: cover;">
     <div class="ms-md-4 text-center text-md-start">
   <h1 class="fw-bold text-light mb-1">{{ team.team_name }}</h1>
@@ -57,7 +58,7 @@
           {% for player in team.players %}
           <div class="col-6 col-md-4 col-lg-3">
             <div class="player-card card border-0 shadow-sm rounded-3 text-center p-2 h-100">
-              <img src="{{ player.image_url }}" alt="{{ player.name }}" class="rounded-circle mb-2" style="width:60px; height:60px; object-fit:cover;">
+              <img src="{{ player.image_url }}" alt="{{ player.name }}" class="rounded-circle mb-2" loading="lazy" decoding="async" style="width:60px; height:60px; object-fit:cover;">
               <div class="fw-bold">{{ player.name }}</div>
               <div class="small text-muted">{{ player.role }}</div>
               <div class="small text-info">{{ player.highlight }}</div>

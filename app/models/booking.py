@@ -8,17 +8,22 @@ class Customer(db.Model, UserMixin):
     __tablename__ = 'customer'
     
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=True)
+    first_name = db.Column(db.String(80), nullable=True)
+    last_name = db.Column(db.String(80), nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
+    role = db.Column(db.String(20), default='customer')  # customer, admin, stadium_owner
     
     # Relationships
     bookings = db.relationship('Booking', backref='customer', lazy=True)
     
     def __repr__(self):
-        return f'<Customer {self.email}>'
+        identifier = self.username or self.email
+        return f'<Customer {identifier}>'
     
     def set_password(self, password):
         """Set password hash."""
@@ -27,6 +32,25 @@ class Customer(db.Model, UserMixin):
     def check_password(self, password):
         """Check password hash."""
         return check_password_hash(self.password_hash, password)
+    
+    def is_admin(self):
+        """Check if user is admin."""
+        return self.role == 'admin'
+    
+    def is_stadium_owner(self):
+        """Check if user is stadium owner."""
+        return self.role == 'stadium_owner'
+    
+    def is_customer(self):
+        """Check if user is regular customer."""
+        return self.role == 'customer'
+    
+    @property
+    def name(self):
+        """Get full name or username."""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.username or self.email
 
 class Booking(db.Model):
     """Booking model for storing ticket bookings."""

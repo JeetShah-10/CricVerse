@@ -5,7 +5,7 @@
   <div class="col-md-4" data-aos="fade-right">
     <div class="card shadow-sm">
       <div class="ratio ratio-1x1">
-        <img class="object-fit-cover" src="{{ player.image_url or 'https://source.unsplash.com/featured/600x600/?cricket,player' }}" alt="{{ player.player_name }}">
+        <img class="object-fit-cover" src="{{ player.image_url or 'https://source.unsplash.com/featured/600x600/?cricket,player' }}" alt="{{ player.player_name }}" loading="lazy" decoding="async">
       </div>
       <div class="card-body text-center">
         <h3 class="card-title">{{ player.player_name }}</h3>

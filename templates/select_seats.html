@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Select Seats - CricVerse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4">Select Your Seats</h1>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Stadium Seating Map</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="stadium-field bg-success text-white p-3 rounded">
+                            <h6>CRICKET FIELD</h6>
+                        </div>
+                    </div>
+                    
+                    <div class="seating-area">
+                        <!-- Premium Section -->
+                        <div class="section mb-3">
+                            <h6 class="text-center">Premium Section - $150</h6>
+                            <div class="row justify-content-center">
+                                <div class="col-auto">
+                                    <div class="seat-row mb-2">
+                                        <span class="row-label">A</span>
+                                        <button class="seat available" onclick="selectSeat(this, 'A1', 150)">1</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'A2', 150)">2</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'A3', 150)">3</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'A4', 150)">4</button>
+                                        <button class="seat occupied" disabled>5</button>
+                                        <button class="seat occupied" disabled>6</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'A7', 150)">7</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'A8', 150)">8</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- General Section -->
+                        <div class="section mb-3">
+                            <h6 class="text-center">General Admission - $75</h6>
+                            <div class="row justify-content-center">
+                                <div class="col-auto">
+                                    <div class="seat-row mb-2">
+                                        <span class="row-label">B</span>
+                                        <button class="seat available" onclick="selectSeat(this, 'B1', 75)">1</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'B2', 75)">2</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'B3', 75)">3</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'B4', 75)">4</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'B5', 75)">5</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'B6', 75)">6</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'B7', 75)">7</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'B8', 75)">8</button>
+                                    </div>
+                                    <div class="seat-row mb-2">
+                                        <span class="row-label">C</span>
+                                        <button class="seat available" onclick="selectSeat(this, 'C1', 75)">1</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'C2', 75)">2</button>
+                                        <button class="seat occupied" disabled>3</button>
+                                        <button class="seat occupied" disabled>4</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'C5', 75)">5</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'C6', 75)">6</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'C7', 75)">7</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'C8', 75)">8</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Economy Section -->
+                        <div class="section mb-3">
+                            <h6 class="text-center">Economy - $25</h6>
+                            <div class="row justify-content-center">
+                                <div class="col-auto">
+                                    <div class="seat-row mb-2">
+                                        <span class="row-label">D</span>
+                                        <button class="seat available" onclick="selectSeat(this, 'D1', 25)">1</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'D2', 25)">2</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'D3', 25)">3</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'D4', 25)">4</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'D5', 25)">5</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'D6', 25)">6</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'D7', 25)">7</button>
+                                        <button class="seat available" onclick="selectSeat(this, 'D8', 25)">8</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="legend mt-4">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <button class="seat available" disabled></button>
+                                <small class="d-block">Available</small>
+                            </div>
+                            <div class="col-4">
+                                <button class="seat occupied" disabled></button>
+                                <small class="d-block">Occupied</small>
+                            </div>
+                            <div class="col-4">
+                                <button class="seat selected" disabled></button>
+                                <small class="d-block">Selected</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Booking Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div id="selected-seats">
+                        <p class="text-muted">No seats selected</p>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <strong>Total: </strong>
+                        <strong id="total-price">$0</strong>
+                    </div>
+                    
+                    <button class="btn btn-primary btn-lg w-100 mt-3" id="checkout-btn" onclick="proceedToCheckout()" disabled>
+                        Proceed to Checkout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.seat {
+    width: 35px;
+    height: 35px;
+    margin: 2px;
+    border: 2px solid #ddd;
+    background: #f8f9fa;
+    border-radius: 5px;
+    font-size: 12px;
+}
+
+.seat.available {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.seat.occupied {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.seat.selected {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.seat-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.row-label {
+    width: 30px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.stadium-field {
+    max-width: 300px;
+    margin: 0 auto;
+}
+</style>
+
+<script>
+let selectedSeats = [];
+let totalPrice = 0;
+
+function selectSeat(button, seatId, price) {
+    if (button.classList.contains('selected')) {
+        // Deselect seat
+        button.classList.remove('selected');
+        button.classList.add('available');
+        
+        const index = selectedSeats.findIndex(seat => seat.id === seatId);
+        if (index > -1) {
+            selectedSeats.splice(index, 1);
+            totalPrice -= price;
+        }
+    } else {
+        // Select seat
+        button.classList.remove('available');
+        button.classList.add('selected');
+        
+        selectedSeats.push({id: seatId, price: price});
+        totalPrice += price;
+    }
+    
+    updateSummary();
+}
+
+function updateSummary() {
+    const summaryDiv = document.getElementById('selected-seats');
+    const checkoutBtn = document.getElementById('checkout-btn');
+    
+    if (selectedSeats.length === 0) {
+        summaryDiv.innerHTML = '<p class="text-muted">No seats selected</p>';
+        checkoutBtn.disabled = true;
+    } else {
+        let html = '<h6>Selected Seats:</h6>';
+        selectedSeats.forEach(seat => {
+            html += `<div class="d-flex justify-content-between mb-1">
+                        <span>Seat ${seat.id}</span>
+                        <span>$${seat.price}</span>
+                     </div>`;
+        });
+        summaryDiv.innerHTML = html;
+        checkoutBtn.disabled = false;
+    }
+    
+    document.getElementById('total-price').textContent = `$${totalPrice}`;
+}
+
+function proceedToCheckout() {
+    if (selectedSeats.length > 0) {
+        // Store selection in sessionStorage
+        sessionStorage.setItem('selectedSeats', JSON.stringify(selectedSeats));
+        sessionStorage.setItem('totalPrice', totalPrice);
+        
+        window.location.href = '/booking/checkout';
+    }
+}
+</script>
+{% endblock %}

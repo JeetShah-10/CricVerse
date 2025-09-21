@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Live Scores - CricVerse{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="text-center mb-4">BBL Live Scores</h1>
+    
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Current Matches</h5>
+                    <span class="badge bg-success">LIVE</span>
+                </div>
+                <div class="card-body" id="live-scores">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading live scores...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Results</h5>
+                </div>
+                <div class="card-body" id="recent-results">
+                    <p class="text-muted">Loading recent results...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Upcoming Matches</h5>
+                </div>
+                <div class="card-body" id="upcoming-matches">
+                    <p class="text-muted">Loading upcoming matches...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load live scores on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadLiveScores();
+    // Refresh every 30 seconds
+    setInterval(loadLiveScores, 30000);
+});
+
+function loadLiveScores() {
+    fetch('/api/bbl/live-scores')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayLiveScores(data.matches || []);
+            } else {
+                document.getElementById('live-scores').innerHTML = 
+                    '<p class="text-muted">No live matches at the moment.</p>';
+            }
+        })
+        .catch(error => {
+            document.getElementById('live-scores').innerHTML = 
+                '<p class="text-danger">Error loading live scores.</p>';
+        });
+}
+
+function displayLiveScores(matches) {
+    const container = document.getElementById('live-scores');
+    
+    if (matches.length === 0) {
+        container.innerHTML = '<p class="text-muted">No live matches at the moment.</p>';
+        return;
+    }
+    
+    let html = '';
+    matches.forEach(match => {
+        html += `
+            <div class="match-card mb-3 p-3 border rounded">
+                <div class="row align-items-center">
+                    <div class="col-md-4 text-center">
+                        <strong>${match.home_team || 'Team A'}</strong>
+                        <div class="score">${match.home_score || '0/0'}</div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <span class="badge bg-danger">VS</span>
+                        <div class="mt-1">
+                            <small class="text-muted">${match.status || 'In Progress'}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <strong>${match.away_team || 'Team B'}</strong>
+                        <div class="score">${match.away_score || '0/0'}</div>
+                    </div>
+                </div>
+                <div class="text-center mt-2">
+                    <small class="text-muted">${match.venue || 'Stadium'} • ${match.overs || 'Over 0.0'}</small>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+</script>
+{% endblock %}

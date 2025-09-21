@@ -8,7 +8,7 @@
     {% for p in players %}
     <div class="col-sm-6 col-md-4 col-lg-3" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 40 }}">
       <div class="card h-100 shadow-lg">
-        <img class="card-img-top" style="height: 12rem; object-fit: cover;" src="{{ p.image_url or 'https://source.unsplash.com/featured/600x600/?cricket,player' }}" alt="{{ p.player_name }}">
+        <img class="card-img-top" style="height: 12rem; object-fit: cover;" src="{{ p.image_url or 'https://source.unsplash.com/featured/600x600/?cricket,player' }}" alt="{{ p.player_name }}" loading="lazy" decoding="async">
         <div class="card-body">
           <h6 class="card-title fs-6 fw-semibold mb-2">
             <a href="{{ url_for('main.player_detail', player_id=p.id) }}" class="text-decoration-none">{{ p.player_name }}</a>

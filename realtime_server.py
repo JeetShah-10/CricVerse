@@ -31,7 +31,9 @@ def init_socketio(app):
         redis_client.ping()
         logger.info(f"✅ Redis connected: {redis_url}")
     except Exception as e:
-        logger.warning(f"⚠️ Redis connection failed: {e}")
+        # Only warn if not in testing mode
+        if not os.getenv('PYTEST_CURRENT_TEST') and not os.getenv('TESTING'):
+            logger.warning(f"⚠️ Redis connection failed: {e}")
         redis_client = None
     
     # Initialize SocketIO with Redis adapter if available

@@ -1,10 +1,11 @@
-from flask import Flask
+from flask import Flask, request
+from flask_compress import Compress
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import config
 import os
 import logging
-from admin import init_admin
+# Removed admin import - not needed
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -30,10 +31,22 @@ def create_app(config_name='default'):
                 static_folder='../static')
     app.config.from_object(config[config_name])
     
+    # If running under pytest, force testing-friendly SQLite in-memory DB
+    if os.getenv('PYTEST_CURRENT_TEST') or config_name == 'testing':
+        app.config['TESTING'] = True
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Strong browser caching for static files to improve load times
+    # Note: During active development, you may want to reduce this value.
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 60 * 60 * 24 * 30  # 30 days
+    
     # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+    # Enable gzip compression for text-based responses
+    Compress(app)
     
     # Inject Supabase configuration into all templates
     @app.context_processor
@@ -61,6 +74,10 @@ def create_app(config_name='default'):
     # Register main site routes blueprint
     from app.routes.main import main_bp
     app.register_blueprint(main_bp)
+    
+    # Register admin routes blueprint
+    from app.routes.admin import admin_bp
+    app.register_blueprint(admin_bp)
     
     # Register BBL API routes
     try:
@@ -90,18 +107,40 @@ def create_app(config_name='default'):
     except Exception as e:
         logger.warning(f"⚠️ Notification services initialization failed: {e}")
 
-    # Initialize Flask-Admin
-    if os.getenv('ENABLE_ADMIN', '0') == '1':
-        from app.models import Customer, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking, VerificationSubmission
-        init_admin(app, db, Customer, Event, Booking, Ticket, Stadium, Team, Seat, Concession, Parking, VerificationSubmission)
+    # Add caching headers for static assets (defense-in-depth alongside SEND_FILE_MAX_AGE_DEFAULT)
+    @app.after_request
+    def add_caching_headers(response):
+        try:
+            path = request.path or ''
+            if path.startswith('/static/'):
+                # 30 days immutable caching for versioned assets
+                response.headers.setdefault('Cache-Control', 'public, max-age=2592000, immutable')
+            return response
+        except Exception:
+            return response
+
+    # Admin functionality handled by custom admin routes
+
+    # In testing or pytest environment, ensure all tables are created
+    if config_name == 'testing' or app.config.get('TESTING'):
+        try:
+            with app.app_context():
+                # Import models so SQLAlchemy is aware of metadata before creating tables
+                from app import models  # noqa: F401
+                db.create_all()
+                logger.info("✅ Created all database tables for testing environment")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to auto-create tables in testing environment: {e}")
 
     return app
 
 # Expose a module-level app instance for tests importing `from app import app`
-try:
-    app  # type: ignore[name-defined]
-except NameError:  # pragma: no cover
+# This ensures tests get a Flask app instance, not the module
+# Only create if not in testing mode to avoid conflicts
+if not os.environ.get('PYTEST_CURRENT_TEST'):
     app = create_app(os.environ.get('FLASK_ENV', 'default'))
+else:
+    app = None  # Will be created by test fixtures
 
 # Backward-compatibility: expose common ORM models at module level so
 # imports like `from app import Stadium` continue to work.
